@@ -131,8 +131,7 @@ const router = createRouter({
         {
           path: 'general-ledger/project-balance',
           name: 'ProjectBalanceSheet',
-          component: Placeholder,
-          props: { title: '核算项目余额表' },
+          component: () => import('@/views/general-ledger/ProjectBalanceSheet.vue'),
           meta: { title: '核算项目余额表', group: '辅助账簿' },
         },
 
