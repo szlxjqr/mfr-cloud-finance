@@ -119,8 +119,7 @@ const router = createRouter({
         {
           path: 'general-ledger/qty-fx-balance',
           name: 'QtyFxBalanceSheet',
-          component: Placeholder,
-          props: { title: '数量外币余额表' },
+          component: () => import('@/views/general-ledger/QtyFxBalanceSheet.vue'),
           meta: { title: '数量外币余额表', group: '辅助账簿' },
         },
         {
