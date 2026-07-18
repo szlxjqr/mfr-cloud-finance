@@ -76,7 +76,24 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
-  { title: '报表', path: '/reports', icon: 'DataAnalysis' },
+  {
+    title: '报表',
+    icon: 'DataAnalysis',
+    groups: [
+      {
+        title: '财务报表',
+        icon: 'DataAnalysis',
+        color: '#67C23A',
+        children: [
+          { title: '资产负债表', path: '/reports/balance-sheet' },
+          { title: '利润表', path: '/reports/income-statement' },
+          { title: '利润表季报', path: '/reports/income-statement-quarterly' },
+          { title: '现金流量表', path: '/reports/cash-flow' },
+          { title: '现金流量表季报', path: '/reports/cash-flow-quarterly' },
+        ],
+      },
+    ],
+  },
   { title: '出纳', path: '/cashier', icon: 'Money' },
   { title: '资产', path: '/assets', icon: 'OfficeBuilding' },
   { title: '工资', path: '/payroll', icon: 'User' },
@@ -90,8 +107,8 @@ const menuItems: MenuItem[] = [
 /** 当前激活菜单项 */
 const activeMenu = computed(() => route.path)
 
-/** 总账子菜单是否默认展开 */
-const generalLedgerOpened = ref(['general-ledger'])
+/** 总账/报表子菜单是否默认展开 */
+const defaultOpenedMenus = ref(['general-ledger', 'reports'])
 
 const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
 
@@ -114,7 +131,7 @@ function handleFooter(command: 'service' | 'material') {
       <el-menu
         class="side-menu"
         :default-active="activeMenu"
-        :default-openeds="generalLedgerOpened"
+        :default-openeds="defaultOpenedMenus"
         :collapse="appStore.sidebarCollapsed"
         :collapse-transition="false"
         router
@@ -150,9 +167,34 @@ function handleFooter(command: 'service' | 'material') {
           </div>
         </el-sub-menu>
 
+        <!-- 报表：带子分组的 el-sub-menu -->
+        <el-sub-menu index="reports">
+          <template #title>
+            <el-icon><component is="DataAnalysis" /></el-icon>
+            <span class="menu-title">报表</span>
+          </template>
+
+          <!-- 分组: 财务报表 -->
+          <div v-for="(group, gi) in menuItems[2].groups" :key="gi" class="menu-group">
+            <div class="group-header" :style="{ color: group.color }">
+              <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                <el-icon :size="14"><component :is="group.icon" /></el-icon>
+              </span>
+              {{ group.title }}
+            </div>
+            <el-menu-item
+              v-for="child in group.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
+          </div>
+        </el-sub-menu>
+
         <!-- 其余：普通菜单项 -->
         <el-menu-item
-          v-for="item in menuItems.slice(2)"
+          v-for="item in menuItems.slice(3)"
           :key="item.path"
           :index="item.path!"
           :class="{ 'menu-highlight': item.highlight }"

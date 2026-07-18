@@ -135,8 +135,44 @@ const router = createRouter({
           meta: { title: '核算项目余额表', group: '辅助账簿' },
         },
 
+        /* ====== 报表模块 ====== */
+        {
+          path: 'reports/balance-sheet',
+          name: 'BalanceSheetReport',
+          component: Placeholder,
+          props: { title: '资产负债表' },
+          meta: { title: '资产负债表', group: '财务报表' },
+        },
+        {
+          path: 'reports/income-statement',
+          name: 'IncomeStatement',
+          component: Placeholder,
+          props: { title: '利润表' },
+          meta: { title: '利润表', group: '财务报表' },
+        },
+        {
+          path: 'reports/income-statement-quarterly',
+          name: 'IncomeStatementQuarterly',
+          component: Placeholder,
+          props: { title: '利润表季报' },
+          meta: { title: '利润表季报', group: '财务报表' },
+        },
+        {
+          path: 'reports/cash-flow',
+          name: 'CashFlowStatement',
+          component: Placeholder,
+          props: { title: '现金流量表' },
+          meta: { title: '现金流量表', group: '财务报表' },
+        },
+        {
+          path: 'reports/cash-flow-quarterly',
+          name: 'CashFlowStatementQuarterly',
+          component: Placeholder,
+          props: { title: '现金流量表季报' },
+          meta: { title: '现金流量表季报', group: '财务报表' },
+        },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'reports', name: 'Reports', component: Placeholder, props: { title: '财务报表' }, meta: { title: '报表' } },
         { path: 'cashier', name: 'Cashier', component: Placeholder, props: { title: '出纳管理' }, meta: { title: '出纳' } },
         { path: 'assets', name: 'Assets', component: Placeholder, props: { title: '资产管理' }, meta: { title: '资产' } },
         { path: 'payroll', name: 'Payroll', component: Placeholder, props: { title: '工资管理' }, meta: { title: '工资' } },
