@@ -195,8 +195,16 @@ const router = createRouter({
           meta: { title: '核对总账', group: '资金管理' },
         },
 
+        /* ====== 资产模块 ====== */
+        {
+          path: 'assets/fixed-asset',
+          name: 'FixedAsset',
+          component: Placeholder,
+          props: { title: '固定资产管理' },
+          meta: { title: '固定资产管理', group: '固定资产' },
+        },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'assets', name: 'Assets', component: Placeholder, props: { title: '资产管理' }, meta: { title: '资产' } },
         { path: 'payroll', name: 'Payroll', component: Placeholder, props: { title: '工资管理' }, meta: { title: '工资' } },
         { path: 'invoice', name: 'Invoice', component: Placeholder, props: { title: '发票管理（账免）' }, meta: { title: '发票' } },
         { path: 'closing', name: 'Closing', component: Placeholder, props: { title: '期间结账' }, meta: { title: '结账' } },

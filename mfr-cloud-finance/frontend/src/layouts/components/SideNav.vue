@@ -110,7 +110,20 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
-  { title: '资产', path: '/assets', icon: 'OfficeBuilding' },
+  {
+    title: '资产',
+    icon: 'OfficeBuilding',
+    groups: [
+      {
+        title: '固定资产',
+        icon: 'OfficeBuilding',
+        color: '#13C2C2',
+        children: [
+          { title: '固定资产管理', path: '/assets/fixed-asset' },
+        ],
+      },
+    ],
+  },
   { title: '工资', path: '/payroll', icon: 'User' },
   { title: '发票', path: '/invoice', icon: 'Ticket', badge: '账免' },
   { title: '结账', path: '/closing', icon: 'CircleCheck' },
@@ -122,8 +135,8 @@ const menuItems: MenuItem[] = [
 /** 当前激活菜单项 */
 const activeMenu = computed(() => route.path)
 
-/** 总账/报表/出纳子菜单是否默认展开 */
-const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier'])
+/** 总账/报表/出纳/资产子菜单是否默认展开 */
+const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets'])
 
 const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
 
@@ -232,9 +245,34 @@ function handleFooter(command: 'service' | 'material') {
           </div>
         </el-sub-menu>
 
+        <!-- 资产：带子分组的 el-sub-menu -->
+        <el-sub-menu index="assets">
+          <template #title>
+            <el-icon><component is="OfficeBuilding" /></el-icon>
+            <span class="menu-title">资产</span>
+          </template>
+
+          <!-- 分组: 固定资产 -->
+          <div v-for="(group, gi) in menuItems[4].groups" :key="gi" class="menu-group">
+            <div class="group-header" :style="{ color: group.color }">
+              <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                <el-icon :size="14"><component :is="group.icon" /></el-icon>
+              </span>
+              {{ group.title }}
+            </div>
+            <el-menu-item
+              v-for="child in group.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
+          </div>
+        </el-sub-menu>
+
         <!-- 其余：普通菜单项 -->
         <el-menu-item
-          v-for="item in menuItems.slice(4)"
+          v-for="item in menuItems.slice(5)"
           :key="item.path"
           :index="item.path!"
           :class="{ 'menu-highlight': item.highlight }"
