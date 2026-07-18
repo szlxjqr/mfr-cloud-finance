@@ -191,7 +191,38 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
-  { title: '设置', path: '/settings', icon: 'Setting' },
+  {
+    title: '设置',
+    icon: 'Setting',
+    groups: [
+      {
+        title: '基础数据',
+        icon: 'DataLine',
+        color: '#409EFF',
+        children: [
+          { title: '科目', path: '/settings/account' },
+          { title: '期初', path: '/settings/opening' },
+          { title: '辅助字典', path: '/settings/aux-dict' },
+          { title: '币别', path: '/settings/currency' },
+          { title: '凭证摘要', path: '/settings/summary' },
+          { title: '凭证字', path: '/settings/voucher-word' },
+        ],
+      },
+      {
+        title: '基础设置',
+        icon: 'Setting',
+        color: '#E6A23C',
+        children: [
+          { title: '凭证模板', path: '/settings/voucher-template' },
+          { title: '凭证配置', path: '/settings/voucher-config' },
+          { title: '日记账模板', path: '/settings/diary-template' },
+          { title: '归档管理', path: '/settings/archive' },
+          { title: '系统设置', path: '/settings/system' },
+          { title: '审计接口文件导出', path: '/settings/audit-export' },
+        ],
+      },
+    ],
+  },
   { title: '新手指引', path: '/guide', icon: 'Notebook' },
   { title: '业财一体', path: '/integration', icon: 'Connection', highlight: true },
 ]
@@ -199,8 +230,8 @@ const menuItems: MenuItem[] = [
 /** 当前激活菜单项 */
 const activeMenu = computed(() => route.path)
 
-/** 总账/报表/出纳/资产/工资/发票/结账子菜单是否默认展开 */
-const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets', 'payroll', 'invoice', 'closing'])
+/** 总账/报表/出纳/资产/工资/发票/结账/设置子菜单是否默认展开 */
+const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets', 'payroll', 'invoice', 'closing', 'settings'])
 
 const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
 
@@ -413,9 +444,36 @@ function handleFooter(command: 'service' | 'material') {
           </div>
         </el-sub-menu>
 
+        <!-- 设置：带子分组的 el-sub-menu（双分组，两列布局） -->
+        <el-sub-menu index="settings">
+          <template #title>
+            <el-icon><component is="Setting" /></el-icon>
+            <span class="menu-title">设置</span>
+          </template>
+
+          <!-- 分组: 基础数据 + 基础设置（两列布局） -->
+          <div class="payroll-grid">
+            <div v-for="(group, gi) in menuItems[8].groups" :key="gi" class="payroll-col">
+              <div class="group-header" :style="{ color: group.color }">
+                <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                  <el-icon :size="14"><component :is="group.icon" /></el-icon>
+                </span>
+                {{ group.title }}
+              </div>
+              <el-menu-item
+                v-for="child in group.children"
+                :key="child.path"
+                :index="child.path"
+              >
+                {{ child.title }}
+              </el-menu-item>
+            </div>
+          </div>
+        </el-sub-menu>
+
         <!-- 其余：普通菜单项 -->
         <el-menu-item
-          v-for="item in menuItems.slice(8)"
+          v-for="item in menuItems.slice(9)"
           :key="item.path"
           :index="item.path!"
           :class="{ 'menu-highlight': item.highlight }"

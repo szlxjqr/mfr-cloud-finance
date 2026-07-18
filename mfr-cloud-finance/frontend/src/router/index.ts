@@ -224,8 +224,21 @@ const router = createRouter({
         { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: Placeholder, props: { title: '期末结转' }, meta: { title: '期末结转', group: '结账' } },
         { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账' } },
 
+        /* ====== 设置模块 ====== */
+        { path: 'settings/account', name: 'SettingsAccount', component: Placeholder, props: { title: '科目' }, meta: { title: '科目', group: '基础数据' } },
+        { path: 'settings/opening', name: 'SettingsOpening', component: Placeholder, props: { title: '期初' }, meta: { title: '期初', group: '基础数据' } },
+        { path: 'settings/aux-dict', name: 'SettingsAuxDict', component: Placeholder, props: { title: '辅助字典' }, meta: { title: '辅助字典', group: '基础数据' } },
+        { path: 'settings/currency', name: 'SettingsCurrency', component: Placeholder, props: { title: '币别' }, meta: { title: '币别', group: '基础数据' } },
+        { path: 'settings/summary', name: 'SettingsSummary', component: Placeholder, props: { title: '凭证摘要' }, meta: { title: '凭证摘要', group: '基础数据' } },
+        { path: 'settings/voucher-word', name: 'SettingsVoucherWord', component: Placeholder, props: { title: '凭证字' }, meta: { title: '凭证字', group: '基础数据' } },
+        { path: 'settings/voucher-template', name: 'SettingsVoucherTemplate', component: Placeholder, props: { title: '凭证模板' }, meta: { title: '凭证模板', group: '基础设置' } },
+        { path: 'settings/voucher-config', name: 'SettingsVoucherConfig', component: Placeholder, props: { title: '凭证配置' }, meta: { title: '凭证配置', group: '基础设置' } },
+        { path: 'settings/diary-template', name: 'SettingsDiaryTemplate', component: Placeholder, props: { title: '日记账模板' }, meta: { title: '日记账模板', group: '基础设置' } },
+        { path: 'settings/archive', name: 'SettingsArchive', component: Placeholder, props: { title: '归档管理' }, meta: { title: '归档管理', group: '基础设置' } },
+        { path: 'settings/system', name: 'SettingsSystem', component: Placeholder, props: { title: '系统设置' }, meta: { title: '系统设置', group: '基础设置' } },
+        { path: 'settings/audit-export', name: 'SettingsAuditExport', component: Placeholder, props: { title: '审计接口文件导出' }, meta: { title: '审计接口文件导出', group: '基础设置' } },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'settings', name: 'Settings', component: Placeholder, props: { title: '系统设置' }, meta: { title: '设置' } },
         { path: 'guide', name: 'Guide', component: Placeholder, props: { title: '新手指引' }, meta: { title: '新手指引' } },
         { path: 'integration', name: 'Integration', component: Placeholder, props: { title: '业财一体' }, meta: { title: '业财一体' } },
       ],
