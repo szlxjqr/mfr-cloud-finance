@@ -107,8 +107,7 @@ const router = createRouter({
         {
           path: 'general-ledger/aux-balance',
           name: 'AuxBalanceSheet',
-          component: Placeholder,
-          props: { title: '科目辅助余额表' },
+          component: () => import('@/views/general-ledger/AuxBalanceSheet.vue'),
           meta: { title: '科目辅助余额表', group: '辅助账簿' },
         },
         {
