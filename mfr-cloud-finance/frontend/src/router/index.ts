@@ -220,8 +220,11 @@ const router = createRouter({
         { path: 'invoice/title', name: 'InvoiceTitle', component: Placeholder, props: { title: '发票抬头' }, meta: { title: '发票抬头', group: '发票设置' } },
         { path: 'invoice/setting', name: 'InvoiceSetting', component: Placeholder, props: { title: '发票设置' }, meta: { title: '发票设置', group: '发票设置' } },
 
+        /* ====== 结账模块 ====== */
+        { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: Placeholder, props: { title: '期末结转' }, meta: { title: '期末结转', group: '结账' } },
+        { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账' } },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'closing', name: 'Closing', component: Placeholder, props: { title: '期间结账' }, meta: { title: '结账' } },
         { path: 'settings', name: 'Settings', component: Placeholder, props: { title: '系统设置' }, meta: { title: '设置' } },
         { path: 'guide', name: 'Guide', component: Placeholder, props: { title: '新手指引' }, meta: { title: '新手指引' } },
         { path: 'integration', name: 'Integration', component: Placeholder, props: { title: '业财一体' }, meta: { title: '业财一体' } },
