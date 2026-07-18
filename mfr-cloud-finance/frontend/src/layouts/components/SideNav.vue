@@ -365,50 +365,46 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
             <span class="menu-title">工资</span>
           </template>
 
-          <!-- 分组: 工资 + 工资设置（两列布局） -->
-          <div class="payroll-grid">
-            <div v-for="(group, gi) in menuItems[5].groups" :key="gi" class="payroll-col">
-              <div class="group-header" :style="{ color: group.color }">
-                <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
-                  <el-icon :size="14"><component :is="group.icon" /></el-icon>
-                </span>
-                {{ group.title }}
-              </div>
-              <el-menu-item
-                v-for="child in group.children"
-                :key="child.path"
-                :index="child.path"
-              >
-                {{ child.title }}
-              </el-menu-item>
+          <!-- 分组: 工资 + 工资设置（纵向堆叠） -->
+          <div v-for="(group, gi) in menuItems[5].groups" :key="gi" class="menu-group">
+            <div class="group-header" :style="{ color: group.color }">
+              <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                <el-icon :size="14"><component :is="group.icon" /></el-icon>
+              </span>
+              {{ group.title }}
             </div>
+            <el-menu-item
+              v-for="child in group.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
           </div>
         </el-sub-menu>
 
-        <!-- 发票：带子分组的 el-sub-menu（双分组，两列布局） -->
+        <!-- 发票：带子分组的 el-sub-menu（纵向堆叠） -->
         <el-sub-menu index="invoice">
           <template #title>
             <el-icon><component is="Ticket" /></el-icon>
             <span class="menu-title">发票</span>
           </template>
 
-          <!-- 分组: 发票 + 发票设置（两列布局） -->
-          <div class="payroll-grid">
-            <div v-for="(group, gi) in menuItems[6].groups" :key="gi" class="payroll-col">
-              <div class="group-header" :style="{ color: group.color }">
-                <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
-                  <el-icon :size="14"><component :is="group.icon" /></el-icon>
-                </span>
-                {{ group.title }}
-              </div>
-              <el-menu-item
-                v-for="child in group.children"
-                :key="child.path"
-                :index="child.path"
-              >
-                {{ child.title }}
-              </el-menu-item>
+          <!-- 分组: 发票 + 发票设置（纵向堆叠） -->
+          <div v-for="(group, gi) in menuItems[6].groups" :key="gi" class="menu-group">
+            <div class="group-header" :style="{ color: group.color }">
+              <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                <el-icon :size="14"><component :is="group.icon" /></el-icon>
+              </span>
+              {{ group.title }}
             </div>
+            <el-menu-item
+              v-for="child in group.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
           </div>
         </el-sub-menu>
 
@@ -444,23 +440,21 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
             <span class="menu-title">设置</span>
           </template>
 
-          <!-- 分组: 基础数据 + 基础设置（两列布局） -->
-          <div class="payroll-grid">
-            <div v-for="(group, gi) in menuItems[8].groups" :key="gi" class="payroll-col">
-              <div class="group-header" :style="{ color: group.color }">
-                <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
-                  <el-icon :size="14"><component :is="group.icon" /></el-icon>
-                </span>
-                {{ group.title }}
-              </div>
-              <el-menu-item
-                v-for="child in group.children"
-                :key="child.path"
-                :index="child.path"
-              >
-                {{ child.title }}
-              </el-menu-item>
+          <!-- 分组: 基础数据 + 基础设置（纵向堆叠） -->
+          <div v-for="(group, gi) in menuItems[8].groups" :key="gi" class="menu-group">
+            <div class="group-header" :style="{ color: group.color }">
+              <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                <el-icon :size="14"><component :is="group.icon" /></el-icon>
+              </span>
+              {{ group.title }}
             </div>
+            <el-menu-item
+              v-for="child in group.children"
+              :key="child.path"
+              :index="child.path"
+            >
+              {{ child.title }}
+            </el-menu-item>
           </div>
         </el-sub-menu>
 
@@ -638,22 +632,6 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   padding: 6px 12px 4px 24px;
 }
 
-/* 工资菜单：双列网格布局 */
-.payroll-grid {
-  display: flex;
-  gap: 0;
-  padding: 0 8px;
-}
-.payroll-col {
-  flex: 1;
-  min-width: 0;
-}
-.payroll-col .group-header {
-  padding-left: 12px;
-}
-.payroll-col :deep(.el-menu-item) {
-  padding-left: 32px !important;
-}
 .group-header {
   display: flex;
   align-items: center;
