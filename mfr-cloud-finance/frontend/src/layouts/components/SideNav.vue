@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-import { ElMessage } from 'element-plus'
 
 const appStore = useAppStore()
 const route = useRoute()
@@ -224,7 +223,6 @@ const menuItems: MenuItem[] = [
     ],
   },
   { title: '新手指引', path: '/guide', icon: 'Notebook' },
-  { title: '业财一体', path: '/integration', icon: 'Connection', highlight: true },
 ]
 
 /** 当前激活菜单项 */
@@ -234,11 +232,6 @@ const activeMenu = computed(() => route.path)
 const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets', 'payroll', 'invoice', 'closing', 'settings'])
 
 const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
-
-function handleFooter(command: 'service' | 'material') {
-  if (command === 'service') ElMessage.info('正在为您接入在线客服…')
-  else ElMessage.info('已为您准备学习资料包')
-}
 </script>
 
 <template>
@@ -476,55 +469,13 @@ function handleFooter(command: 'service' | 'material') {
           v-for="item in menuItems.slice(9)"
           :key="item.path"
           :index="item.path!"
-          :class="{ 'menu-highlight': item.highlight }"
         >
           <el-icon><component :is="item.icon!" /></el-icon>
           <span class="menu-title">{{ item.title }}</span>
-          <el-tag
-            v-if="item.badge"
-            size="small"
-            type="warning"
-            effect="dark"
-            round
-            class="menu-badge"
-          >
-            {{ item.badge }}
-          </el-tag>
         </el-menu-item>
       </el-menu>
     </el-scrollbar>
 
-    <!-- 底部功能区 -->
-    <div class="side-footer">
-      <el-button
-        v-show="!appStore.sidebarCollapsed"
-        class="footer-btn"
-        text
-        @click="handleFooter('service')"
-      >
-        联系客服
-      </el-button>
-      <el-button
-        v-show="!appStore.sidebarCollapsed"
-        class="footer-btn"
-        text
-        @click="handleFooter('material')"
-      >
-        领取资料
-      </el-button>
-      <div v-show="!appStore.sidebarCollapsed" class="powered">
-        *Powered by MFR云
-      </div>
-      <el-tooltip
-        v-if="appStore.sidebarCollapsed"
-        content="联系客服"
-        placement="right"
-      >
-        <el-icon class="collapsed-icon" @click="handleFooter('service')">
-          <component is="Service" />
-        </el-icon>
-      </el-tooltip>
-    </div>
   </el-aside>
 </template>
 
@@ -735,60 +686,5 @@ function handleFooter(command: 'service' | 'material') {
 .menu-title {
   flex: 1;
   margin-left: 6px;
-}
-.menu-badge {
-  margin-left: auto;
-  height: 18px;
-  line-height: 16px;
-  padding: 0 6px;
-  font-weight: 600;
-  transform: scale(0.9);
-}
-
-/* 业财一体：橙色高亮 */
-.side-menu :deep(.menu-highlight) {
-  background: linear-gradient(135deg, #ffa53d 0%, #ff6a00 100%) !important;
-  color: #fff !important;
-  font-weight: 700;
-}
-.side-menu :deep(.menu-highlight .el-icon) {
-  color: #fff !important;
-}
-.side-menu :deep(.menu-highlight:hover) {
-  background: linear-gradient(135deg, #ff9430 0%, #ff5a00 100%) !important;
-  color: #fff !important;
-}
-.side-menu :deep(.menu-highlight.is-active)::before {
-  display: none;
-}
-
-/* 底部 */
-.side-footer {
-  flex-shrink: 0;
-  padding: 10px 12px;
-  border-top: 1px solid var(--el-border-color-light);
-}
-.footer-btn {
-  display: block;
-  width: 100%;
-  justify-content: flex-start;
-  color: var(--el-text-color-secondary);
-  font-size: 13px;
-}
-.footer-btn:hover {
-  color: var(--el-color-primary);
-}
-.powered {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--el-text-color-placeholder);
-  text-align: center;
-}
-.collapsed-icon {
-  display: block;
-  margin: 0 auto;
-  font-size: 18px;
-  color: var(--el-text-color-secondary);
-  cursor: pointer;
 }
 </style>

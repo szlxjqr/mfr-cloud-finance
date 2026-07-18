@@ -240,7 +240,6 @@ const router = createRouter({
 
         /* ====== 其他模块（一级菜单）===== */
         { path: 'guide', name: 'Guide', component: Placeholder, props: { title: '新手指引' }, meta: { title: '新手指引' } },
-        { path: 'integration', name: 'Integration', component: Placeholder, props: { title: '业财一体' }, meta: { title: '业财一体' } },
       ],
     },
 
