@@ -238,8 +238,8 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   <el-aside :width="asideWidth" class="side-aside">
     <!-- 品牌区 -->
     <div class="side-logo">
-      <img src="/logo.png" alt="MFR" class="logo-img" />
-      <span v-show="!appStore.sidebarCollapsed" class="logo-text">MFR云财务</span>
+      <img src="/logo.png" alt="云财务" class="logo-img" />
+      <span v-show="!appStore.sidebarCollapsed" class="logo-text">云财务</span>
     </div>
 
     <!-- 菜单 -->

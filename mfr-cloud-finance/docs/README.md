@@ -1,4 +1,4 @@
-# MFR云财务 (MFR Cloud Finance)
+# 云财务 (Cloud Finance)
 
 > 企业级云财务管理系统 — 基于 WP5云会计 参考布局开发
 
