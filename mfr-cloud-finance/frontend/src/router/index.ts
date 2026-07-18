@@ -204,8 +204,16 @@ const router = createRouter({
           meta: { title: '固定资产管理', group: '固定资产' },
         },
 
+        /* ====== 工资模块 ====== */
+        { path: 'payroll/employee-info', name: 'PayrollEmployeeInfo', component: Placeholder, props: { title: '员工基本信息' }, meta: { title: '员工基本信息', group: '工资' } },
+        { path: 'payroll/salary-list', name: 'PayrollSalaryList', component: Placeholder, props: { title: '工资列表' }, meta: { title: '工资列表', group: '工资' } },
+        { path: 'payroll/dept-summary', name: 'PayrollDeptSummary', component: Placeholder, props: { title: '部门工资汇总表' }, meta: { title: '部门工资汇总表', group: '工资' } },
+        { path: 'payroll/tax-report', name: 'PayrollTaxReport', component: Placeholder, props: { title: '个税报表' }, meta: { title: '个税报表', group: '工资' } },
+        { path: 'payroll/social-fund-setting', name: 'PayrollSocialFundSetting', component: Placeholder, props: { title: '社保及公积金设置' }, meta: { title: '社保及公积金设置', group: '工资设置' } },
+        { path: 'payroll/calc-setting', name: 'PayrollCalcSetting', component: Placeholder, props: { title: '工资计算设置' }, meta: { title: '工资计算设置', group: '工资设置' } },
+        { path: 'payroll/allocation', name: 'PayrollAllocation', component: Placeholder, props: { title: '工资分摊' }, meta: { title: '工资分摊', group: '工资设置' } },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'payroll', name: 'Payroll', component: Placeholder, props: { title: '工资管理' }, meta: { title: '工资' } },
         { path: 'invoice', name: 'Invoice', component: Placeholder, props: { title: '发票管理（账免）' }, meta: { title: '发票' } },
         { path: 'closing', name: 'Closing', component: Placeholder, props: { title: '期间结账' }, meta: { title: '结账' } },
         { path: 'settings', name: 'Settings', component: Placeholder, props: { title: '系统设置' }, meta: { title: '设置' } },

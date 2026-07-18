@@ -124,7 +124,33 @@ const menuItems: MenuItem[] = [
       },
     ],
   },
-  { title: '工资', path: '/payroll', icon: 'User' },
+  {
+    title: '工资',
+    icon: 'User',
+    groups: [
+      {
+        title: '工资',
+        icon: 'UserFilled',
+        color: '#67C23A',
+        children: [
+          { title: '员工基本信息', path: '/payroll/employee-info' },
+          { title: '工资列表', path: '/payroll/salary-list' },
+          { title: '部门工资汇总表', path: '/payroll/dept-summary' },
+          { title: '个税报表', path: '/payroll/tax-report' },
+        ],
+      },
+      {
+        title: '工资设置',
+        icon: 'Setting',
+        color: '#409EFF',
+        children: [
+          { title: '社保及公积金设置', path: '/payroll/social-fund-setting' },
+          { title: '工资计算设置', path: '/payroll/calc-setting' },
+          { title: '工资分摊', path: '/payroll/allocation' },
+        ],
+      },
+    ],
+  },
   { title: '发票', path: '/invoice', icon: 'Ticket', badge: '账免' },
   { title: '结账', path: '/closing', icon: 'CircleCheck' },
   { title: '设置', path: '/settings', icon: 'Setting' },
@@ -135,8 +161,8 @@ const menuItems: MenuItem[] = [
 /** 当前激活菜单项 */
 const activeMenu = computed(() => route.path)
 
-/** 总账/报表/出纳/资产子菜单是否默认展开 */
-const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets'])
+/** 总账/报表/出纳/资产/工资子菜单是否默认展开 */
+const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets', 'payroll'])
 
 const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
 
@@ -270,9 +296,36 @@ function handleFooter(command: 'service' | 'material') {
           </div>
         </el-sub-menu>
 
+        <!-- 工资：带子分组的 el-sub-menu（双分组） -->
+        <el-sub-menu index="payroll">
+          <template #title>
+            <el-icon><component is="User" /></el-icon>
+            <span class="menu-title">工资</span>
+          </template>
+
+          <!-- 分组: 工资 + 工资设置（两列布局） -->
+          <div class="payroll-grid">
+            <div v-for="(group, gi) in menuItems[5].groups" :key="gi" class="payroll-col">
+              <div class="group-header" :style="{ color: group.color }">
+                <span class="group-icon-wrap" :style="{ background: group.color + '15' }">
+                  <el-icon :size="14"><component :is="group.icon" /></el-icon>
+                </span>
+                {{ group.title }}
+              </div>
+              <el-menu-item
+                v-for="child in group.children"
+                :key="child.path"
+                :index="child.path"
+              >
+                {{ child.title }}
+              </el-menu-item>
+            </div>
+          </div>
+        </el-sub-menu>
+
         <!-- 其余：普通菜单项 -->
         <el-menu-item
-          v-for="item in menuItems.slice(5)"
+          v-for="item in menuItems.slice(6)"
           :key="item.path"
           :index="item.path!"
           :class="{ 'menu-highlight': item.highlight }"
@@ -491,6 +544,23 @@ function handleFooter(command: 'service' | 'material') {
 /* ====== 分组标题样式 ====== */
 .menu-group {
   padding: 6px 12px 4px 24px;
+}
+
+/* 工资菜单：双列网格布局 */
+.payroll-grid {
+  display: flex;
+  gap: 0;
+  padding: 0 8px;
+}
+.payroll-col {
+  flex: 1;
+  min-width: 0;
+}
+.payroll-col .group-header {
+  padding-left: 12px;
+}
+.payroll-col :deep(.el-menu-item) {
+  padding-left: 32px !important;
 }
 .group-header {
   display: flex;
