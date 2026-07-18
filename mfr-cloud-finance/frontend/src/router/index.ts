@@ -22,6 +22,9 @@ const Placeholder = {
   props: { title: { type: String, default: '开发中' } },
 }
 
+/** 科目管理页面 */
+const SettingsAccount = () => import('@/views/settings/Account.vue')
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -225,7 +228,7 @@ const router = createRouter({
         { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账' } },
 
         /* ====== 设置模块 ====== */
-        { path: 'settings/account', name: 'SettingsAccount', component: Placeholder, props: { title: '科目' }, meta: { title: '科目', group: '基础数据' } },
+        { path: 'settings/account', name: 'SettingsAccount', component: SettingsAccount, meta: { title: '科目', group: '基础数据' } },
         { path: 'settings/opening', name: 'SettingsOpening', component: Placeholder, props: { title: '期初' }, meta: { title: '期初', group: '基础数据' } },
         { path: 'settings/aux-dict', name: 'SettingsAuxDict', component: Placeholder, props: { title: '辅助字典' }, meta: { title: '辅助字典', group: '基础数据' } },
         { path: 'settings/currency', name: 'SettingsCurrency', component: Placeholder, props: { title: '币别' }, meta: { title: '币别', group: '基础数据' } },
