@@ -172,8 +172,30 @@ const router = createRouter({
           meta: { title: '现金流量表季报', group: '财务报表' },
         },
 
+        /* ====== 出纳模块 ====== */
+        {
+          path: 'cashier/diary',
+          name: 'CashierDiary',
+          component: Placeholder,
+          props: { title: '日记账' },
+          meta: { title: '日记账', group: '资金管理' },
+        },
+        {
+          path: 'cashier/biz-type',
+          name: 'CashierBizType',
+          component: Placeholder,
+          props: { title: '业务类型' },
+          meta: { title: '业务类型', group: '资金管理' },
+        },
+        {
+          path: 'cashier/check-general',
+          name: 'CashierCheckGeneral',
+          component: Placeholder,
+          props: { title: '核对总账' },
+          meta: { title: '核对总账', group: '资金管理' },
+        },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'cashier', name: 'Cashier', component: Placeholder, props: { title: '出纳管理' }, meta: { title: '出纳' } },
         { path: 'assets', name: 'Assets', component: Placeholder, props: { title: '资产管理' }, meta: { title: '资产' } },
         { path: 'payroll', name: 'Payroll', component: Placeholder, props: { title: '工资管理' }, meta: { title: '工资' } },
         { path: 'invoice', name: 'Invoice', component: Placeholder, props: { title: '发票管理（账免）' }, meta: { title: '发票' } },
