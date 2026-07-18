@@ -101,8 +101,7 @@ const router = createRouter({
         {
           path: 'general-ledger/aux-detail',
           name: 'AuxDetailLedger',
-          component: Placeholder,
-          props: { title: '科目辅助明细账' },
+          component: () => import('@/views/general-ledger/AuxDetailLedger.vue'),
           meta: { title: '科目辅助明细账', group: '辅助账簿' },
         },
         {
