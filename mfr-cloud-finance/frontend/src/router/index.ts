@@ -63,22 +63,19 @@ const router = createRouter({
         {
           path: 'general-ledger/general',
           name: 'GeneralLedger',
-          component: Placeholder,
-          props: { title: '总账' },
+          component: () => import('@/views/general-ledger/GeneralLedger.vue'),
           meta: { title: '总账', group: '账簿' },
         },
         {
           path: 'general-ledger/detail',
           name: 'DetailLedger',
-          component: Placeholder,
-          props: { title: '明细账' },
+          component: () => import('@/views/general-ledger/DetailLedger.vue'),
           meta: { title: '明细账', group: '账簿' },
         },
         {
           path: 'general-ledger/balance',
           name: 'BalanceSheet',
-          component: Placeholder,
-          props: { title: '余额表' },
+          component: () => import('@/views/general-ledger/BalanceSheet.vue'),
           meta: { title: '余额表', group: '账簿' },
         },
         {
