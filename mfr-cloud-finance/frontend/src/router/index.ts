@@ -125,8 +125,7 @@ const router = createRouter({
         {
           path: 'general-ledger/project-detail',
           name: 'ProjectDetailLedger',
-          component: Placeholder,
-          props: { title: '核算项目明细账' },
+          component: () => import('@/views/general-ledger/ProjectDetailLedger.vue'),
           meta: { title: '核算项目明细账', group: '辅助账簿' },
         },
         {
