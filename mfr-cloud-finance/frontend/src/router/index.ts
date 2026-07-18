@@ -213,8 +213,14 @@ const router = createRouter({
         { path: 'payroll/calc-setting', name: 'PayrollCalcSetting', component: Placeholder, props: { title: '工资计算设置' }, meta: { title: '工资计算设置', group: '工资设置' } },
         { path: 'payroll/allocation', name: 'PayrollAllocation', component: Placeholder, props: { title: '工资分摊' }, meta: { title: '工资分摊', group: '工资设置' } },
 
+        /* ====== 发票模块 ====== */
+        { path: 'invoice/input', name: 'InvoiceInput', component: Placeholder, props: { title: '进项发票' }, meta: { title: '进项发票', group: '发票' } },
+        { path: 'invoice/output', name: 'InvoiceOutput', component: Placeholder, props: { title: '销项发票' }, meta: { title: '销项发票', group: '发票' } },
+        { path: 'invoice/expense', name: 'InvoiceExpense', component: Placeholder, props: { title: '费用发票' }, meta: { title: '费用发票', group: '发票' } },
+        { path: 'invoice/title', name: 'InvoiceTitle', component: Placeholder, props: { title: '发票抬头' }, meta: { title: '发票抬头', group: '发票设置' } },
+        { path: 'invoice/setting', name: 'InvoiceSetting', component: Placeholder, props: { title: '发票设置' }, meta: { title: '发票设置', group: '发票设置' } },
+
         /* ====== 其他模块（一级菜单）===== */
-        { path: 'invoice', name: 'Invoice', component: Placeholder, props: { title: '发票管理（账免）' }, meta: { title: '发票' } },
         { path: 'closing', name: 'Closing', component: Placeholder, props: { title: '期间结账' }, meta: { title: '结账' } },
         { path: 'settings', name: 'Settings', component: Placeholder, props: { title: '系统设置' }, meta: { title: '设置' } },
         { path: 'guide', name: 'Guide', component: Placeholder, props: { title: '新手指引' }, meta: { title: '新手指引' } },
