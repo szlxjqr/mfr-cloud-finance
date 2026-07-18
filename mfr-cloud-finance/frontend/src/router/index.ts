@@ -81,22 +81,19 @@ const router = createRouter({
         {
           path: 'general-ledger/chronological',
           name: 'ChronologicalLedger',
-          component: Placeholder,
-          props: { title: '序时账' },
+          component: () => import('@/views/general-ledger/ChronologicalLedger.vue'),
           meta: { title: '序时账', group: '账簿' },
         },
         {
           path: 'general-ledger/columnar',
           name: 'ColumnarLedger',
-          component: Placeholder,
-          props: { title: '多栏账' },
+          component: () => import('@/views/general-ledger/ColumnarLedger.vue'),
           meta: { title: '多栏账', group: '账簿' },
         },
         {
           path: 'general-ledger/account-summary',
           name: 'AccountSummary',
-          component: Placeholder,
-          props: { title: '科目汇总表' },
+          component: () => import('@/views/general-ledger/AccountSummary.vue'),
           meta: { title: '科目汇总表', group: '账簿' },
         },
 
