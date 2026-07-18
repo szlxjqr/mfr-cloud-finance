@@ -1,26 +1,32 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 /* ==================== 类型定义 ==================== */
 
-/** 总账行（按科目汇总） */
-interface GeneralLedgerRow {
+/** 科目树节点 */
+interface AccountNode {
   id: string
-  accountCode: string     // 科目编码
-  accountName: string     // 科目名称
-  accountLevel: number    // 科目级别 1/2/3
-  parentCode: string      // 上级科目编码
-  openingDebit: number    // 期初借方余额
-  openingCredit: number   // 期初贷方余额
-  openingBalance: number  // 期初余额（正=借，负=贷）
-  periodDebit: number     // 本期借方发生额
-  periodCredit: number    // 本期贷方发生额
-  endingDebit: number     // 期末借方余额
-  endingCredit: number    // 期末贷方余额
-  endingBalance: number   // 期末余额（正=借，负=贷）
-  hasChildren: boolean    // 是否有下级科目
-  expanded: boolean       // 展开状态
-  children: GeneralLedgerRow[]
+  code: string
+  name: string
+  level: number
+  parentCode: string
+  children: AccountNode[]
+  hasChildren: boolean
+}
+
+/** 总账分录行 */
+interface GeneralLedgerEntry {
+  id: string
+  period: string
+  summary: string
+  openingDebit: number
+  openingCredit: number
+  periodDebit: number
+  periodCredit: number
+  endingDebit: number
+  endingCredit: number
+  direction: '借' | '贷'
+  balance: number
 }
 
 /* ==================== 状态 ==================== */
@@ -28,534 +34,493 @@ interface GeneralLedgerRow {
 /** 会计期间 */
 const period = ref('2026-05')
 
-/** 科目级别筛选 */
-const levelFilter = ref<number | null>(null)
-
-/** 科目编码/名称搜索 */
+/** 科目搜索关键词 */
 const searchKeyword = ref('')
 
-/** 显示无发生额科目 */
-const showZero = ref(true)
+/** 只显示一级科目 */
+const showLevel1Only = ref(false)
 
-/** 表格数据 */
-const tableData = ref<GeneralLedgerRow[]>([])
+/** 不显示无发生额且余额为0 */
+const hideZeroBalance = ref(true)
 
-/** 展开的行 ID 集合 */
-const expandedRowKeys = ref<string[]>([])
+/** 当前选中的科目 */
+const selectedAccount = ref<AccountNode | null>(null)
+
+/** 科目树数据 */
+const accountTree = ref<AccountNode[]>([])
+
+/** 右侧表格数据 */
+const tableData = ref<GeneralLedgerEntry[]>([])
 
 /** 加载状态 */
 const loading = ref(false)
 
-/* ==================== Mock 数据 ==================== */
+/* ==================== 科目树数据 ==================== */
 
-/** 会计科目表（标准企业会计科目） */
-const mockAccountTree: GeneralLedgerRow[] = [
-  {
-    id: '1', accountCode: '1001', accountName: '库存现金', accountLevel: 1, parentCode: '',
-    openingDebit: 50000, openingCredit: 0, openingBalance: 50000,
-    periodDebit: 120000, periodCredit: 95000,
-    endingDebit: 75000, endingCredit: 0, endingBalance: 75000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '2', accountCode: '1002', accountName: '银行存款', accountLevel: 1, parentCode: '',
-    openingDebit: 2580000, openingCredit: 0, openingBalance: 2580000,
-    periodDebit: 3560000, periodCredit: 4120000,
-    endingDebit: 2020000, endingCredit: 0, endingBalance: 2020000,
-    hasChildren: true, expanded: false, children: [
-      {
-        id: '2-1', accountCode: '1002-01', accountName: '银行存款-基本户(工行)', accountLevel: 2, parentCode: '1002',
-        openingDebit: 1800000, openingCredit: 0, openingBalance: 1800000,
-        periodDebit: 2500000, periodCredit: 3000000,
-        endingDebit: 1300000, endingCredit: 0, endingBalance: 1300000,
-        hasChildren: false, expanded: false, children: []
-      },
-      {
-        id: '2-2', accountCode: '1002-02', accountName: '银行存款-一般户(建行)', accountLevel: 2, parentCode: '1002',
-        openingDebit: 780000, openingCredit: 0, openingBalance: 780000,
-        periodDebit: 1060000, periodCredit: 1120000,
-        endingDebit: 720000, endingCredit: 0, endingBalance: 720000,
-        hasChildren: false, expanded: false, children: []
-      }
-    ]
-  },
-  {
-    id: '3', accountCode: '1122', accountName: '应收账款', accountLevel: 1, parentCode: '',
-    openingDebit: 960000, openingCredit: 0, openingBalance: 960000,
-    periodDebit: 1850000, periodCredit: 1620000,
-    endingDebit: 1190000, endingCredit: 0, endingBalance: 1190000,
-    hasChildren: true, expanded: false, children: [
-      {
-        id: '3-1', accountCode: '1122-01', accountName: '应收账款-华宇科技', accountLevel: 2, parentCode: '1122',
-        openingDebit: 560000, openingCredit: 0, openingBalance: 560000,
-        periodDebit: 850000, periodCredit: 720000,
-        endingDebit: 690000, endingCredit: 0, endingBalance: 690000,
-        hasChildren: false, expanded: false, children: []
-      },
-      {
-        id: '3-2', accountCode: '1122-02', accountName: '应收账款-明达集团', accountLevel: 2, parentCode: '1122',
-        openingDebit: 400000, openingCredit: 0, openingBalance: 400000,
-        periodDebit: 1000000, periodCredit: 900000,
-        endingDebit: 500000, endingCredit: 0, endingBalance: 500000,
-        hasChildren: false, expanded: false, children: []
-      }
-    ]
-  },
-  {
-    id: '4', accountCode: '1403', accountName: '原材料', accountLevel: 1, parentCode: '',
-    openingDebit: 680000, openingCredit: 0, openingBalance: 680000,
-    periodDebit: 420000, periodCredit: 380000,
-    endingDebit: 720000, endingCredit: 0, endingBalance: 720000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '5', accountCode: '1405', accountName: '库存商品', accountLevel: 1, parentCode: '',
-    openingDebit: 1250000, openingCredit: 0, openingBalance: 1250000,
-    periodDebit: 860000, periodCredit: 920000,
-    endingDebit: 1190000, endingCredit: 0, endingBalance: 1190000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '6', accountCode: '1601', accountName: '固定资产', accountLevel: 1, parentCode: '',
-    openingDebit: 4200000, openingCredit: 0, openingBalance: 4200000,
-    periodDebit: 180000, periodCredit: 0,
-    endingDebit: 4380000, endingCredit: 0, endingBalance: 4380000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '7', accountCode: '1602', accountName: '累计折旧', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 860000, openingBalance: -860000,
-    periodDebit: 0, periodCredit: 42000,
-    endingDebit: 0, endingCredit: 902000, endingBalance: -902000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '8', accountCode: '2001', accountName: '短期借款', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 1500000, openingBalance: -1500000,
-    periodDebit: 500000, periodCredit: 0,
-    endingDebit: 0, endingCredit: 1000000, endingBalance: -1000000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '9', accountCode: '2202', accountName: '应付账款', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 780000, openingBalance: -780000,
-    periodDebit: 650000, periodCredit: 920000,
-    endingDebit: 0, endingCredit: 1050000, endingBalance: -1050000,
-    hasChildren: true, expanded: false, children: [
-      {
-        id: '9-1', accountCode: '2202-01', accountName: '应付账款-鑫达原料', accountLevel: 2, parentCode: '2202',
-        openingDebit: 0, openingCredit: 480000, openingBalance: -480000,
-        periodDebit: 380000, periodCredit: 520000,
-        endingDebit: 0, endingCredit: 620000, endingBalance: -620000,
-        hasChildren: false, expanded: false, children: []
-      },
-      {
-        id: '9-2', accountCode: '2202-02', accountName: '应付账款-恒通物流', accountLevel: 2, parentCode: '2202',
-        openingDebit: 0, openingCredit: 300000, openingBalance: -300000,
-        periodDebit: 270000, periodCredit: 400000,
-        endingDebit: 0, endingCredit: 430000, endingBalance: -430000,
-        hasChildren: false, expanded: false, children: []
-      }
-    ]
-  },
-  {
-    id: '10', accountCode: '2221', accountName: '应交税费', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 156000, openingBalance: -156000,
-    periodDebit: 132000, periodCredit: 168000,
-    endingDebit: 0, endingCredit: 192000, endingBalance: -192000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '11', accountCode: '4001', accountName: '实收资本', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 5000000, openingBalance: -5000000,
-    periodDebit: 0, periodCredit: 0,
-    endingDebit: 0, endingCredit: 5000000, endingBalance: -5000000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '12', accountCode: '4103', accountName: '本年利润', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 0, openingBalance: 0,
-    periodDebit: 0, periodCredit: 0,
-    endingDebit: 0, endingCredit: 0, endingBalance: 0,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '13', accountCode: '5001', accountName: '生产成本', accountLevel: 1, parentCode: '',
-    openingDebit: 320000, openingCredit: 0, openingBalance: 320000,
-    periodDebit: 480000, periodCredit: 350000,
-    endingDebit: 450000, endingCredit: 0, endingBalance: 450000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '14', accountCode: '6001', accountName: '主营业务收入', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 0, openingBalance: 0,
-    periodDebit: 0, periodCredit: 2850000,
-    endingDebit: 0, endingCredit: 2850000, endingBalance: -2850000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '15', accountCode: '6401', accountName: '主营业务成本', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 0, openingBalance: 0,
-    periodDebit: 1680000, periodCredit: 0,
-    endingDebit: 1680000, endingCredit: 0, endingBalance: 1680000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '16', accountCode: '6601', accountName: '销售费用', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 0, openingBalance: 0,
-    periodDebit: 256000, periodCredit: 0,
-    endingDebit: 256000, endingCredit: 0, endingBalance: 256000,
-    hasChildren: false, expanded: false, children: []
-  },
-  {
-    id: '17', accountCode: '6602', accountName: '管理费用', accountLevel: 1, parentCode: '',
-    openingDebit: 0, openingCredit: 0, openingBalance: 0,
-    periodDebit: 382000, periodCredit: 0,
-    endingDebit: 382000, endingCredit: 0, endingBalance: 382000,
-    hasChildren: false, expanded: false, children: []
-  }
+const mockAccountTree: AccountNode[] = [
+  { id: 'a1', code: '1001', name: '库存现金', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a2', code: '1002', name: '银行存款', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a2-1', code: '1002-01', name: '基本户(工行)', level: 2, parentCode: '1002', hasChildren: false, children: [] },
+    { id: 'a2-2', code: '1002-02', name: '一般户(建行)', level: 2, parentCode: '1002', hasChildren: false, children: [] }
+  ]},
+  { id: 'a3', code: '1012', name: '其他货币资金', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a4', code: '1101', name: '短期投资', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a4-1', code: '1101-01', name: '股票', level: 2, parentCode: '1101', hasChildren: false, children: [] },
+    { id: 'a4-2', code: '1101-02', name: '债券', level: 2, parentCode: '1101', hasChildren: false, children: [] }
+  ]},
+  { id: 'a5', code: '1121', name: '应收票据', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a6', code: '1122', name: '应收账款', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a6-1', code: '1122-01', name: '华宇科技', level: 2, parentCode: '1122', hasChildren: false, children: [] },
+    { id: 'a6-2', code: '1122-02', name: '明达集团', level: 2, parentCode: '1122', hasChildren: false, children: [] }
+  ]},
+  { id: 'a7', code: '1123', name: '预付账款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a8', code: '1131', name: '应收股利', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a9', code: '1132', name: '应收利息', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a10', code: '1221', name: '其他应收款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a11', code: '1401', name: '材料采购', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a12', code: '1402', name: '在途物资', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a13', code: '1403', name: '原材料', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a14', code: '1404', name: '材料成本差异', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a15', code: '1405', name: '库存商品', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a16', code: '1407', name: '商品进销差价', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a17', code: '1408', name: '委托加工物资', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a18', code: '1411', name: '周转材料', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a19', code: '1421', name: '消耗性生物资产', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a20', code: '1501', name: '长期债券投资', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a20-1', code: '1501-01', name: '国债投资', level: 2, parentCode: '1501', hasChildren: false, children: [] },
+    { id: 'a20-2', code: '1501-02', name: '企业债券', level: 2, parentCode: '1501', hasChildren: false, children: [] }
+  ]},
+  { id: 'a21', code: '1511', name: '长期股权投资', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a21-1', code: '1511-01', name: '成本法核算', level: 2, parentCode: '1511', hasChildren: false, children: [] },
+    { id: 'a21-2', code: '1511-02', name: '权益法核算', level: 2, parentCode: '1511', hasChildren: false, children: [] }
+  ]},
+  { id: 'a22', code: '1601', name: '固定资产', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a23', code: '1602', name: '累计折旧', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a24', code: '1604', name: '在建工程', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a24-1', code: '1604-01', name: '建筑工程', level: 2, parentCode: '1604', hasChildren: false, children: [] },
+    { id: 'a24-2', code: '1604-02', name: '安装工程', level: 2, parentCode: '1604', hasChildren: false, children: [] },
+    { id: 'a24-3', code: '1604-03', name: '技术改造工程', level: 2, parentCode: '1604', hasChildren: false, children: [] }
+  ]},
+  { id: 'a25', code: '1605', name: '工程物资', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a26', code: '1606', name: '固定资产清理', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a27', code: '1621', name: '生产性生物资产', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a28', code: '1622', name: '生产性生物资产累计折旧', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a29', code: '1701', name: '无形资产', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a30', code: '1702', name: '累计摊销', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a31', code: '1801', name: '长期待摊费用', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a32', code: '1901', name: '待处理财产损溢', level: 1, parentCode: '', hasChildren: false, children: [] },
+  // 负债类
+  { id: 'a33', code: '2001', name: '短期借款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a34', code: '2201', name: '应付票据', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a35', code: '2202', name: '应付账款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a36', code: '2203', name: '预收账款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a37', code: '2211', name: '应付职工薪酬', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a37-1', code: '2211-01', name: '工资奖金津贴和补贴', level: 2, parentCode: '2211', hasChildren: false, children: [] },
+    { id: 'a37-2', code: '2211-02', name: '职工福利费', level: 2, parentCode: '2211', hasChildren: false, children: [] },
+    { id: 'a37-3', code: '2211-03', name: '社会保险费', level: 2, parentCode: '2211', hasChildren: false, children: [] },
+    { id: 'a37-4', code: '2211-04', name: '住房公积金', level: 2, parentCode: '2211', hasChildren: false, children: [] },
+    { id: 'a37-5', code: '2211-05', name: '工会经费和职工教育经费', level: 2, parentCode: '2211', hasChildren: false, children: [] }
+  ]},
+  { id: 'a38', code: '2221', name: '应交税费', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a39', code: '2231', name: '应付利息', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a40', code: '2232', name: '应付利润', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a41', code: '2241', name: '其他应付款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a42', code: '2401', name: '递延收益', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a43', code: '2501', name: '长期借款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a44', code: '2701', name: '长期应付款', level: 1, parentCode: '', hasChildren: false, children: [] },
+  // 权益类
+  { id: 'a45', code: '3001', name: '实收资本', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a46', code: '3002', name: '资本公积', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a47', code: '3101', name: '盈余公积', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a48', code: '3103', name: '本年利润', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a49', code: '3104', name: '利润分配', level: 1, parentCode: '', hasChildren: false, children: [] },
+  // 成本类
+  { id: 'a50', code: '4001', name: '生产成本', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a51', code: '4101', name: '制造费用', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a52', code: '4301', name: '研发支出', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a53', code: '4401', name: '工程施工', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a54', code: '4403', name: '机械作业', level: 1, parentCode: '', hasChildren: false, children: [] },
+  // 损益类 — 收入
+  { id: 'a55', code: '5001', name: '主营业务收入', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a56', code: '5051', name: '其他业务收入', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a57', code: '5111', name: '投资收益', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a58', code: '5301', name: '营业外收入', level: 1, parentCode: '', hasChildren: false, children: [] },
+  // 损益类 — 成本费用
+  { id: 'a59', code: '5401', name: '主营业务成本', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a60', code: '5402', name: '其他业务成本', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a61', code: '5403', name: '营业税金及附加', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a62', code: '5601', name: '销售费用', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a63', code: '5602', name: '管理费用', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a64', code: '5603', name: '财务费用', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a65', code: '5711', name: '营业外支出', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a66', code: '5801', name: '所得税费用', level: 1, parentCode: '', hasChildren: false, children: [] }
 ]
 
 /* ==================== 计算属性 ==================== */
 
-/** 平铺后的显示数据（含子级展开） */
-const flattenedData = computed<GeneralLedgerRow[]>(() => {
-  const result: GeneralLedgerRow[] = []
-  const flatten = (rows: GeneralLedgerRow[]) => {
-    rows.forEach(row => {
-      result.push(row)
-      if (row.hasChildren && expandedRowKeys.value.includes(row.id)) {
-        flatten(row.children)
-      }
-    })
-  }
-  flatten(filteredData.value)
-  return result
-})
+/** 筛选后的科目列表 */
+const filteredAccounts = computed(() => {
+  let data = accountTree.value
 
-/** 按条件筛选后的数据 */
-const filteredData = computed(() => {
-  let data = tableData.value
-
-  // 按科目级别筛选
-  if (levelFilter.value !== null) {
-    data = data.filter(r => r.accountLevel === levelFilter.value)
+  // 只显示一级科目
+  if (showLevel1Only.value) {
+    data = data.filter(a => a.level === 1)
   }
 
-  // 按关键词搜索
+  // 关键词搜索
   if (searchKeyword.value.trim()) {
     const kw = searchKeyword.value.trim().toLowerCase()
-    data = data.filter(r =>
-      r.accountCode.toLowerCase().includes(kw) ||
-      r.accountName.toLowerCase().includes(kw)
-    )
-  }
-
-  // 是否显示无发生额科目
-  if (!showZero.value) {
-    data = data.filter(r =>
-      r.periodDebit !== 0 || r.periodCredit !== 0
+    data = data.filter(a =>
+      a.code.toLowerCase().includes(kw) ||
+      a.name.toLowerCase().includes(kw)
     )
   }
 
   return data
 })
 
-/** 合计行 */
-const totals = computed(() => {
-  let sumOpeningDebit = 0, sumOpeningCredit = 0
-  let sumPeriodDebit = 0, sumPeriodCredit = 0
-  let sumEndingDebit = 0, sumEndingCredit = 0
-
-  filteredData.value.forEach(r => {
-    sumOpeningDebit += r.openingDebit
-    sumOpeningCredit += r.openingCredit
-    sumPeriodDebit += r.periodDebit
-    sumPeriodCredit += r.periodCredit
-    sumEndingDebit += r.endingDebit
-    sumEndingCredit += r.endingCredit
-  })
-
-  return {
-    openingDebit: sumOpeningDebit,
-    openingCredit: sumOpeningCredit,
-    periodDebit: sumPeriodDebit,
-    periodCredit: sumPeriodCredit,
-    endingDebit: sumEndingDebit,
-    endingCredit: sumEndingCredit
+/** 扁平化的科目列表（用于上一个/下一个导航） */
+const flatAccountList = computed(() => {
+  const result: AccountNode[] = []
+  const flatten = (nodes: AccountNode[]) => {
+    nodes.forEach(n => {
+      if (!showLevel1Only.value || n.level === 1) {
+        result.push(n)
+      }
+      if (n.hasChildren && n.children.length > 0) {
+        flatten(n.children)
+      }
+    })
   }
+  flatten(accountTree.value)
+  return result
 })
+
+/** 当前选中科目的索引 */
+const currentIndex = computed(() => {
+  if (!selectedAccount.value) return -1
+  return flatAccountList.value.findIndex(a => a.id === selectedAccount.value!.id)
+})
+
+/** 是否有上一个科目 */
+const hasPrev = computed(() => currentIndex.value > 0)
+
+/** 是否有下一个科目 */
+const hasNext = computed(() => currentIndex.value >= 0 && currentIndex.value < flatAccountList.value.length - 1)
 
 /* ==================== 方法 ==================== */
 
-/** 加载数据 */
-function loadData() {
-  loading.value = true
-  // 模拟异步加载
-  setTimeout(() => {
-    tableData.value = mockAccountTree
-    loading.value = false
-  }, 300)
+/** 加载科目树 */
+function loadAccountTree() {
+  accountTree.value = mockAccountTree
 }
 
-/** 切换展开 */
-function toggleExpand(row: GeneralLedgerRow) {
-  const idx = expandedRowKeys.value.indexOf(row.id)
-  if (idx > -1) {
-    expandedRowKeys.value.splice(idx, 1)
-  } else {
-    expandedRowKeys.value.push(row.id)
-  }
-}
+/** 生成选中科目的总账数据 */
+function generateLedgerData(account: AccountNode): GeneralLedgerEntry[] {
+  const entries: GeneralLedgerEntry[] = []
 
-/** 展开全部 */
-function expandAll() {
-  const allIds: string[] = []
-  const collect = (rows: GeneralLedgerRow[]) => {
-    rows.forEach(r => {
-      if (r.hasChildren) allIds.push(r.id)
-      collect(r.children)
+  // 期初余额行
+  const openingBalance = Math.floor(Math.random() * 500000) + 10000
+  const isDebit = !account.code.startsWith('2') && !account.code.startsWith('3') && !account.code.startsWith('4')
+
+  entries.push({
+    id: 'e0',
+    period: period.value,
+    summary: '期初余额',
+    openingDebit: isDebit ? openingBalance : 0,
+    openingCredit: isDebit ? 0 : openingBalance,
+    periodDebit: 0,
+    periodCredit: 0,
+    endingDebit: isDebit ? openingBalance : 0,
+    endingCredit: isDebit ? 0 : openingBalance,
+    direction: isDebit ? '借' : '贷',
+    balance: openingBalance
+  })
+
+  // 本期发生额行
+  const count = Math.floor(Math.random() * 6) + 3
+  let balance = openingBalance
+  let totalDebit = 0
+  let totalCredit = 0
+
+  const summaries = [
+    '采购原材料', '支付货款', '收到销售款', '支付工资',
+    '报销差旅费', '缴纳税费', '计提折旧', '销售商品确认收入',
+    '支付水电费', '结转销售成本', '银行利息收入', '归还借款',
+    '购买办公用品', '支付租金', '收到投资款', '结转本月损益'
+  ]
+
+  for (let i = 0; i < count; i++) {
+    const isDebitEntry = Math.random() > 0.45
+    const amount = Math.floor(Math.random() * 200000) + 2000
+
+    if (isDebitEntry) {
+      totalDebit += amount
+      balance = isDebit ? balance + amount : balance - amount
+    } else {
+      totalCredit += amount
+      balance = isDebit ? balance - amount : balance + amount
+    }
+
+    entries.push({
+      id: `e${i + 1}`,
+      period: period.value,
+      summary: summaries[Math.floor(Math.random() * summaries.length)],
+      openingDebit: 0,
+      openingCredit: 0,
+      periodDebit: isDebitEntry ? amount : 0,
+      periodCredit: isDebitEntry ? 0 : amount,
+      endingDebit: 0,
+      endingCredit: 0,
+      direction: balance >= 0 ? (isDebit ? '借' : '贷') : (isDebit ? '贷' : '借'),
+      balance: Math.abs(balance)
     })
   }
-  collect(filteredData.value)
-  expandedRowKeys.value = allIds
+
+  // 本期合计行
+  entries.push({
+    id: 'e-sum',
+    period: period.value,
+    summary: '本期合计',
+    openingDebit: 0,
+    openingCredit: 0,
+    periodDebit: totalDebit,
+    periodCredit: totalCredit,
+    endingDebit: 0,
+    endingCredit: 0,
+    direction: balance >= 0 ? (isDebit ? '借' : '贷') : (isDebit ? '贷' : '借'),
+    balance: Math.abs(balance)
+  })
+
+  // 本年累计行
+  const cumDebit = totalDebit + Math.floor(Math.random() * 500000)
+  const cumCredit = totalCredit + Math.floor(Math.random() * 500000)
+  entries.push({
+    id: 'e-cum',
+    period: period.value,
+    summary: '本年累计',
+    openingDebit: 0,
+    openingCredit: 0,
+    periodDebit: cumDebit,
+    periodCredit: cumCredit,
+    endingDebit: 0,
+    endingCredit: 0,
+    direction: balance >= 0 ? (isDebit ? '借' : '贷') : (isDebit ? '贷' : '借'),
+    balance: Math.abs(balance)
+  })
+
+  return entries
 }
 
-/** 收起全部 */
-function collapseAll() {
-  expandedRowKeys.value = []
+/** 选择科目 */
+function selectAccount(account: AccountNode) {
+  selectedAccount.value = account
+  loading.value = true
+  setTimeout(() => {
+    tableData.value = generateLedgerData(account)
+    loading.value = false
+  }, 200)
 }
 
-/** 联查明细账 */
-function viewDetail(row: GeneralLedgerRow) {
-  // 跳转到明细账页面，携带科目参数
-  const url = `/general-ledger/detail?accountCode=${row.accountCode}&accountName=${encodeURIComponent(row.accountName)}&period=${period.value}`
-  window.open(url, '_blank')
+/** 上一个科目 */
+function prevAccount() {
+  if (hasPrev.value) {
+    selectAccount(flatAccountList.value[currentIndex.value - 1])
+  }
+}
+
+/** 下一个科目 */
+function nextAccount() {
+  if (hasNext.value) {
+    selectAccount(flatAccountList.value[currentIndex.value + 1])
+  }
 }
 
 /** 格式化金额 */
 function formatAmount(val: number): string {
   if (val === 0) return ''
-  return Math.abs(val).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-/** 余额方向标记 */
-function getDirection(row: GeneralLedgerRow): string {
-  // 资产/成本类借方余额，负债/权益/收入类贷方余额
-  const code = row.accountCode
-  if (code.startsWith('1') || code.startsWith('5')) return '借'
-  if (code.startsWith('2') || code.startsWith('3') || code.startsWith('4') || code.startsWith('6')) return '贷'
-  return row.endingBalance >= 0 ? '借' : '贷'
+/** 刷新 */
+function refresh() {
+  if (selectedAccount.value) {
+    selectAccount(selectedAccount.value)
+  }
 }
 
-/** 科目级别样式类 */
-function levelClass(level: number): string {
-  return `level-${level}`
+/** 打印 */
+function printLedger() {
+  window.print()
 }
 
-/* ==================== 生命周期 ==================== */
+/** 导出 */
+function exportLedger() {
+  // 占位
+}
 
-loadData()
-
-/* ==================== 监听器 ==================== */
-
-// 筛选条件变化时收起所有展开
-watch([levelFilter, searchKeyword, showZero], () => {
-  expandedRowKeys.value = []
+onMounted(() => {
+  loadAccountTree()
 })
 </script>
 
 <template>
   <div class="general-ledger-page">
     <!-- ===== 顶部工具栏 ===== -->
-    <div class="toolbar">
+    <div class="top-toolbar">
       <div class="toolbar-left">
-        <span class="toolbar-label">会计期间：</span>
+        <span class="toolbar-label">期间</span>
         <el-date-picker
           v-model="period"
           type="month"
-          placeholder="选择期间"
-          format="YYYY-MM"
+          format="YYYY年MM期"
           value-format="YYYY-MM"
           size="small"
-          style="width: 140px"
-          @change="loadData"
+          style="width: 160px"
+          @change="refresh"
         />
-        <el-divider direction="vertical" />
-        <span class="toolbar-label">科目级别：</span>
-        <el-select
-          v-model="levelFilter"
-          size="small"
-          clearable
-          placeholder="全部"
-          style="width: 100px"
-        >
-          <el-option label="一级科目" :value="1" />
-          <el-option label="二级科目" :value="2" />
-        </el-select>
-        <el-checkbox v-model="showZero" size="small" style="margin-left:12px">
-          含无发生额
-        </el-checkbox>
+        <el-button size="small" type="primary" plain style="margin-left: 8px">
+          筛选 ▾
+        </el-button>
+        <el-button size="small" circle @click="refresh">
+          <span style="font-size: 13px">🔄</span>
+        </el-button>
       </div>
       <div class="toolbar-right">
-        <el-input
-          v-model="searchKeyword"
-          size="small"
-          placeholder="搜索科目编码/名称…"
-          clearable
-          style="width: 220px"
-          :prefix-icon="null"
-        >
-          <template #prefix>
-            <span style="color:#909399;font-size:13px;">🔍</span>
-          </template>
-        </el-input>
-        <el-button-group size="small" style="margin-left:8px">
-          <el-button @click="expandAll">全部展开</el-button>
-          <el-button @click="collapseAll">全部收起</el-button>
-        </el-button-group>
-        <el-button size="small" :icon="null" @click="loadData" style="margin-left:4px">
-          🔄 刷新
+        <el-checkbox v-model="showLevel1Only" size="small">
+          只显示一级科目
+        </el-checkbox>
+        <el-checkbox v-model="hideZeroBalance" size="small" style="margin-left: 12px">
+          无发生额且余额为0不显示
+        </el-checkbox>
+        <el-button size="small" style="margin-left: 12px" @click="printLedger">
+          打印
+        </el-button>
+        <el-button size="small" @click="exportLedger">
+          导出
         </el-button>
       </div>
     </div>
 
-    <!-- ===== 数据表格 ===== -->
-    <div class="table-wrapper">
-      <el-table
-        :data="flattenedData"
-        v-loading="loading"
-        border
-        stripe
-        size="small"
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
-        :row-class-name="({ row }: { row: GeneralLedgerRow }) => levelClass(row.accountLevel)"
-        style="width: 100%"
-        max-height="calc(100vh - 220px)"
-      >
-        <!-- 固定列：科目编码 -->
-        <el-table-column prop="accountCode" label="科目编码" width="130" fixed="left">
-          <template #default="{ row }">
-            <span :style="{ paddingLeft: (row.accountLevel - 1) * 16 + 'px' }">
-              <span
-                v-if="row.hasChildren"
-                class="expand-toggle"
-                @click="toggleExpand(row)"
-              >
-                {{ expandedRowKeys.includes(row.id) ? '▼' : '▶' }}
-              </span>
-              <span v-else style="display:inline-block;width:14px;"></span>
-              {{ row.accountCode }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <!-- 科目名称 -->
-        <el-table-column prop="accountName" label="科目名称" min-width="180" fixed="left">
-          <template #default="{ row }">
-            <span
-              :class="['account-name', levelClass(row.accountLevel)]"
-              :style="{ paddingLeft: (row.accountLevel - 1) * 16 + 'px' }"
-            >
-              {{ row.accountName }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <!-- 期初余额 -->
-        <el-table-column label="期初余额" align="center">
-          <el-table-column label="借方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount">{{ formatAmount(row.openingDebit) }}</span>
+    <!-- ===== 主体区域：左侧科目树 + 右侧表格 ===== -->
+    <div class="main-content">
+      <!-- 左侧科目树面板 -->
+      <div class="left-panel">
+        <div class="panel-search">
+          <el-input
+            v-model="searchKeyword"
+            size="small"
+            placeholder="请输入要搜索的科目"
+            clearable
+          >
+            <template #prefix>
+              <span style="color: #c0c4cc; font-size: 13px">🔍</span>
             </template>
-          </el-table-column>
-          <el-table-column label="贷方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount">{{ formatAmount(row.openingCredit) }}</span>
-            </template>
-          </el-table-column>
-        </el-table-column>
-
-        <!-- 本期发生额 -->
-        <el-table-column label="本期发生额" align="center">
-          <el-table-column label="借方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount" :class="{ highlight: row.periodDebit > 0 }">
-                {{ formatAmount(row.periodDebit) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="贷方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount" :class="{ highlight: row.periodCredit > 0 }">
-                {{ formatAmount(row.periodCredit) }}
-              </span>
-            </template>
-          </el-table-column>
-        </el-table-column>
-
-        <!-- 期末余额 -->
-        <el-table-column label="期末余额" align="center">
-          <el-table-column label="借方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount" :class="{ 'ending-balance': row.endingBalance > 0 }">
-                {{ formatAmount(row.endingDebit) }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="贷方" width="130" align="right">
-            <template #default="{ row }">
-              <span class="amount" :class="{ 'ending-balance': row.endingBalance < 0 }">
-                {{ formatAmount(row.endingCredit) }}
-              </span>
-            </template>
-          </el-table-column>
-        </el-table-column>
-
-        <!-- 方向 -->
-        <el-table-column label="方向" width="60" align="center">
-          <template #default="{ row }">
-            <el-tag
-              :type="getDirection(row) === '借' ? '' : 'success'"
-              size="small"
-              effect="plain"
-            >
-              {{ getDirection(row) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <!-- 操作 -->
-        <el-table-column label="操作" width="100" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewDetail(row)">
-              明细账
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <!-- ===== 底部合计栏 ===== -->
-    <div class="footer-bar">
-      <div class="footer-left">
-        <span>共 <b>{{ filteredData.length }}</b> 个科目</span>
-        <el-divider direction="vertical" />
-        <span>筛选：{{ flattenedData.length }} 行</span>
+          </el-input>
+        </div>
+        <div class="panel-tree">
+          <div
+            v-for="account in filteredAccounts"
+            :key="account.id"
+            class="account-item"
+            :class="{
+              active: selectedAccount?.id === account.id,
+              'has-children': account.hasChildren
+            }"
+            @click="selectAccount(account)"
+          >
+            <span class="account-code">{{ account.code }}</span>
+            <span class="account-name">{{ account.name }}</span>
+            <span v-if="account.hasChildren" class="expand-icon">▶</span>
+          </div>
+        </div>
       </div>
-      <div class="footer-right">
-        <span class="total-item">
-          期初借方合计：<b>¥{{ totals.openingDebit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</b>
-        </span>
-        <span class="total-item">
-          期初贷方合计：<b>¥{{ totals.openingCredit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</b>
-        </span>
-        <span class="total-item">
-          本期借方合计：<b>¥{{ totals.periodDebit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</b>
-        </span>
-        <span class="total-item">
-          本期贷方合计：<b>¥{{ totals.periodCredit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</b>
-        </span>
+
+      <!-- 中间拖拽条 -->
+      <div class="resizer">
+        <div class="resizer-handle">◀▶</div>
+      </div>
+
+      <!-- 右侧表格区域 -->
+      <div class="right-panel">
+        <!-- 科目选择器 -->
+        <div class="account-selector">
+          <el-button
+            size="small"
+            :disabled="!hasPrev"
+            @click="prevAccount"
+            class="nav-btn"
+          >
+            ◀
+          </el-button>
+          <div class="selector-display">
+            <span v-if="selectedAccount" class="selector-text">
+              {{ selectedAccount.code }} {{ selectedAccount.name }}
+            </span>
+            <span v-else class="selector-placeholder">请选择科目</span>
+          </div>
+          <el-button
+            size="small"
+            :disabled="!hasNext"
+            @click="nextAccount"
+            class="nav-btn"
+          >
+            ▶
+          </el-button>
+        </div>
+
+        <!-- 数据表格 -->
+        <div class="table-area">
+          <el-table
+            v-if="selectedAccount"
+            :data="tableData"
+            v-loading="loading"
+            border
+            stripe
+            size="small"
+            :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
+            style="width: 100%"
+            max-height="calc(100vh - 240px)"
+          >
+            <el-table-column prop="period" label="期间" width="100" align="center" />
+            <el-table-column prop="summary" label="摘要" min-width="180" />
+            <el-table-column label="借方" width="140" align="right">
+              <template #default="{ row }">
+                <span class="amount">{{ formatAmount(row.openingDebit || row.periodDebit) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="贷方" width="140" align="right">
+              <template #default="{ row }">
+                <span class="amount">{{ formatAmount(row.openingCredit || row.periodCredit) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="方向" width="60" align="center">
+              <template #default="{ row }">
+                <el-tag
+                  :type="row.direction === '借' ? '' : 'success'"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ row.direction }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="余额" width="140" align="right">
+              <template #default="{ row }">
+                <span class="amount balance">{{ formatAmount(row.balance) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 空状态 -->
+          <div v-else class="empty-state">
+            <el-empty description="暂无数据" :image-size="200">
+              <template #image>
+                <div style="font-size: 80px; opacity: 0.3">📊</div>
+              </template>
+            </el-empty>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -563,32 +528,28 @@ watch([levelFilter, searchKeyword, showZero], () => {
 
 <style scoped>
 .general-ledger-page {
-  padding: 16px;
-  background: #f0f2f5;
-  min-height: 100%;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  background: #f0f2f5;
 }
 
-/* ===== 工具栏 ===== */
-.toolbar {
+/* ===== 顶部工具栏 ===== */
+.top-toolbar {
   background: #fff;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin-bottom: 12px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  border-bottom: 1px solid #e4e7ed;
+  flex-shrink: 0;
 }
 
 .toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .toolbar-label {
@@ -597,36 +558,147 @@ watch([levelFilter, searchKeyword, showZero], () => {
   white-space: nowrap;
 }
 
-/* ===== 表格区域 ===== */
-.table-wrapper {
-  background: #fff;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+/* ===== 主体区域 ===== */
+.main-content {
+  display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* 展开/折叠箭头 */
-.expand-toggle {
-  cursor: pointer;
-  display: inline-block;
-  width: 14px;
-  font-size: 11px;
-  color: #909399;
-  transition: color 0.2s;
-  user-select: none;
+/* ===== 左侧科目树面板 ===== */
+.left-panel {
+  width: 220px;
+  background: #fff;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
 }
-.expand-toggle:hover {
+
+.panel-search {
+  padding: 12px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.panel-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.account-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s;
+  font-size: 13px;
+}
+
+.account-item:hover {
+  background: #f5f7fa;
+}
+
+.account-item.active {
+  background: #ecf5ff;
   color: #409eff;
 }
 
-/* 科目名称层级样式 */
-.account-name.level-1 {
-  font-weight: 600;
+.account-item.active .account-code {
+  color: #409eff;
+}
+
+.account-code {
+  color: #909399;
+  font-size: 12px;
+  min-width: 50px;
+}
+
+.account-name {
+  flex: 1;
   color: #303133;
 }
-.account-name.level-2 {
-  color: #606266;
+
+.account-item.active .account-name {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.expand-icon {
+  font-size: 10px;
+  color: #909399;
+}
+
+/* ===== 中间拖拽条 ===== */
+.resizer {
+  width: 6px;
+  background: #e4e7ed;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.resizer-handle {
+  font-size: 10px;
+  color: #c0c4cc;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+/* ===== 右侧表格区域 ===== */
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* 科目选择器 */
+.account-selector {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  gap: 8px;
+}
+
+.nav-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.selector-display {
+  flex: 1;
+  background: #409eff;
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.selector-placeholder {
+  opacity: 0.7;
+}
+
+/* 表格区域 */
+.table-area {
+  flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
 /* 金额样式 */
@@ -635,55 +707,13 @@ watch([levelFilter, searchKeyword, showZero], () => {
   font-size: 13px;
   color: #606266;
 }
-.amount.highlight {
-  color: #303133;
-  font-weight: 500;
-}
-.amount.ending-balance {
+
+.amount.balance {
   color: #409eff;
   font-weight: 600;
 }
 
-/* ===== 底部合计栏 ===== */
-.footer-bar {
-  background: #fff;
-  padding: 10px 16px;
-  border-radius: 6px;
-  margin-top: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  font-size: 13px;
-}
-
-.footer-left {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #909399;
-}
-
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.total-item {
-  color: #606266;
-  white-space: nowrap;
-}
-
-.total-item b {
-  color: #303133;
-  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
-}
-
-/* ===== Element Plus 表格微调 ===== */
+/* Element Plus 微调 */
 :deep(.el-table) {
   font-size: 13px;
 }
@@ -698,5 +728,10 @@ watch([levelFilter, searchKeyword, showZero], () => {
 
 :deep(.el-table .cell) {
   padding: 0 8px;
+}
+
+:deep(.el-empty__description) {
+  font-size: 14px;
+  color: #909399;
 }
 </style>
