@@ -231,7 +231,7 @@ const activeMenu = computed(() => route.path)
 /** 总账/报表/出纳/资产/工资/发票/结账/设置子菜单是否默认展开 */
 const defaultOpenedMenus = ref(['general-ledger', 'reports', 'cashier', 'assets', 'payroll', 'invoice', 'closing', 'settings'])
 
-const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px'))
+const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '224px'))
 </script>
 
 <template>
@@ -517,6 +517,10 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
 .side-menu {
   border-right: none;
   padding: 8px 0;
+  /* 菜单分级缩进：一级最靠左，二/三级逐级内缩（每级约 1.5 汉字 ≈ 21px） */
+  --lv1-pad: 6px; /* 一级菜单：图标左缘最靠左 */
+  --lv2-pad: 30px; /* 二级菜单（分组标题）：相对一级再缩进 */
+  --lv3-pad: 44px; /* 三级菜单（末级科目）：相对二级再缩进 */
 }
 
 /* 一级菜单项 */
@@ -527,6 +531,7 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   border-radius: 8px;
   position: relative;
   color: var(--el-text-color-regular);
+  padding-left: var(--lv1-pad);
 }
 .side-menu :deep(.el-menu-item .el-icon) {
   color: var(--el-text-color-secondary);
@@ -572,6 +577,7 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   position: relative;
   color: var(--el-text-color-regular);
   font-weight: 500;
+  padding-left: var(--lv1-pad);
 }
 .side-menu :deep(.el-sub-menu__title:hover) {
   background: var(--el-fill-color-light);
@@ -616,7 +622,7 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   margin: 2px 8px 2px 8px;
   border-radius: 6px;
   font-size: 14px;
-  padding-left: 44px !important;
+  padding-left: var(--lv3-pad) !important;
   min-width: auto;
 }
 .side-menu :deep(.el-menu--inline .el-menu-item.is-active) {
@@ -629,7 +635,7 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
 
 /* ====== 分组标题样式 ====== */
 .menu-group {
-  padding: 6px 12px 4px 24px;
+  padding: 6px 12px 4px var(--lv2-pad);
 }
 
 .group-header {
