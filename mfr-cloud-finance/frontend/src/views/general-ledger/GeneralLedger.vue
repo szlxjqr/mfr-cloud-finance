@@ -121,7 +121,16 @@ const mockAccountTree: AccountNode[] = [
     { id: 'a37-4', code: '2211-04', name: '住房公积金', level: 2, parentCode: '2211', hasChildren: false, children: [] },
     { id: 'a37-5', code: '2211-05', name: '工会经费和职工教育经费', level: 2, parentCode: '2211', hasChildren: false, children: [] }
   ]},
-  { id: 'a38', code: '2221', name: '应交税费', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a38', code: '2221', name: '应交税费', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a38-1', code: '2221-01', name: '增值税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-2', code: '2221-02', name: '消费税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-3', code: '2221-03', name: '企业所得税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-4', code: '2221-04', name: '个人所得税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-5', code: '2221-05', name: '城市维护建设税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-6', code: '2221-06', name: '教育费附加', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-7', code: '2221-07', name: '印花税', level: 2, parentCode: '2221', hasChildren: false, children: [] },
+    { id: 'a38-8', code: '2221-08', name: '房产税', level: 2, parentCode: '2221', hasChildren: false, children: [] }
+  ]},
   { id: 'a39', code: '2231', name: '应付利息', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a40', code: '2232', name: '应付利润', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a41', code: '2241', name: '其他应付款', level: 1, parentCode: '', hasChildren: false, children: [] },
@@ -131,11 +140,23 @@ const mockAccountTree: AccountNode[] = [
   // 权益类
   { id: 'a45', code: '3001', name: '实收资本', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a46', code: '3002', name: '资本公积', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a47', code: '3101', name: '盈余公积', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a47', code: '3101', name: '盈余公积', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a47-1', code: '3101-01', name: '法定盈余公积', level: 2, parentCode: '3101', hasChildren: false, children: [] },
+    { id: 'a47-2', code: '3101-02', name: '任意盈余公积', level: 2, parentCode: '3101', hasChildren: false, children: [] },
+    { id: 'a47-3', code: '3101-03', name: '法定公益金', level: 2, parentCode: '3101', hasChildren: false, children: [] }
+  ]},
   { id: 'a48', code: '3103', name: '本年利润', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a49', code: '3104', name: '利润分配', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a49', code: '3104', name: '利润分配', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a49-1', code: '3104-01', name: '提取法定盈余公积', level: 2, parentCode: '3104', hasChildren: false, children: [] },
+    { id: 'a49-2', code: '3104-02', name: '提取任意盈余公积', level: 2, parentCode: '3104', hasChildren: false, children: [] },
+    { id: 'a49-3', code: '3104-03', name: '应付利润', level: 2, parentCode: '3104', hasChildren: false, children: [] },
+    { id: 'a49-4', code: '3104-04', name: '未分配利润', level: 2, parentCode: '3104', hasChildren: false, children: [] }
+  ]},
   // 成本类
-  { id: 'a50', code: '4001', name: '生产成本', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a50', code: '4001', name: '生产成本', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a50-1', code: '4001-01', name: '基本生产成本', level: 2, parentCode: '4001', hasChildren: false, children: [] },
+    { id: 'a50-2', code: '4001-02', name: '辅助生产成本', level: 2, parentCode: '4001', hasChildren: false, children: [] }
+  ]},
   { id: 'a51', code: '4101', name: '制造费用', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a52', code: '4301', name: '研发支出', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a53', code: '4401', name: '工程施工', level: 1, parentCode: '', hasChildren: false, children: [] },
