@@ -165,15 +165,47 @@ const mockAccountTree: AccountNode[] = [
   { id: 'a55', code: '5001', name: '主营业务收入', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a56', code: '5051', name: '其他业务收入', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a57', code: '5111', name: '投资收益', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a58', code: '5301', name: '营业外收入', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a58', code: '5301', name: '营业外收入', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a58-1', code: '5301-01', name: '非流动资产处置利得', level: 2, parentCode: '5301', hasChildren: false, children: [] },
+    { id: 'a58-2', code: '5301-02', name: '政府补助', level: 2, parentCode: '5301', hasChildren: false, children: [] },
+    { id: 'a58-3', code: '5301-03', name: '盘盈利得', level: 2, parentCode: '5301', hasChildren: false, children: [] },
+    { id: 'a58-4', code: '5301-04', name: '捐赠利得', level: 2, parentCode: '5301', hasChildren: false, children: [] },
+    { id: 'a58-5', code: '5301-05', name: '罚没收入', level: 2, parentCode: '5301', hasChildren: false, children: [] }
+  ]},
   // 损益类 — 成本费用
   { id: 'a59', code: '5401', name: '主营业务成本', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a60', code: '5402', name: '其他业务成本', level: 1, parentCode: '', hasChildren: false, children: [] },
   { id: 'a61', code: '5403', name: '营业税金及附加', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a62', code: '5601', name: '销售费用', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a63', code: '5602', name: '管理费用', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a64', code: '5603', name: '财务费用', level: 1, parentCode: '', hasChildren: false, children: [] },
-  { id: 'a65', code: '5711', name: '营业外支出', level: 1, parentCode: '', hasChildren: false, children: [] },
+  { id: 'a62', code: '5601', name: '销售费用', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a62-1', code: '5601-01', name: '销售人员工资', level: 2, parentCode: '5601', hasChildren: false, children: [] },
+    { id: 'a62-2', code: '5601-02', name: '广告宣传费', level: 2, parentCode: '5601', hasChildren: false, children: [] },
+    { id: 'a62-3', code: '5601-03', name: '运输费', level: 2, parentCode: '5601', hasChildren: false, children: [] },
+    { id: 'a62-4', code: '5601-04', name: '包装费', level: 2, parentCode: '5601', hasChildren: false, children: [] },
+    { id: 'a62-5', code: '5601-05', name: '业务招待费', level: 2, parentCode: '5601', hasChildren: false, children: [] }
+  ]},
+  { id: 'a63', code: '5602', name: '管理费用', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a63-1', code: '5602-01', name: '管理人员工资', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-2', code: '5602-02', name: '办公费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-3', code: '5602-03', name: '差旅费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-4', code: '5602-04', name: '折旧费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-5', code: '5602-05', name: '水电费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-6', code: '5602-06', name: '业务招待费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-7', code: '5602-07', name: '租赁费', level: 2, parentCode: '5602', hasChildren: false, children: [] },
+    { id: 'a63-8', code: '5602-08', name: '其他管理费用', level: 2, parentCode: '5602', hasChildren: false, children: [] }
+  ]},
+  { id: 'a64', code: '5603', name: '财务费用', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a64-1', code: '5603-01', name: '利息支出', level: 2, parentCode: '5603', hasChildren: false, children: [] },
+    { id: 'a64-2', code: '5603-02', name: '利息收入', level: 2, parentCode: '5603', hasChildren: false, children: [] },
+    { id: 'a64-3', code: '5603-03', name: '汇兑损益', level: 2, parentCode: '5603', hasChildren: false, children: [] },
+    { id: 'a64-4', code: '5603-04', name: '手续费及佣金', level: 2, parentCode: '5603', hasChildren: false, children: [] }
+  ]},
+  { id: 'a65', code: '5711', name: '营业外支出', level: 1, parentCode: '', hasChildren: true, children: [
+    { id: 'a65-1', code: '5711-01', name: '非流动资产处置损失', level: 2, parentCode: '5711', hasChildren: false, children: [] },
+    { id: 'a65-2', code: '5711-02', name: '盘亏损失', level: 2, parentCode: '5711', hasChildren: false, children: [] },
+    { id: 'a65-3', code: '5711-03', name: '捐赠支出', level: 2, parentCode: '5711', hasChildren: false, children: [] },
+    { id: 'a65-4', code: '5711-04', name: '罚款支出', level: 2, parentCode: '5711', hasChildren: false, children: [] },
+    { id: 'a65-5', code: '5711-05', name: '非常损失', level: 2, parentCode: '5711', hasChildren: false, children: [] }
+  ]},
   { id: 'a66', code: '5801', name: '所得税费用', level: 1, parentCode: '', hasChildren: false, children: [] }
 ]
 
