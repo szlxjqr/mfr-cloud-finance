@@ -238,7 +238,7 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   <el-aside :width="asideWidth" class="side-aside">
     <!-- 品牌区 -->
     <div class="side-logo">
-      <span class="logo-mark">M</span>
+      <img src="/logo.png" alt="MFR" class="logo-img" />
       <span v-show="!appStore.sidebarCollapsed" class="logo-text">MFR云财务</span>
     </div>
 
@@ -500,19 +500,12 @@ const asideWidth = computed(() => (appStore.sidebarCollapsed ? '64px' : '200px')
   padding: 0 16px;
   border-bottom: 1px solid var(--el-border-color-light);
 }
-.logo-mark {
+.logo-img {
   width: 30px;
   height: 30px;
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #409eff, #2d7ff9);
-  color: #fff;
-  font-weight: 800;
-  font-size: 18px;
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.4);
+  object-fit: contain;
 }
 .logo-text {
   font-size: 16px;
