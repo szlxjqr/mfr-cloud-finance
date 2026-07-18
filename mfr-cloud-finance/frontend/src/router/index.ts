@@ -113,8 +113,7 @@ const router = createRouter({
         {
           path: 'general-ledger/qty-fx-detail',
           name: 'QtyFxDetailLedger',
-          component: Placeholder,
-          props: { title: '数量外币明细账' },
+          component: () => import('@/views/general-ledger/QtyFxDetaiLedger.vue'),
           meta: { title: '数量外币明细账', group: '辅助账簿' },
         },
         {
