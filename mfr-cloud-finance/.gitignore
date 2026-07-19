@@ -1,5 +1,6 @@
-# 依赖
+# 依赖（默认忽略；但前端完整依赖按要求提交 git，便于新任务 clone 即构建）
 node_modules/
+!frontend/node_modules/
 backend/__pycache__/
 __pycache__/
 *.pyc
