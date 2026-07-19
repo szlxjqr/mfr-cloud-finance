@@ -57,12 +57,20 @@ const liabilityAccounts = ref<AccountItem[]>([
   { id: 'l2', code: '2201', name: '应付票据', category: '负债', direction: '贷', level: 1, expanded: false },
   { id: 'l3', code: '2202', name: '应付账款', category: '负债', direction: '贷', level: 1, expanded: false },
   { id: 'l4', code: '2203', name: '预收账款', category: '负债', direction: '贷', level: 1, expanded: false },
-  { id: 'l5', code: '2211', name: '应付职工薪酬', category: '负债', direction: '贷', level: 1, expanded: false },
-  { id: 'l6', code: '2221', name: '应交税费', category: '负债', direction: '贷', level: 1, expanded: false },
+  {
+    id: 'l5', code: '2211', name: '应付职工薪酬', category: '负债', direction: '贷', level: 1,
+    expanded: false, children: [],
+  },
+  {
+    id: 'l6', code: '2221', name: '应交税费', category: '负债', direction: '贷', level: 1,
+    expanded: false, children: [],
+  },
   { id: 'l7', code: '2231', name: '应付利息', category: '负债', direction: '贷', level: 1, expanded: false },
-  { id: 'l8', code: '2232', name: '应付股利', category: '负债', direction: '贷', level: 1, expanded: false },
+  { id: 'l8', code: '2232', name: '应付利润', category: '负债', direction: '贷', level: 1, expanded: false },
   { id: 'l9', code: '2241', name: '其他应付款', category: '负债', direction: '贷', level: 1, expanded: false },
-  { id: 'l10', code: '2501', name: '长期借款', category: '负债', direction: '贷', level: 1, expanded: false },
+  { id: 'l10', code: '2401', name: '递延收益', category: '负债', direction: '贷', level: 1, expanded: false },
+  { id: 'l11', code: '2501', name: '长期借款', category: '负债', direction: '贷', level: 1, expanded: false },
+  { id: 'l12', code: '2701', name: '长期应付款', category: '负债', direction: '贷', level: 1, expanded: false },
 ])
 
 const equityAccounts = ref<AccountItem[]>([
