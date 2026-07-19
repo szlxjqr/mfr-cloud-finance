@@ -6,8 +6,6 @@ export interface OpenTab {
   path: string
   title: string
   group?: string
-  /** 固定标签（如首页）不可关闭 */
-  fixed?: boolean
 }
 
 const STORAGE_KEY = 'mfr-open-tabs'
@@ -20,22 +18,20 @@ interface TabRouteLike {
 /**
  * 已打开页面（快速切换面板 / 程序坞）状态
  * - 记录用户访问过的页面，便于在主页面顶部长条快速切换
- * - 去重 + 最近使用置尾，首页固定，localStorage 持久化
+ * - 首次打开顺序固定，再次打开仅激活，不移动位置
+ * - localStorage 持久化
  */
 export const useTabsStore = defineStore('tabs', () => {
   const openedTabs = ref<OpenTab[]>([])
   const activePath = ref<string>('')
 
-  /** 从 localStorage 初始化（保证首页常驻） */
+  /** 从 localStorage 初始化 */
   function init() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (raw) openedTabs.value = JSON.parse(raw)
     } catch {
       openedTabs.value = []
-    }
-    if (!openedTabs.value.some((t) => t.path === '/dashboard')) {
-      openedTabs.value.unshift({ path: '/dashboard', title: '仪表盘', fixed: true })
     }
   }
 
@@ -47,7 +43,7 @@ export const useTabsStore = defineStore('tabs', () => {
     }
   }
 
-  /** 打开（或激活）一个页面 */
+  /** 打开（或激活）一个页面，不移动已有标签位置 */
   function openTab(route: TabRouteLike) {
     const path = route.path
     const title = route.meta?.title || '未命名'
@@ -55,10 +51,9 @@ export const useTabsStore = defineStore('tabs', () => {
     activePath.value = path
     const idx = openedTabs.value.findIndex((t) => t.path === path)
     if (idx >= 0) {
-      const [t] = openedTabs.value.splice(idx, 1)
-      t.title = title
-      t.group = group
-      openedTabs.value.push(t)
+      // 只更新标题/分组，保持原有位置
+      openedTabs.value[idx].title = title
+      openedTabs.value[idx].group = group
     } else {
       openedTabs.value.push({ path, title, group })
     }
@@ -67,12 +62,10 @@ export const useTabsStore = defineStore('tabs', () => {
 
   /**
    * 关闭一个标签，返回需要跳转到的路径（若关闭的是当前标签）
-   * 固定标签不可关闭
    */
   function closeTab(path: string): string | null {
     const idx = openedTabs.value.findIndex((t) => t.path === path)
     if (idx < 0) return null
-    if (openedTabs.value[idx].fixed) return null
     openedTabs.value.splice(idx, 1)
     persist()
     if (activePath.value === path) {
@@ -82,19 +75,17 @@ export const useTabsStore = defineStore('tabs', () => {
     return null
   }
 
-  /** 关闭其他（保留固定标签与指定标签） */
+  /** 关闭其他（仅保留指定标签） */
   function closeOthers(path: string) {
-    openedTabs.value = openedTabs.value.filter((t) => t.fixed || t.path === path)
+    openedTabs.value = openedTabs.value.filter((t) => t.path === path)
     activePath.value = path
     persist()
   }
 
-  /** 关闭全部（仅保留固定标签） */
+  /** 关闭全部 */
   function closeAll() {
-    openedTabs.value = openedTabs.value.filter((t) => t.fixed)
-    if (!openedTabs.value.some((t) => t.path === activePath.value)) {
-      activePath.value = openedTabs.value[0]?.path || '/dashboard'
-    }
+    openedTabs.value = []
+    activePath.value = '/dashboard'
     persist()
   }
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Close, CircleClose } from '@element-plus/icons-vue'
+import { Close, CircleClose, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useTabsStore } from '@/stores/tabs'
 
@@ -14,7 +14,7 @@ onMounted(() => {
   tabsStore.openTab(route)
 })
 
-// 路由变化即把当前页加入快速切换面板
+// 路由变化即把当前页加入快速切换面板，但不移动位置
 watch(
   () => route.path,
   () => tabsStore.openTab(route),
@@ -29,9 +29,44 @@ function close(path: string) {
   if (target) router.push(target)
 }
 
-function closeOthers() {
-  tabsStore.closeOthers(route.path)
+function closeOthers(path: string) {
+  tabsStore.closeOthers(path)
+  router.push(path)
   ElMessage.success('已关闭其他标签')
+}
+
+function closeAll() {
+  tabsStore.closeAll()
+  router.push('/dashboard')
+  ElMessage.success('已关闭全部标签')
+}
+
+function refresh(path: string) {
+  hideMenu()
+  if (path === route.path) {
+    window.location.reload()
+  } else {
+    router.push(path).then(() => window.location.reload())
+  }
+}
+
+/* ===== 右键菜单 ===== */
+const menuVisible = ref(false)
+const menuX = ref(0)
+const menuY = ref(0)
+const menuPath = ref('')
+
+function showMenu(e: MouseEvent, path: string) {
+  e.preventDefault()
+  e.stopPropagation()
+  menuPath.value = path
+  menuX.value = e.clientX
+  menuY.value = e.clientY
+  menuVisible.value = true
+}
+
+function hideMenu() {
+  menuVisible.value = false
 }
 </script>
 
@@ -45,14 +80,11 @@ function closeOthers() {
         :class="{ active: t.path === route.path }"
         :title="t.group ? `${t.title}（${t.group}）` : t.title"
         @click="go(t.path)"
+        @contextmenu.prevent="showMenu($event, t.path)"
       >
         <span class="qs-dot" />
         <span class="qs-title">{{ t.title }}</span>
-        <span
-          v-if="!t.fixed"
-          class="qs-close"
-          @click.stop="close(t.path)"
-        >
+        <span class="qs-close" @click.stop="close(t.path)">
           <el-icon><Close /></el-icon>
         </span>
       </div>
@@ -60,10 +92,31 @@ function closeOthers() {
 
     <div class="qs-actions">
       <el-tooltip content="关闭其他标签" placement="bottom">
-        <el-button text size="small" class="qs-action-btn" @click="closeOthers">
+        <el-button text size="small" class="qs-action-btn" @click="closeOthers(route.path)">
           <el-icon><CircleClose /></el-icon>
         </el-button>
       </el-tooltip>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div
+      v-show="menuVisible"
+      v-click-outside="hideMenu"
+      class="context-menu"
+      :style="{ left: menuX + 'px', top: menuY + 'px' }"
+    >
+      <div class="menu-item" @click="refresh(menuPath)">
+        <el-icon><RefreshRight /></el-icon> 刷新
+      </div>
+      <div class="menu-item" @click="close(menuPath); hideMenu()">
+        <el-icon><Close /></el-icon> 关闭
+      </div>
+      <div class="menu-item" @click="closeOthers(menuPath); hideMenu()">
+        <el-icon><CircleClose /></el-icon> 关闭其他
+      </div>
+      <div class="menu-item" @click="closeAll(); hideMenu()">
+        <el-icon><CircleClose /></el-icon> 关闭全部
+      </div>
     </div>
   </div>
 </template>
@@ -78,6 +131,7 @@ function closeOthers() {
   border-bottom: 1px solid var(--el-border-color-light);
   padding: 0 10px;
   gap: 8px;
+  position: relative;
 }
 
 .qs-scroll {
@@ -171,6 +225,32 @@ function closeOthers() {
   color: #909399;
 }
 .qs-action-btn:hover {
+  color: var(--el-color-primary);
+}
+
+/* 右键菜单 */
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  min-width: 120px;
+  padding: 4px 0;
+  background: #fff;
+  border-radius: 6px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--el-border-color-light);
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.menu-item:hover {
+  background: var(--el-fill-color-light);
   color: var(--el-color-primary);
 }
 </style>
