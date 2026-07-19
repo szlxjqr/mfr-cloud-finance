@@ -546,7 +546,7 @@ function showHelp() {
       v-model="dialogVisible"
       :title="`${dialogMode === 'add' ? '新增' : '编辑'}进项发票`"
       class="invoice-dialog"
-      width="92%"
+      width="96%"
       :close-on-click-modal="false"
       @closed="formRef?.clearValidate()"
     >
@@ -854,27 +854,41 @@ function showHelp() {
 
 .form-row {
   display: flex;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
 }
 .form-row .el-form-item {
   flex: 1;
-  min-width: 200px;
+  min-width: 260px;
 }
 
 /* 销方单位区域 */
 .seller-section {
   display: flex;
-  gap: 16px;
+  gap: 24px;
   border: 1px solid #d8b692;
   padding: 16px;
   margin: 16px 0;
   position: relative;
 }
-.seller-left,
+.seller-left {
+  flex: 1.4;
+  min-width: 420px;
+}
 .seller-right {
   flex: 1;
-  min-width: 280px;
+  min-width: 300px;
+}
+.seller-left :deep(.el-form-item__label),
+.seller-right :deep(.el-form-item__label) {
+  width: 120px !important;
+  text-align: left;
+  padding-right: 8px;
+  box-sizing: border-box;
+}
+.seller-left :deep(.el-form-item__content),
+.seller-right :deep(.el-form-item__content) {
+  margin-left: 120px !important;
 }
 .seller-title {
   font-size: 14px;
@@ -900,7 +914,7 @@ function showHelp() {
 }
 .detail-table {
   width: 100%;
-  min-width: 940px;
+  min-width: 1100px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -948,7 +962,7 @@ function showHelp() {
 <!-- 弹窗根与主体：因 el-dialog 经 teleport 渲染到 body，需用非 scoped 规则控制尺寸与滚动 -->
 <style>
 .invoice-dialog {
-  max-width: 1100px;
+  max-width: 1400px;
 }
 .invoice-dialog .el-dialog__header {
   padding: 16px 20px;
@@ -960,9 +974,9 @@ function showHelp() {
   font-weight: 600;
 }
 .invoice-dialog .el-dialog__body {
-  max-height: 72vh;
+  max-height: 80vh;
   overflow-y: auto;
-  padding: 16px 20px 8px;
+  padding: 16px 24px 8px;
   box-sizing: border-box;
 }
 .invoice-dialog .el-dialog__footer {
