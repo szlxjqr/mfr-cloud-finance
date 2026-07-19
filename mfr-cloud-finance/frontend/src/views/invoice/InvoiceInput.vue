@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { parseInvoiceFile, type ParsedInvoice } from '../../utils/invoiceParser'
 import {
   Plus,
   Delete,
@@ -170,14 +171,50 @@ function startAiRecognize() {
   }
   aiRecognizing.value = true
   aiResult.value = null
-  // 模拟 AI 识别耗时与结果
-  setTimeout(() => {
-    aiResult.value = mockAiResult()
-    aiRecognizing.value = false
-    ElMessage.success('识别完成，正在自动填充…')
-    // 展示结果约 1 秒后自动填充到新增弹窗
-    setTimeout(() => applyAiResult(), 1000)
-  }, 1500)
+  const file = aiFile.value
+  parseInvoiceFile(file)
+    .then((parsed: ParsedInvoice) => {
+      aiResult.value = buildResultFromParsed(parsed)
+      aiRecognizing.value = false
+      ElMessage.success('识别完成，正在自动填充…')
+      // 展示结果约 1 秒后自动填充到新增弹窗
+      setTimeout(() => applyAiResult(), 1000)
+    })
+    .catch((err) => {
+      console.error('发票识别失败', err)
+      aiRecognizing.value = false
+      ElMessage.error('发票识别失败，已填入示例数据，请手动核对')
+      aiResult.value = mockAiResult()
+      setTimeout(() => applyAiResult(), 1000)
+    })
+}
+
+// 将解析结果映射为表单模型（含明细行）
+function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
+  const detail: InvoiceDetail = {
+    id: genId(),
+    bizType: '采购商品',
+    item: p.item || '见发票明细',
+    qty: 1,
+    amount: p.amount ?? 0,
+    taxRate: p.taxRate ?? 13,
+    tax: p.tax ?? 0,
+    total: p.total ?? 0,
+  }
+  return {
+    type: p.type || '增值税专用发票',
+    code: p.code || '',
+    no: p.no || '',
+    account: p.account || '库存商品',
+    date: p.date || '2026-05-18',
+    sellerName: p.sellerName || '',
+    sellerTaxNo: p.sellerTaxNo || '',
+    sellerAddressPhone: '',
+    sellerBankAccount: '',
+    certify: 'none',
+    remark: '',
+    details: [detail],
+  }
 }
 
 function mockAiResult(): Partial<typeof formModel> {
