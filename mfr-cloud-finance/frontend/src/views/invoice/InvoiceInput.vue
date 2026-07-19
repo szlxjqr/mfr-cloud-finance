@@ -225,7 +225,7 @@ function applyAiResult(parsed: ParsedInvoice) {
       ? data.details
       : [emptyDetail()]
     details.forEach((d) => {
-    calcDetail(d)
+    ensureDetailComputed(d)
     rows.push({
       id: genId(),
       invoiceId: genId(),
@@ -346,6 +346,15 @@ function calcDetail(row: InvoiceDetail) {
   row.total = Number((row.amount + row.tax).toFixed(2))
 }
 
+// 与 calcDetail 不同：识别到的税额/价税合计是发票上的权威值，已存在则信任原值，
+// 不再用「金额×税率」重算（避免 276.42×6%=16.5852 四舍五入成 16.59 的 1 分钱误差）。
+// 仅当税额或价税合计缺失时才补算。
+function ensureDetailComputed(row: InvoiceDetail) {
+  if (row.tax > 0 && row.total > 0) return
+  if (row.tax <= 0) row.tax = Number((row.amount * (row.taxRate / 100)).toFixed(2))
+  if (row.total <= 0) row.total = Number((row.amount + row.tax).toFixed(2))
+}
+
 const detailTotal = computed(() => {
   return formModel.details.reduce(
     (sum, d) => ({
@@ -422,7 +431,7 @@ function submitForm() {
         ElMessage.warning('请完善业务类型和开票项目')
         return
       }
-      calcDetail(d)
+      ensureDetailComputed(d)
     }
 
     const invoiceId = dialogMode.value === 'add' ? genId() : formModel.invoiceId
