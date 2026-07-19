@@ -150,7 +150,6 @@ export const menuItems: MenuItem[] = [
   {
     title: '发票',
     icon: 'Ticket',
-    badge: '限免',
     module: 'invoice',
     groups: [
       {
