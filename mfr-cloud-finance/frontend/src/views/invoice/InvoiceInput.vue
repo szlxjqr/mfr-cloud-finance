@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { parseInvoiceFile, validateInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
+import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
 import {
   Plus,
   Delete,
@@ -250,7 +250,13 @@ function applyAiResult(parsed: ParsedInvoice) {
     })
     })
     aiDialogVisible.value = false
-    ElMessage.success('已识别并新增 1 条发票记录')
+    // 发票是权威文件：已识别的金额/税额/价税合计原样保存，此处仅用公式做一致性校验提示
+    const verify = verifyInvoice(parsed)
+    if (verify.consistent) {
+      ElMessage.success('已识别并新增 1 条发票记录')
+    } else {
+      ElMessage.warning(`已新增，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)
+    }
   } else {
     // 校验失败：打开新增弹窗回填已识别字段，不录入，并提示缺失核心字段
     resetForm()

@@ -145,6 +145,36 @@ export function validateInvoice(p: ParsedInvoice): ValidationResult {
   return { ok: missing.length === 0, missing, parsed: p }
 }
 
+// 一致性校验：发票是权威文件，识别到的金额/税额/价税合计应原样保存；
+// 此处仅用公式「验证」是否自洽，用于提示可疑偏差，绝不覆盖已识别数据。
+// 容差 2 分：数电票税额常按「价税合计 - 金额」倒挤或四舍五入，与「金额×税率」可能有 1 分差异，属正常。
+export interface VerifyResult {
+  consistent: boolean
+  warnings: string[]
+}
+
+export function verifyInvoice(p: ParsedInvoice): VerifyResult {
+  const warnings: string[] = []
+  const amount = p.amount || 0
+  const tax = p.tax || 0
+  const total = p.total || 0
+  const round2 = (n: number) => Number(n.toFixed(2))
+
+  if (amount > 0 && tax > 0 && total > 0) {
+    const sum = round2(amount + tax)
+    if (Math.abs(sum - total) > 0.02) {
+      warnings.push(`价税合计 ${total} 与 金额${amount}+税额${tax}=${sum} 不一致`)
+    }
+  }
+  if (amount > 0 && tax > 0 && p.taxRate) {
+    const expect = round2((amount * p.taxRate) / 100)
+    if (Math.abs(tax - expect) > 0.02) {
+      warnings.push(`税额 ${tax} 与 金额×税率${p.taxRate}%≈${expect} 不一致`)
+    }
+  }
+  return { consistent: warnings.length === 0, warnings }
+}
+
 // 判断提取文本是否过空（标签与值相隔极远或字体无法解码），决定是否需要 OCR 兜底
 function looksEmpty(norm: string): boolean {
   const hasCompany = /(公司|酒店|企业|厂|店|中心|集团|税务局)/.test(norm)
