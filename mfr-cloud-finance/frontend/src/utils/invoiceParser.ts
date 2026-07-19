@@ -21,6 +21,8 @@ export interface ParsedInvoice {
   code?: string
   no?: string
   date?: string
+  buyerName?: string
+  buyerTaxNo?: string
   sellerName?: string
   sellerTaxNo?: string
   amount?: number
@@ -28,8 +30,19 @@ export interface ParsedInvoice {
   total?: number
   taxRate?: number
   item?: string
+  items?: ParsedLineItem[]
   account?: string
   rawText?: string
+}
+
+// 单条明细行（一张发票可有多条）
+export interface ParsedLineItem {
+  name: string
+  qty?: number
+  price?: number
+  amount: number
+  taxRate?: number
+  tax: number
 }
 
 export interface ValidationResult {
@@ -103,26 +116,45 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     }
   }
 
-  // 3. 销售方名称：收集所有公司名，取最后一个（发票中购买方在前、销售方在后）
+  // 3. 购买方 / 销售方名称：收集所有公司名
+  //    发票中购买方在前、销售方在后；购买方 = 第一个，销售方 = 最后一个
   const compRe =
     /([\u4e00-\u9fa5A-Za-z0-9（）()·\-]{2,40}(?:科技有限公司|有限公司|有限责任公司|股份公司|集团))/g
   const comps = [...norm.matchAll(compRe)].map((m) => m[1].trim().replace(/\s+/g, ' '))
-  if (comps.length) result.sellerName = comps[comps.length - 1]
+  if (comps.length) {
+    result.sellerName = comps[comps.length - 1]
+    if (comps.length > 1) result.buyerName = comps[0]
+  }
 
-  // 4. 纳税人识别号（统一社会信用代码 18 位）：取最后一个（销售方）
+  // 4. 纳税人识别号（统一社会信用代码 18 位）
   //    边界断言避免误匹配长数字串（如 20 位发票号）的前 18 位
+  //    购买方 = 第一个，销售方 = 最后一个
   const taxRuns = [...norm.matchAll(/(?<![0-9A-Z])[0-9A-Z]{18}(?![0-9A-Z])/g)].map((m) => m[0])
-  if (taxRuns.length) result.sellerTaxNo = taxRuns[taxRuns.length - 1]
+  if (taxRuns.length) {
+    result.sellerTaxNo = taxRuns[taxRuns.length - 1]
+    if (taxRuns.length > 1) result.buyerTaxNo = taxRuns[0]
+  }
 
-  // 5-7. 金额类：收集全部「¥xx.xx」金额，按大小分配
-  //     发票中标签常与数值相距很远（甚至分处不同阅读区），故不依赖标签 proximity
-  //     约定：最大=价税合计，次大=金额(不含税)，最小=税额
+  // 10. 多条明细行（先算，供下方金额汇总使用）
+  const items = extractLineItems(norm)
+
+  // 5-7. 金额类
   const amounts = [...norm.matchAll(/(?:¥|￥)\s*([\d,]+\.\d{2})/g)].map((m) => parseMoney(m[1]))
   const uniqAmts = [...new Set(amounts)].sort((a, b) => b - a)
-  if (uniqAmts.length) result.total = uniqAmts[0]
-  if (uniqAmts.length > 1 && uniqAmts[1] < uniqAmts[0]) result.amount = uniqAmts[1]
-  if (uniqAmts.length > 2 && uniqAmts[uniqAmts.length - 1] < uniqAmts[0])
-    result.tax = uniqAmts[uniqAmts.length - 1]
+  const round2 = (n: number) => Number(n.toFixed(2))
+
+  if (items.length > 0) {
+    // 多条明细：发票级「合计」由明细汇总得出（避免把单行金额误当合计）
+    result.amount = round2(items.reduce((s, it) => s + it.amount, 0))
+    result.tax = round2(items.reduce((s, it) => s + it.tax, 0))
+    result.total = uniqAmts.length ? uniqAmts[0] : round2(result.amount + result.tax)
+  } else {
+    // 无明细行（单条或仅合计）：最大=价税合计，次大=金额(不含税)，最小=税额
+    if (uniqAmts.length) result.total = uniqAmts[0]
+    if (uniqAmts.length > 1 && uniqAmts[1] < uniqAmts[0]) result.amount = uniqAmts[1]
+    if (uniqAmts.length > 2 && uniqAmts[uniqAmts.length - 1] < uniqAmts[0])
+      result.tax = uniqAmts[uniqAmts.length - 1]
+  }
 
   // 8. 税率（独立出现的 数字%）
   const rateMatch = norm.match(/(\d{1,2})\s*%/)
@@ -132,7 +164,36 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
   const itemMatch = norm.match(/\*\s*([\u4e00-\u9fa5A-Za-z0-9]+)\s*\*/)
   if (itemMatch) result.item = itemMatch[1]
 
+  result.items = items
+
   return result
+}
+
+// 提取多条明细行。识别「名称 金额 税率% 税额」三元组；名称取税额前的一段文字（去星号）。
+// 仅当确实存在带税率的明细行时才返回，否则返回空数组（由调用方回退到整张发票合计）。
+export function extractLineItems(norm: string): ParsedLineItem[] {
+  const items: ParsedLineItem[] = []
+  // 名称：非数字、非¥、非换行的 2-40 字符；其后紧跟 金额 税率% 税额
+  const re = /([^\d¥\n]{2,40}?)\s+(\d+(?:\.\d{1,2})?)\s+(\d{1,2})\s*%\s+(\d+(?:\.\d{1,2})?)/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(norm))) {
+    const raw = m[1]
+    // 保留 *类目*具体名称 中的全部文字（数电票明细常以「*住宿服务*房费」形式）
+    // 先把 *xxx* 还原为内部文字，再清理星号与「名称」前缀，保留类目与具体品名
+    const name = raw
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/[*\s]/g, ' ')
+      .replace(/名称[:：]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!name) continue
+    const amount = parseMoney(m[2])
+    const taxRate = Number(m[3])
+    const tax = parseMoney(m[4])
+    if (amount <= 0) continue
+    items.push({ name, amount, taxRate, tax })
+  }
+  return items
 }
 
 // 校验识别结果：核心字段缺失则返回失败（发票代码在新版数电票中已取消，设为可选）

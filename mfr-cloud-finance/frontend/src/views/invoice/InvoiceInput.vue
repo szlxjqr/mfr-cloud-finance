@@ -43,6 +43,8 @@ interface InvoiceRecord {
   sellerTaxNo: string
   sellerAddressPhone: string
   sellerBankAccount: string
+  buyerName: string
+  buyerTaxNo: string
   account: string
   certify: 'current' | 'none'
   remark: string
@@ -86,6 +88,8 @@ const rows = reactive<InvoiceRecord[]>([
     sellerTaxNo: '91440100MA5xxxxxx',
     sellerAddressPhone: '广州市天河区xxx 020-12345678',
     sellerBankAccount: '中国工商银行广州分行 6222xxxxxxxx',
+    buyerName: '示例采购企业有限公司',
+    buyerTaxNo: '91440000MA6xxxxxx',
     account: '库存商品',
     certify: 'none',
     remark: '',
@@ -188,15 +192,32 @@ function startAiRecognize() {
 
 // 将解析结果映射为表单模型（含明细行）
 function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
-  const detail: InvoiceDetail = {
-    id: genId(),
-    bizType: '采购商品',
-    item: p.item || '见发票明细',
-    qty: 1,
-    amount: p.amount ?? 0,
-    taxRate: p.taxRate ?? 13,
-    tax: p.tax ?? 0,
-    total: p.total ?? 0,
+  // 多条明细：每条 ParsedLineItem 对应一行明细；单条/无明细：用发票级合计生成单行
+  let details: InvoiceDetail[]
+  if (p.items && p.items.length > 0) {
+    details = p.items.map((it) => ({
+      id: genId(),
+      bizType: '采购商品',
+      item: it.name || '见发票明细',
+      qty: it.qty || 1,
+      amount: it.amount ?? 0,
+      taxRate: it.taxRate ?? p.taxRate ?? 13,
+      tax: it.tax ?? 0,
+      total: Number(((it.amount ?? 0) + (it.tax ?? 0)).toFixed(2)),
+    }))
+  } else {
+    details = [
+      {
+        id: genId(),
+        bizType: '采购商品',
+        item: p.item || '见发票明细',
+        qty: 1,
+        amount: p.amount ?? 0,
+        taxRate: p.taxRate ?? 13,
+        tax: p.tax ?? 0,
+        total: p.total ?? 0,
+      },
+    ]
   }
   return {
     type: p.type || '增值税专用发票',
@@ -208,9 +229,11 @@ function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
     sellerTaxNo: p.sellerTaxNo || '',
     sellerAddressPhone: '',
     sellerBankAccount: '',
+    buyerName: p.buyerName || '',
+    buyerTaxNo: p.buyerTaxNo || '',
     certify: 'none',
     remark: '',
-    details: [detail],
+    details,
   }
 }
 
@@ -237,6 +260,8 @@ function applyAiResult(parsed: ParsedInvoice) {
       sellerTaxNo: data.sellerTaxNo || '',
       sellerAddressPhone: data.sellerAddressPhone || '',
       sellerBankAccount: data.sellerBankAccount || '',
+      buyerName: data.buyerName || '',
+      buyerTaxNo: data.buyerTaxNo || '',
       account: data.account || '库存商品',
       certify: data.certify || 'none',
       remark: data.remark || '',
@@ -252,8 +277,9 @@ function applyAiResult(parsed: ParsedInvoice) {
     aiDialogVisible.value = false
     // 发票是权威文件：已识别的金额/税额/价税合计原样保存，此处仅用公式做一致性校验提示
     const verify = verifyInvoice(parsed)
+    const addCount = details.length
     if (verify.consistent) {
-      ElMessage.success('已识别并新增 1 条发票记录')
+      ElMessage.success(`已识别并新增 1 张发票（${addCount} 条明细）`)
     } else {
       ElMessage.warning(`已新增，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)
     }
@@ -289,6 +315,8 @@ const formModel = reactive<{
   sellerTaxNo: string
   sellerAddressPhone: string
   sellerBankAccount: string
+  buyerName: string
+  buyerTaxNo: string
   certify: 'current' | 'none'
   remark: string
   details: InvoiceDetail[]
@@ -303,6 +331,8 @@ const formModel = reactive<{
   sellerTaxNo: '',
   sellerAddressPhone: '',
   sellerBankAccount: '',
+  buyerName: '',
+  buyerTaxNo: '',
   certify: 'none',
   remark: '',
   details: [],
@@ -341,6 +371,8 @@ function resetForm() {
     sellerTaxNo: '',
     sellerAddressPhone: '',
     sellerBankAccount: '',
+    buyerName: '',
+    buyerTaxNo: '',
     certify: 'none',
     remark: '',
     details: [emptyDetail()],
@@ -416,6 +448,8 @@ function openEdit(row: InvoiceRecord) {
     sellerTaxNo: row.sellerTaxNo,
     sellerAddressPhone: row.sellerAddressPhone,
     sellerBankAccount: row.sellerBankAccount,
+    buyerName: row.buyerName,
+    buyerTaxNo: row.buyerTaxNo,
     certify: row.certify,
     remark: row.remark,
     details: details.length ? details : [emptyDetail()],
@@ -462,6 +496,8 @@ function submitForm() {
         sellerTaxNo: formModel.sellerTaxNo,
         sellerAddressPhone: formModel.sellerAddressPhone,
         sellerBankAccount: formModel.sellerBankAccount,
+        buyerName: formModel.buyerName,
+        buyerTaxNo: formModel.buyerTaxNo,
         account: formModel.account,
         certify: formModel.certify,
         remark: formModel.remark,
@@ -737,6 +773,21 @@ function showHelp() {
           </div>
         </div>
 
+        <!-- 购买方单位 -->
+        <div class="buyer-section">
+          <div class="seller-title">购买方单位</div>
+          <div class="form-row">
+            <el-form-item>
+              <template #label><span class="form-label">名 称</span></template>
+              <el-input v-model="formModel.buyerName" placeholder="请输入购买方名称（识别自动填充）" />
+            </el-form-item>
+            <el-form-item>
+              <template #label><span class="form-label">纳税人识别号</span></template>
+              <el-input v-model="formModel.buyerTaxNo" placeholder="请输入购买方纳税人识别号" />
+            </el-form-item>
+          </div>
+        </div>
+
         <!-- 销方单位 + 认证/备注 -->
         <div class="seller-section">
           <div class="seller-left">
@@ -927,6 +978,8 @@ function showHelp() {
             <div class="ai-result-item"><label>结算科目</label><span>{{ aiResult.account }}</span></div>
             <div class="ai-result-item"><label>销方名称</label><span>{{ aiResult.sellerName }}</span></div>
             <div class="ai-result-item wide"><label>销方税号</label><span>{{ aiResult.sellerTaxNo }}</span></div>
+            <div class="ai-result-item"><label>购买方名称</label><span>{{ aiResult.buyerName }}</span></div>
+            <div class="ai-result-item wide"><label>购买方税号</label><span>{{ aiResult.buyerTaxNo }}</span></div>
             <div class="ai-result-item wide"><label>明细</label><span>{{ aiResult.details?.[0]?.item }} × {{ aiResult.details?.[0]?.qty }}，金额 {{ aiResult.details?.[0]?.amount?.toFixed(2) }}，税额 {{ aiResult.details?.[0]?.tax?.toFixed(2) }}</span></div>
           </div>
         </div>
@@ -1087,6 +1140,33 @@ function showHelp() {
 .form-row .el-form-item {
   flex: 1;
   min-width: 260px;
+}
+
+/* 购买方单位区域 */
+.buyer-section {
+  display: block;
+  border: 1px solid #d8b692;
+  padding: 16px;
+  margin: 16px 0 0;
+  position: relative;
+}
+.buyer-section .form-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.buyer-section .form-row .el-form-item {
+  flex: 1;
+  min-width: 260px;
+}
+.buyer-section :deep(.el-form-item__label) {
+  width: 120px !important;
+  text-align: left;
+  padding-right: 8px;
+  box-sizing: border-box;
+}
+.buyer-section :deep(.el-form-item__content) {
+  margin-left: 120px !important;
 }
 
 /* 销方单位区域 */
