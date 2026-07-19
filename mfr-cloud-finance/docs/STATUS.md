@@ -27,6 +27,7 @@
 | SSH 配置 | `~/.ssh/config` → `github.com` 走 `ssh.github.com:443`（沙箱 22 端口被封） |
 | 前端源码文件数 | 35（`.vue` + `.ts`） |
 | 科目数据 | `frontend/src/views/settings/accountData.ts`（187 科目，前端静态） |
+| **本文件网盘位置** | 项目网盘根目录 `IxkOwRcwRUxu`，`file_id: IzMjhnpPfZrG`（其他任务可先读此文件再连 git） |
 
 ---
 
