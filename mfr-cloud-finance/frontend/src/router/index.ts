@@ -233,7 +233,7 @@ const router = createRouter({
         { path: 'settings/aux-dict', name: 'SettingsAuxDict', component: () => import('@/views/settings/AuxDict.vue'), meta: { title: '辅助字典', group: '基础数据' } },
         { path: 'settings/currency', name: 'SettingsCurrency', component: () => import('@/views/settings/Currency.vue'), meta: { title: '币别', group: '基础数据' } },
         { path: 'settings/summary', name: 'SettingsSummary', component: () => import('@/views/settings/Summary.vue'), meta: { title: '凭证摘要', group: '基础数据' } },
-        { path: 'settings/voucher-word', name: 'SettingsVoucherWord', component: Placeholder, props: { title: '凭证字' }, meta: { title: '凭证字', group: '基础数据' } },
+        { path: 'settings/voucher-word', name: 'SettingsVoucherWord', component: () => import('@/views/settings/VoucherWord.vue'), meta: { title: '凭证字', group: '基础数据' } },
         { path: 'settings/voucher-template', name: 'SettingsVoucherTemplate', component: Placeholder, props: { title: '凭证模板' }, meta: { title: '凭证模板', group: '基础设置' } },
         { path: 'settings/voucher-config', name: 'SettingsVoucherConfig', component: Placeholder, props: { title: '凭证配置' }, meta: { title: '凭证配置', group: '基础设置' } },
         { path: 'settings/diary-template', name: 'SettingsDiaryTemplate', component: Placeholder, props: { title: '日记账模板' }, meta: { title: '日记账模板', group: '基础设置' } },
