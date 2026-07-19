@@ -247,17 +247,38 @@ function mockAiResult(): Partial<typeof formModel> {
 
 function applyAiResult() {
   if (!aiResult.value) return
-  resetForm()
-  Object.assign(formModel, aiResult.value)
-  // 确保明细存在
-  if (!formModel.details || formModel.details.length === 0) {
-    formModel.details = [emptyDetail()]
-  }
+  const data = aiResult.value
+  // 确保明细存在且字段完整
+  const details = data.details?.length
+    ? data.details
+    : [emptyDetail()]
+  details.forEach((d) => {
+    calcDetail(d)
+    rows.push({
+      id: genId(),
+      invoiceId: genId(),
+      type: data.type || '增值税专用发票',
+      code: data.code || '',
+      no: data.no || '',
+      date: data.date || '2026-05-18',
+      sellerName: data.sellerName || '',
+      sellerTaxNo: data.sellerTaxNo || '',
+      sellerAddressPhone: data.sellerAddressPhone || '',
+      sellerBankAccount: data.sellerBankAccount || '',
+      account: data.account || '库存商品',
+      certify: data.certify || 'none',
+      remark: data.remark || '',
+      bizType: d.bizType || '采购商品',
+      item: d.item || '见发票明细',
+      qty: d.qty || 1,
+      amount: d.amount ?? 0,
+      taxRate: d.taxRate ?? 13,
+      tax: d.tax ?? 0,
+      total: d.total ?? 0,
+    })
+  })
   aiDialogVisible.value = false
-  dialogMode.value = 'add'
-  dialogVisible.value = true
-  formRef.value?.clearValidate()
-  ElMessage.success('已导入识别结果，请核对保存')
+  ElMessage.success('已识别并新增 1 条发票记录')
 }
 
 const dialogVisible = ref(false)
