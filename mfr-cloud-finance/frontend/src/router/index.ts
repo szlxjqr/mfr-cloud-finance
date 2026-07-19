@@ -42,6 +42,12 @@ const router = createRouter({
         },
 
         /* ====== 总账模块 — 三级子菜单 ====== */
+        {
+          path: 'general-ledger',
+          name: 'GeneralLedgerOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '总账', module: 'general-ledger' },
+        },
         // --- 凭证管理 ---
         {
           path: 'general-ledger/voucher',
@@ -140,6 +146,12 @@ const router = createRouter({
 
         /* ====== 报表模块 ====== */
         {
+          path: 'reports',
+          name: 'ReportsOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '报表', module: 'reports' },
+        },
+        {
           path: 'reports/balance-sheet',
           name: 'BalanceSheetReport',
           component: Placeholder,
@@ -177,6 +189,12 @@ const router = createRouter({
 
         /* ====== 出纳模块 ====== */
         {
+          path: 'cashier',
+          name: 'CashierOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '出纳', module: 'cashier' },
+        },
+        {
           path: 'cashier/diary',
           name: 'CashierDiary',
           component: Placeholder,
@@ -200,6 +218,12 @@ const router = createRouter({
 
         /* ====== 资产模块 ====== */
         {
+          path: 'assets',
+          name: 'AssetsOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '资产', module: 'assets' },
+        },
+        {
           path: 'assets/fixed-asset',
           name: 'FixedAsset',
           component: Placeholder,
@@ -208,6 +232,12 @@ const router = createRouter({
         },
 
         /* ====== 工资模块 ====== */
+        {
+          path: 'payroll',
+          name: 'PayrollOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '工资', module: 'payroll' },
+        },
         { path: 'payroll/employee-info', name: 'PayrollEmployeeInfo', component: Placeholder, props: { title: '员工基本信息' }, meta: { title: '员工基本信息', group: '工资' } },
         { path: 'payroll/salary-list', name: 'PayrollSalaryList', component: Placeholder, props: { title: '工资列表' }, meta: { title: '工资列表', group: '工资' } },
         { path: 'payroll/dept-summary', name: 'PayrollDeptSummary', component: Placeholder, props: { title: '部门工资汇总表' }, meta: { title: '部门工资汇总表', group: '工资' } },
@@ -217,6 +247,12 @@ const router = createRouter({
         { path: 'payroll/allocation', name: 'PayrollAllocation', component: Placeholder, props: { title: '工资分摊' }, meta: { title: '工资分摊', group: '工资设置' } },
 
         /* ====== 发票模块 ====== */
+        {
+          path: 'invoice',
+          name: 'InvoiceOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '发票', module: 'invoice' },
+        },
         { path: 'invoice/input', name: 'InvoiceInput', component: Placeholder, props: { title: '进项发票' }, meta: { title: '进项发票', group: '发票' } },
         { path: 'invoice/output', name: 'InvoiceOutput', component: Placeholder, props: { title: '销项发票' }, meta: { title: '销项发票', group: '发票' } },
         { path: 'invoice/expense', name: 'InvoiceExpense', component: Placeholder, props: { title: '费用发票' }, meta: { title: '费用发票', group: '发票' } },
@@ -224,10 +260,22 @@ const router = createRouter({
         { path: 'invoice/setting', name: 'InvoiceSetting', component: Placeholder, props: { title: '发票设置' }, meta: { title: '发票设置', group: '发票设置' } },
 
         /* ====== 结账模块 ====== */
+        {
+          path: 'closing',
+          name: 'ClosingOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '结账', module: 'closing' },
+        },
         { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: Placeholder, props: { title: '期末结转' }, meta: { title: '期末结转', group: '结账' } },
         { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账' } },
 
         /* ====== 设置模块 ====== */
+        {
+          path: 'settings',
+          name: 'SettingsOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '设置', module: 'settings' },
+        },
         { path: 'settings/account', name: 'SettingsAccount', component: SettingsAccount, meta: { title: '科目', group: '基础数据' } },
         { path: 'settings/opening', name: 'SettingsOpening', component: () => import('@/views/settings/Opening.vue'), meta: { title: '期初', group: '基础数据' } },
         { path: 'settings/aux-dict', name: 'SettingsAuxDict', component: () => import('@/views/settings/AuxDict.vue'), meta: { title: '辅助字典', group: '基础数据' } },
