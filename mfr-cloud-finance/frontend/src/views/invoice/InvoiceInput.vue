@@ -545,7 +545,8 @@ function showHelp() {
     <el-dialog
       v-model="dialogVisible"
       :title="`${dialogMode === 'add' ? '新增' : '编辑'}进项发票`"
-      width="960px"
+      class="invoice-dialog"
+      width="92%"
       :close-on-click-modal="false"
       @closed="formRef?.clearValidate()"
     >
@@ -619,6 +620,7 @@ function showHelp() {
 
         <!-- 明细表格 -->
         <div class="detail-section">
+          <div class="detail-table-wrap">
           <table class="detail-table">
             <thead>
               <tr>
@@ -686,6 +688,7 @@ function showHelp() {
               </tr>
             </tfoot>
           </table>
+          </div>
           <el-button text type="primary" class="add-detail-btn" @click="addDetail">
             <el-icon><Plus /></el-icon>添加明细行
           </el-button>
@@ -874,24 +877,16 @@ function showHelp() {
   min-width: 280px;
 }
 .seller-title {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  writing-mode: vertical-lr;
-  letter-spacing: 4px;
-  padding: 8px 4px;
-  color: #a0522d;
   font-size: 14px;
   font-weight: 600;
-  border-right: 1px solid #d8b692;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  color: #a0522d;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #d8b692;
 }
 .seller-left {
-  padding-left: 32px;
+  padding-left: 0;
 }
 
 /* 明细表格 */
@@ -900,8 +895,12 @@ function showHelp() {
   padding: 12px;
   margin-bottom: 16px;
 }
+.detail-table-wrap {
+  overflow-x: auto;
+}
 .detail-table {
   width: 100%;
+  min-width: 940px;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -943,17 +942,31 @@ function showHelp() {
   .seller-section {
     flex-direction: column;
   }
-  .seller-title {
-    position: static;
-    writing-mode: horizontal-tb;
-    border-right: none;
-    border-bottom: 1px solid #d8b692;
-    width: 100%;
-    height: auto;
-    transform: none;
-  }
-  .seller-left {
-    padding-left: 0;
-  }
+}
+</style>
+
+<!-- 弹窗根与主体：因 el-dialog 经 teleport 渲染到 body，需用非 scoped 规则控制尺寸与滚动 -->
+<style>
+.invoice-dialog {
+  max-width: 1100px;
+}
+.invoice-dialog .el-dialog__header {
+  padding: 16px 20px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+.invoice-dialog .el-dialog__title {
+  color: #a0522d;
+  font-weight: 600;
+}
+.invoice-dialog .el-dialog__body {
+  max-height: 72vh;
+  overflow-y: auto;
+  padding: 16px 20px 8px;
+  box-sizing: border-box;
+}
+.invoice-dialog .el-dialog__footer {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--el-border-color-lighter);
 }
 </style>
