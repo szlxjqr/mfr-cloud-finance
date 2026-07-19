@@ -153,6 +153,8 @@ function onAiFileChange(uploadFile: any) {
   aiFile.value = raw
   aiPreviewUrl.value = URL.createObjectURL(raw)
   aiResult.value = null
+  // 上传即自动开始识别
+  startAiRecognize()
 }
 
 function removeAiFile() {
@@ -172,7 +174,9 @@ function startAiRecognize() {
   setTimeout(() => {
     aiResult.value = mockAiResult()
     aiRecognizing.value = false
-    ElMessage.success('识别完成，请核对后确认导入')
+    ElMessage.success('识别完成，正在自动填充…')
+    // 展示结果约 1 秒后自动填充到新增弹窗
+    setTimeout(() => applyAiResult(), 1000)
   }, 1500)
 }
 
@@ -824,7 +828,7 @@ function showHelp() {
             <el-icon class="ai-upload-icon"><Picture /></el-icon>
             <div class="ai-upload-text">
               <p>点击或拖拽上传发票图片 / PDF</p>
-              <p class="ai-upload-tip">支持 JPG、PNG、PDF、OFD 格式</p>
+              <p class="ai-upload-tip">上传后系统将自动识别并填充发票信息</p>
             </div>
           </el-upload>
 
@@ -869,11 +873,7 @@ function showHelp() {
       </div>
 
       <template #footer>
-        <el-button @click="aiDialogVisible = false">取消</el-button>
-        <el-button v-if="!aiResult" type="primary" :disabled="!aiFile || aiRecognizing" :loading="aiRecognizing" @click="startAiRecognize">
-          开始识别
-        </el-button>
-        <el-button v-else type="primary" @click="applyAiResult">确认导入</el-button>
+        <el-button :disabled="aiRecognizing" @click="aiDialogVisible = false">取消</el-button>
       </template>
     </el-dialog>
   </div>
