@@ -229,7 +229,7 @@ const router = createRouter({
 
         /* ====== 设置模块 ====== */
         { path: 'settings/account', name: 'SettingsAccount', component: SettingsAccount, meta: { title: '科目', group: '基础数据' } },
-        { path: 'settings/opening', name: 'SettingsOpening', component: Placeholder, props: { title: '期初' }, meta: { title: '期初', group: '基础数据' } },
+        { path: 'settings/opening', name: 'SettingsOpening', component: () => import('@/views/settings/Opening.vue'), meta: { title: '期初', group: '基础数据' } },
         { path: 'settings/aux-dict', name: 'SettingsAuxDict', component: Placeholder, props: { title: '辅助字典' }, meta: { title: '辅助字典', group: '基础数据' } },
         { path: 'settings/currency', name: 'SettingsCurrency', component: Placeholder, props: { title: '币别' }, meta: { title: '币别', group: '基础数据' } },
         { path: 'settings/summary', name: 'SettingsSummary', component: Placeholder, props: { title: '凭证摘要' }, meta: { title: '凭证摘要', group: '基础数据' } },
