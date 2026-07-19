@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import TopBar from './components/TopBar.vue'
 import SideNav from './components/SideNav.vue'
+import QuickSwitchBar from './components/QuickSwitchBar.vue'
 </script>
 
 <template>
@@ -11,6 +12,8 @@ import SideNav from './components/SideNav.vue'
     <!-- 右侧：顶部栏 + 主内容区 -->
     <el-container class="main-right">
       <TopBar />
+
+      <QuickSwitchBar />
 
       <el-main class="main-content">
         <router-view v-slot="{ Component }">
