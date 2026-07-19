@@ -26,56 +26,14 @@ export interface ParsedInvoice {
   rawText?: string
 }
 
-// 从任意文本中用正则提取发票常见字段
-export function extractInvoiceFields(text: string): ParsedInvoice {
-  const result: ParsedInvoice = { rawText: text }
-  if (!text) return result
-
-  // 发票代码：10 或 12 位
-  const codeMatch = text.match(/(?:发票代码|代码)[^\d]{0,6}(\d{10,12})/)
-  if (codeMatch) result.code = codeMatch[1]
-
-  // 发票号码：8 或 20 位
-  const noMatch = text.match(/(?:发票号码|号码)[^\d]{0,6}(\d{8,20})/)
-  if (noMatch) result.no = noMatch[1]
-
-  // 开票日期：2026年05月18日 / 2026-05-18
-  const dateMatch =
-    text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/) ||
-    text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/)
-  if (dateMatch) {
-    const y = dateMatch[1]
-    const m = dateMatch[2].padStart(2, '0')
-    const d = dateMatch[3].padStart(2, '0')
-    result.date = `${y}-${m}-${d}`
-  }
-
-  // 销售方名称
-  const sellerMatch = text.match(/(?:销售方|销方|名称)[(（:：]?\s*([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-]{2,40}公司|[\u4e00-\u9fa5A-Za-z0-9（）()&.·\-]{2,40}厂|[\u4e00-\u9fa5A-Za-z0-9（）()&.·\-]{2,40}店)/)
-  if (sellerMatch) result.sellerName = sellerMatch[1].trim()
-
-  // 纳税人识别号（统一社会信用代码 18 位）
-  const taxNoMatch = text.match(/(?:纳税人识别号|识别号|税号)[^\w]{0,4}([0-9A-Z]{18})/)
-  if (taxNoMatch) result.sellerTaxNo = taxNoMatch[1]
-
-  // 金额 / 税额 / 价税合计
-  const amountMatch = text.match(/(?:金额|不含税|金额合计)[^\d]{0,8}[:：]?\s*([¥￥]?\s*[\d,]+\.?\d*)/)
-  if (amountMatch) result.amount = parseMoney(amountMatch[1])
-
-  const taxMatch = text.match(/(?:税额)[^\d]{0,8}[:：]?\s*([¥￥]?\s*[\d,]+\.?\d*)/)
-  if (taxMatch) result.tax = parseMoney(taxMatch[1])
-
-  const totalMatch =
-    text.match(/(?:价税合计|合计)[^\d]{0,8}[:：]?\s*([¥￥]?\s*[\d,]+\.?\d*)/) ||
-    text.match(/(?:大写|小写)[^\d]{0,8}([¥￥]\s*[\d,]+\.?\d*)/)
-  if (totalMatch) result.total = parseMoney(totalMatch[1])
-
-  // 税率
-  const rateMatch = text.match(/(?:税率|征收率)[^\d]{0,6}(\d{1,2})\s*%/)
-  if (rateMatch) result.taxRate = Number(rateMatch[1])
-
-  return result
+export interface ValidationResult {
+  ok: boolean
+  missing: string[]
+  parsed: ParsedInvoice
 }
+
+const CODE_RE = /(?:发票代码|代码|电子发票代码|发票代码|电子发票代码)[^\d]{0,10}(\d{10,12})/
+const NO_RE = /(?:发票号码|号码|电子发票号码|发票号码|电子发票号码|发票号码|No[.．]?)[^\d]{0,10}(\d{8,20})/i
 
 function parseMoney(s: string): number {
   const cleaned = s.replace(/[¥￥\s,]/g, '')
@@ -83,16 +41,105 @@ function parseMoney(s: string): number {
   return isNaN(n) ? 0 : n
 }
 
+// 从任意文本中用正则提取发票常见字段
+export function extractInvoiceFields(text: string): ParsedInvoice {
+  const result: ParsedInvoice = { rawText: text }
+  if (!text) return result
+
+  // 1. 发票代码（有标签优先）
+  const codeMatch = text.match(CODE_RE)
+  if (codeMatch) {
+    result.code = codeMatch[1]
+  } else {
+    // 无标签时，按 10/12 位数字推断
+    const fallback = text.match(/\b(\d{12})\b/) || text.match(/\b(\d{10})\b/)
+    if (fallback) result.code = fallback[1]
+  }
+
+  // 2. 发票号码（有标签优先）
+  const noMatch = text.match(NO_RE)
+  if (noMatch) {
+    result.no = noMatch[1]
+  } else {
+    // 无标签时，按 8/20 位数字推断
+    const fallback = text.match(/\b(\d{20})\b/) || text.match(/\b(\d{8})\b/)
+    if (fallback) result.no = fallback[1]
+  }
+
+  // 3. 开票日期：2026年05月18日 / 2026-05-18 / 2026/05/18 / 20260518
+  const dateMatch =
+    text.match(/(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/) ||
+    text.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/) ||
+    text.match(/(\d{4})(\d{2})(\d{2})/)
+  if (dateMatch) {
+    const y = dateMatch[1]
+    const m = dateMatch[2].padStart(2, '0')
+    const d = dateMatch[3].padStart(2, '0')
+    // 简单校验
+    if (Number(y) >= 2000 && Number(y) <= 2100 && Number(m) <= 12 && Number(d) <= 31) {
+      result.date = `${y}-${m}-${d}`
+    }
+  }
+
+  // 4. 销售方名称
+  // 优先匹配 "销售方" 附近的公司名，或 "名称：" 后的公司名
+  const sellerPatterns = [
+    /(?:销售方|销方|卖方|销售者)[^\n]{0,60}(?:名称|全称)[:：\s]*([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-\s]{2,80}公司)/,
+    /(?:销售方|销方|卖方|销售者)[:：\s]*([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-\s]{2,80}公司)/,
+    /(?:名\s*称)[:：\s]*([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-\s]{2,80}公司)/,
+    /([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-\s]{4,80}有限公司)/,
+    /([\u4e00-\u9fa5A-Za-z0-9（）()&.·\-\s]{4,80}公司)/,
+  ]
+  for (const p of sellerPatterns) {
+    const m = text.match(p)
+    if (m) {
+      result.sellerName = m[1].trim().replace(/\s+/g, ' ')
+      break
+    }
+  }
+
+  // 5. 纳税人识别号（统一社会信用代码 18 位）
+  const taxNoMatch = text.match(/(?:纳税人识别号|识别号|税号|统一社会信用代码)[:：\s]*([0-9A-Z]{18})/)
+  if (taxNoMatch) result.sellerTaxNo = taxNoMatch[1]
+
+  // 6. 金额 / 税额 / 价税合计
+  const amountMatch = text.match(/(?:不含税金额|金额合计|合计金额|金额)[:：\s]*([¥￥]?\s*[\d,]+\.\d{2})/)
+  if (amountMatch) result.amount = parseMoney(amountMatch[1])
+
+  const taxMatch = text.match(/(?:税额)[:：\s]*([¥￥]?\s*[\d,]+\.\d{2})/)
+  if (taxMatch) result.tax = parseMoney(taxMatch[1])
+
+  const totalMatch =
+    text.match(/(?:价税合计|小写)[:：\s]*([¥￥]?\s*[\d,]+\.\d{2})/) ||
+    text.match(/(?:价税合计|合\s*计)[\s\S]{0,40}?(?:[¥￥])?\s*([\d,]+\.\d{2})/)
+  if (totalMatch) result.total = parseMoney(totalMatch[1])
+
+  // 7. 税率
+  const rateMatch = text.match(/(?:税率|征收率)[:：\s]*(\d{1,2})\s*%/)
+  if (rateMatch) result.taxRate = Number(rateMatch[1])
+
+  return result
+}
+
+// 校验识别结果：核心字段缺失则返回失败
+export function validateInvoice(p: ParsedInvoice): ValidationResult {
+  const missing: string[] = []
+  if (!p.code || !/^\d{10,12}$/.test(p.code)) missing.push('发票代码')
+  if (!p.no || !/^\d{8,20}$/.test(p.no)) missing.push('发票号码')
+  if (!p.date) missing.push('开票日期')
+  if (!p.sellerName || p.sellerName.length < 4) missing.push('销售方名称')
+  if ((!p.total || p.total === 0) && (!p.amount || p.amount === 0)) missing.push('金额/价税合计')
+  return { ok: missing.length === 0, missing, parsed: p }
+}
+
 // ===== OFD 解析 =====
 export async function parseOfd(file: File): Promise<ParsedInvoice> {
   const buf = await file.arrayBuffer()
   const zip = await JSZip.loadAsync(buf)
   let text = ''
-  // 遍历所有 XML 文件，收集文本节点内容
   const xmlFiles = Object.keys(zip.files).filter((n) => n.toLowerCase().endsWith('.xml'))
   for (const name of xmlFiles) {
     const content = await zip.files[name].async('string')
-    // 去除标签，保留文本
     const plain = content
       .replace(/<[^>]+>/g, ' ')
       .replace(/&amp;/g, '&')
@@ -102,7 +149,6 @@ export async function parseOfd(file: File): Promise<ParsedInvoice> {
     text += plain + '\n'
   }
   const parsed = extractInvoiceFields(text)
-  // OFD 电子发票通常为增值税专用发票或电子发票
   parsed.type = parsed.type || '电子发票'
   return parsed
 }
@@ -125,7 +171,6 @@ export async function parsePdf(file: File): Promise<{ parsed: ParsedInvoice; tex
 
 // ===== PNG 解析（OCR）=====
 export async function parsePng(file: File): Promise<ParsedInvoice> {
-  // 动态导入 tesseract.js，避免无 PNG 场景也加载
   const Tesseract = await import('tesseract.js')
   const worker = await Tesseract.createWorker('chi_sim+eng', 1, {
     logger: () => {},
@@ -151,6 +196,5 @@ export async function parseInvoiceFile(file: File): Promise<ParsedInvoice> {
   if (isOfd) return parseOfd(file)
   if (isPdf) return (await parsePdf(file)).parsed
   if (isPng) return parsePng(file)
-  // 兜底：OFD 尝试
   return parseOfd(file)
 }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { parseInvoiceFile, type ParsedInvoice } from '../../utils/invoiceParser'
+import { parseInvoiceFile, validateInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
 import {
   Plus,
   Delete,
@@ -176,16 +176,13 @@ function startAiRecognize() {
     .then((parsed: ParsedInvoice) => {
       aiResult.value = buildResultFromParsed(parsed)
       aiRecognizing.value = false
-      ElMessage.success('识别完成，正在自动填充…')
-      // 展示结果约 1 秒后自动填充到新增弹窗
-      setTimeout(() => applyAiResult(), 1000)
+      // 展示结果约 1 秒后进行核心字段校验与录入
+      setTimeout(() => applyAiResult(parsed), 1000)
     })
     .catch((err) => {
       console.error('发票识别失败', err)
       aiRecognizing.value = false
-      ElMessage.error('发票识别失败，已填入示例数据，请手动核对')
-      aiResult.value = mockAiResult()
-      setTimeout(() => applyAiResult(), 1000)
+      ElMessage.error('发票文件解析失败，请检查文件格式或改为手动录入')
     })
 }
 
@@ -217,42 +214,17 @@ function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
   }
 }
 
-function mockAiResult(): Partial<typeof formModel> {
-  return {
-    type: '增值税专用发票',
-    code: '044002100111',
-    no: '12345678',
-    account: '库存商品',
-    date: '2026-05-18',
-    sellerName: '某办公用品有限公司',
-    sellerTaxNo: '91440100MA5xxxxxx',
-    sellerAddressPhone: '广州市天河区xxx 020-12345678',
-    sellerBankAccount: '中国工商银行广州分行 6222xxxxxxxx',
-    certify: 'none',
-    remark: '',
-    details: [
-      {
-        id: genId(),
-        bizType: '采购商品',
-        item: '办公用品',
-        qty: 10,
-        amount: 1000,
-        taxRate: 13,
-        tax: 130,
-        total: 1130,
-      },
-    ],
-  }
-}
-
-function applyAiResult() {
+function applyAiResult(parsed: ParsedInvoice) {
   if (!aiResult.value) return
   const data = aiResult.value
-  // 确保明细存在且字段完整
-  const details = data.details?.length
-    ? data.details
-    : [emptyDetail()]
-  details.forEach((d) => {
+  // 核心字段校验：代码 / 号码 / 日期 / 销售方 / 金额价税合计
+  const validation = validateInvoice(parsed)
+  if (validation.ok) {
+    // 校验通过：直接插入主列表
+    const details = data.details?.length
+      ? data.details
+      : [emptyDetail()]
+    details.forEach((d) => {
     calcDetail(d)
     rows.push({
       id: genId(),
@@ -276,9 +248,24 @@ function applyAiResult() {
       tax: d.tax ?? 0,
       total: d.total ?? 0,
     })
-  })
-  aiDialogVisible.value = false
-  ElMessage.success('已识别并新增 1 条发票记录')
+    })
+    aiDialogVisible.value = false
+    ElMessage.success('已识别并新增 1 条发票记录')
+  } else {
+    // 校验失败：打开新增弹窗回填已识别字段，不录入，并提示缺失核心字段
+    resetForm()
+    Object.assign(formModel, data)
+    if (!formModel.details || formModel.details.length === 0) {
+      formModel.details = [emptyDetail()]
+    }
+    aiDialogVisible.value = false
+    dialogMode.value = 'add'
+    dialogVisible.value = true
+    formRef.value?.clearValidate()
+    ElMessage.warning(
+      `核心字段识别不完整（${validation.missing.join('、')}），已预填可识别内容，请补充后保存`,
+    )
+  }
 }
 
 const dialogVisible = ref(false)
