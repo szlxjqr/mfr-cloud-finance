@@ -253,7 +253,7 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '发票', module: 'invoice' },
         },
-        { path: 'invoice/input', name: 'InvoiceInput', component: Placeholder, props: { title: '进项发票' }, meta: { title: '进项发票', group: '发票' } },
+        { path: 'invoice/input', name: 'InvoiceInput', component: () => import('@/views/invoice/InvoiceInput.vue'), meta: { title: '进项发票', group: '发票' } },
         { path: 'invoice/output', name: 'InvoiceOutput', component: Placeholder, props: { title: '销项发票' }, meta: { title: '销项发票', group: '发票' } },
         { path: 'invoice/expense', name: 'InvoiceExpense', component: Placeholder, props: { title: '费用发票' }, meta: { title: '费用发票', group: '发票' } },
         { path: 'invoice/title', name: 'InvoiceTitle', component: Placeholder, props: { title: '发票抬头' }, meta: { title: '发票抬头', group: '发票设置' } },
