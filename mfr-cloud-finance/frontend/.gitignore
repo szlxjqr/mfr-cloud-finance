@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# pdfjs 资源由构建脚本从 node_modules 生成，不纳入版本控制
+public/cmaps/
+public/standard_fonts/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

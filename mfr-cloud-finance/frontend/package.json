@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "copy:pdfjs": "node scripts/copy-pdfjs-assets.mjs",
+    "build": "vue-tsc -b && npm run copy:pdfjs && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
