@@ -13,6 +13,9 @@ import {
   ArrowDown,
   EditPen,
   Upload,
+  Picture,
+  Document,
+  Close,
 } from '@element-plus/icons-vue'
 
 /** 发票明细行 */
@@ -127,7 +130,95 @@ function onRowClick(row: InvoiceRecord) {
   else selectedIds.value.add(row.id)
 }
 
-/* ============ 新增 / 编辑 弹窗 ============ */
+/* ============ AI 发票识别弹窗 ============ */
+const aiDialogVisible = ref(false)
+const aiRecognizing = ref(false)
+const aiFile = ref<File | null>(null)
+const aiPreviewUrl = ref('')
+const aiResult = ref<Partial<typeof formModel> | null>(null)
+
+const aiAccept = '.jpg,.jpeg,.png,.pdf,.ofd'
+
+function openAiDialog() {
+  aiDialogVisible.value = true
+  aiFile.value = null
+  aiPreviewUrl.value = ''
+  aiResult.value = null
+  aiRecognizing.value = false
+}
+
+function onAiFileChange(uploadFile: any) {
+  const raw = uploadFile?.raw || uploadFile
+  if (!raw) return
+  aiFile.value = raw
+  aiPreviewUrl.value = URL.createObjectURL(raw)
+  aiResult.value = null
+}
+
+function removeAiFile() {
+  aiFile.value = null
+  aiPreviewUrl.value = ''
+  aiResult.value = null
+}
+
+function startAiRecognize() {
+  if (!aiFile.value) {
+    ElMessage.warning('请先上传发票图片或 PDF')
+    return
+  }
+  aiRecognizing.value = true
+  aiResult.value = null
+  // 模拟 AI 识别耗时与结果
+  setTimeout(() => {
+    aiResult.value = mockAiResult()
+    aiRecognizing.value = false
+    ElMessage.success('识别完成，请核对后确认导入')
+  }, 1500)
+}
+
+function mockAiResult(): Partial<typeof formModel> {
+  return {
+    type: '增值税专用发票',
+    code: '044002100111',
+    no: '12345678',
+    account: '库存商品',
+    date: '2026-05-18',
+    sellerName: '某办公用品有限公司',
+    sellerTaxNo: '91440100MA5xxxxxx',
+    sellerAddressPhone: '广州市天河区xxx 020-12345678',
+    sellerBankAccount: '中国工商银行广州分行 6222xxxxxxxx',
+    certify: 'none',
+    remark: '',
+    details: [
+      {
+        id: genId(),
+        bizType: '采购商品',
+        item: '办公用品',
+        qty: 10,
+        amount: 1000,
+        taxRate: 13,
+        tax: 130,
+        total: 1130,
+      },
+    ],
+  }
+}
+
+function applyAiResult() {
+  if (!aiResult.value) return
+  resetForm()
+  Object.assign(formModel, aiResult.value)
+  // 确保明细存在
+  if (!formModel.details || formModel.details.length === 0) {
+    formModel.details = [emptyDetail()]
+  }
+  aiDialogVisible.value = false
+  dialogMode.value = 'add'
+  dialogVisible.value = true
+  formRef.value?.clearValidate()
+  ElMessage.success('已导入识别结果，请核对保存')
+}
+
 const dialogVisible = ref(false)
 const dialogMode = ref<'add' | 'edit'>('add')
 const formRef = ref<FormInstance>()
@@ -349,7 +440,7 @@ function deleteRows(row?: InvoiceRecord) {
 
 /* ============ 工具栏操作 ============ */
 function aiRecognize() {
-  ElMessage.info('AI 发票识别功能开发中')
+  openAiDialog()
 }
 function aiMatch() {
   ElMessage.info('AI 科目匹配功能开发中')
@@ -709,6 +800,82 @@ function showHelp() {
         <el-button type="primary" @click="submitForm">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- AI 发票识别弹窗 -->
+    <el-dialog
+      v-model="aiDialogVisible"
+      title="AI 发票识别"
+      class="ai-dialog"
+      width="680px"
+      :close-on-click-modal="false"
+    >
+      <div class="ai-body">
+        <!-- 上传区 -->
+        <div v-if="!aiResult" class="ai-upload-area">
+          <el-upload
+            drag
+            action="#"
+            :auto-upload="false"
+            :accept="aiAccept"
+            :show-file-list="false"
+            :on-change="onAiFileChange"
+            class="ai-uploader"
+          >
+            <el-icon class="ai-upload-icon"><Picture /></el-icon>
+            <div class="ai-upload-text">
+              <p>点击或拖拽上传发票图片 / PDF</p>
+              <p class="ai-upload-tip">支持 JPG、PNG、PDF、OFD 格式</p>
+            </div>
+          </el-upload>
+
+          <!-- 已选文件预览 -->
+          <div v-if="aiFile" class="ai-file-preview">
+            <div class="ai-file-info">
+              <el-icon><Document /></el-icon>
+              <span class="ai-file-name">{{ aiFile.name }}</span>
+              <el-button text type="danger" size="small" @click="removeAiFile">
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+            <div v-if="aiPreviewUrl && aiFile.type.startsWith('image')" class="ai-image-preview">
+              <img :src="aiPreviewUrl" alt="发票预览" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 识别中 -->
+        <div v-if="aiRecognizing" class="ai-loading">
+          <el-icon class="ai-spin"><Refresh /></el-icon>
+          <p>AI 正在识别发票内容，请稍候…</p>
+        </div>
+
+        <!-- 识别结果 -->
+        <div v-if="aiResult" class="ai-result">
+          <div class="ai-result-title">
+            <el-icon><DocumentChecked /></el-icon>
+            <span>识别结果</span>
+          </div>
+          <div class="ai-result-grid">
+            <div class="ai-result-item"><label>发票类型</label><span>{{ aiResult.type }}</span></div>
+            <div class="ai-result-item"><label>发票代码</label><span>{{ aiResult.code }}</span></div>
+            <div class="ai-result-item"><label>发票号码</label><span>{{ aiResult.no }}</span></div>
+            <div class="ai-result-item"><label>开票日期</label><span>{{ aiResult.date }}</span></div>
+            <div class="ai-result-item"><label>结算科目</label><span>{{ aiResult.account }}</span></div>
+            <div class="ai-result-item"><label>销方名称</label><span>{{ aiResult.sellerName }}</span></div>
+            <div class="ai-result-item wide"><label>销方税号</label><span>{{ aiResult.sellerTaxNo }}</span></div>
+            <div class="ai-result-item wide"><label>明细</label><span>{{ aiResult.details?.[0]?.item }} × {{ aiResult.details?.[0]?.qty }}，金额 {{ aiResult.details?.[0]?.amount?.toFixed(2) }}，税额 {{ aiResult.details?.[0]?.tax?.toFixed(2) }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="aiDialogVisible = false">取消</el-button>
+        <el-button v-if="!aiResult" type="primary" :disabled="!aiFile || aiRecognizing" :loading="aiRecognizing" @click="startAiRecognize">
+          开始识别
+        </el-button>
+        <el-button v-else type="primary" @click="applyAiResult">确认导入</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -956,6 +1123,129 @@ function showHelp() {
   .seller-section {
     flex-direction: column;
   }
+}
+
+/* ====== AI 发票识别弹窗样式 ====== */
+.ai-body {
+  min-height: 260px;
+}
+.ai-uploader :deep(.el-upload-dragger) {
+  width: 100%;
+  padding: 40px 20px;
+  border: 2px dashed #d8b692;
+  border-radius: 8px;
+  background: #fdf8f3;
+}
+.ai-uploader :deep(.el-upload-dragger:hover) {
+  border-color: #a0522d;
+}
+.ai-upload-icon {
+  font-size: 48px;
+  color: #a0522d;
+  margin-bottom: 12px;
+}
+.ai-upload-text p {
+  margin: 0;
+  color: #a0522d;
+  font-size: 16px;
+  font-weight: 500;
+}
+.ai-upload-tip {
+  font-size: 12px !important;
+  color: #999 !important;
+  margin-top: 8px !important;
+}
+.ai-file-preview {
+  margin-top: 16px;
+  border: 1px solid #d8b692;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fff;
+}
+.ai-file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ai-file-name {
+  flex: 1;
+  font-size: 14px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-image-preview {
+  display: flex;
+  justify-content: center;
+  max-height: 240px;
+  overflow: hidden;
+}
+.ai-image-preview img {
+  max-width: 100%;
+  max-height: 240px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+.ai-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: #a0522d;
+}
+.ai-loading p {
+  margin-top: 12px;
+  font-size: 14px;
+}
+.ai-spin {
+  font-size: 36px;
+  animation: ai-spin 1s linear infinite;
+}
+@keyframes ai-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.ai-result {
+  border: 1px solid #d8b692;
+  border-radius: 6px;
+  padding: 16px;
+  background: #fff;
+}
+.ai-result-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #a0522d;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #d8b692;
+}
+.ai-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+}
+.ai-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ai-result-item.wide {
+  grid-column: span 2;
+}
+.ai-result-item label {
+  font-size: 12px;
+  color: #999;
+}
+.ai-result-item span {
+  font-size: 14px;
+  color: #303133;
+  word-break: break-all;
 }
 </style>
 
