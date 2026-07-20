@@ -1,11 +1,22 @@
 """FastAPI 应用入口：智慧经营 API"""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import dashboard
+from app.db import init_db
 
-app = FastAPI(title="智慧经营 API", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时初始化数据库表（业务模型就绪后自动生效）
+    init_db()
+    yield
+
+
+app = FastAPI(title="智慧经营 API", version="1.0.0", lifespan=lifespan)
 
 # 配置 CORS 中间件，允许前端跨域访问
 app.add_middleware(
