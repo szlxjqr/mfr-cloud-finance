@@ -1,6 +1,7 @@
 """FastAPI 应用入口：智慧经营 API"""
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,9 +36,18 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(contracts.router, prefix="/api")
 
 
-@app.get("/")
-def read_root():
-    return {"message": "智慧经营 API"}
+@app.get("/health")
+def health_check():
+    return {"message": "智慧经营 API", "status": "ok"}
+
+
+# 前端构建产物托管：若 frontend/dist 存在，则由后端同源托管（Plan A 单机运行）
+# 前端用 hash 路由（createWebHashHistory），浏览器只请求 "/"，StaticFiles 直接返回 index.html，无需 history fallback
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if _FRONTEND_DIST.is_dir():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
 
 
 if __name__ == "__main__":
