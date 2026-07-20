@@ -103,9 +103,9 @@ mfr-cloud-finance/
 ## 四、本地运行
 
 ```bash
-# 后端（端口 8000）
+# 后端（端口 8521）
 cd backend
-PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8521
 
 # 前端（端口 5173 开发 / 8137 预览用静态构建）
 cd frontend
@@ -114,7 +114,7 @@ npm run dev          # 开发模式
 npm run build && python3 -m http.server 8137 --directory dist  # 静态预览
 ```
 
-前端 API baseURL：`http://localhost:8000/api`
+前端 API baseURL：`http://localhost:8521/api`
 
 ## 五、开发计划
 
