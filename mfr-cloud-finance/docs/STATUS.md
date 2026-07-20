@@ -1,4 +1,4 @@
-# 云财务 (Cloud Finance) — 项目状态速查表 (STATUS)
+# 智慧经营 (Cloud Finance) — 项目状态速查表 (STATUS)
 
 > **用途**：压缩上下文后，只读本文件即可完全同步项目状态。每次会话结束前更新「维护记录」。
 > **维护规则**：任何代码/数据/配置/进度变更后，同步更新对应小节并刷新底部「维护记录」。
@@ -7,8 +7,8 @@
 
 ## 1. 项目概览
 
-- **产品名**：云财务（原 "MFR云财务" 已全局统一为 "云财务"，含 backend/doc/前端）
-- **定位**：中小企业云会计系统（对标 WP5 云会计截图）
+- **产品名**：智慧经营（原 "MFR智慧经营" 已全局统一为 "智慧经营"，含 backend/doc/前端）
+- **定位**：中小企业智慧经营系统（对标 WP5 智慧经营截图）
 - **前端栈**：Vue 3 `<script setup>` + TypeScript + Vite（rolldown 打包）+ Element Plus + ECharts + Pinia + Vue Router(Hash)
 - **后端栈**：FastAPI（Python 3.11）+ CORS，目前以 Mock 数据为主
 - **绝对路径**：`/workspace/mfr-cloud-finance/`（本地电脑无此路径，跨任务/本地靠 git clone 或 tdrive 网盘获取）
@@ -56,7 +56,7 @@
 | **刷新 404** | 原 History 模式 + `http.server` 无 SPA fallback 会 404 → 改 `createWebHashHistory()`，URL 形如 `/#/settings/account` |
 | **GitHub 22 端口被封** | `ssh -T git@github.com` 超时 → `~/.ssh/config` 配 `Hostname ssh.github.com` + `Port 443` 解决。**注意：此方案仅对"22 封但 443 通"的沙箱有效**；部分沙箱把 github.com 全域透明代理拦截（DNS 解析到 `198.18.x.x`、SSH/HTTPS 全断），那种**直连走不通，必须走中转模式（见第 8 节）** |
 | **认证方式** | 已弃用 PAT token（曾失效），统一走 **SSH over 443**，免密推送。**SSH key 不要删**（删了配对失效，推送断） |
-| **品牌统一** | "MFR云财务" → "云财务"，`git grep` 已验证无残留 |
+| **品牌统一** | "MFR智慧经营" → "智慧经营"，`git grep` 已验证无残留 |
 | **侧边栏分级缩进** | 宽 `200px → 224px`；CSS 变量 `--lv1-pad:6px / --lv2-pad:30px / --lv3-pad:44px` 控制一/二/三级缩进 |
 | **科目表树形渲染** | 早期为内联 Mock 平铺 → 改为 `accountData.ts` + 扁平化展开，模板 `v-for="row in visibleRows"` 用 `row.node.xxx` 与 `row.depth` 缩进 |
 | **构建命令 cwd** | 必须在 `frontend/` 下执行 `npm run build`（否则报 Missing script: build） |

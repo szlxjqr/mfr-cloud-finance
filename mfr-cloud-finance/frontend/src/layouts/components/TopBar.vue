@@ -60,7 +60,7 @@ function goToErp() {
     <div class="top-left">
       <div class="brand">
         <span class="brand-logo">MFR</span>
-        <span class="brand-name">云会计</span>
+        <span class="brand-name">智慧经营</span>
       </div>
 
       <el-dropdown

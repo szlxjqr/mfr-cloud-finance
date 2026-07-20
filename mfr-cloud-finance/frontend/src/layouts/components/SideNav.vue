@@ -35,8 +35,8 @@ function isActive(item: typeof menuItems[number]): boolean {
   <el-aside :width="asideWidth" class="side-aside">
     <!-- 品牌区 -->
     <div class="side-logo">
-      <img src="/logo.png" alt="云财务" class="logo-img" />
-      <span v-show="!appStore.sidebarCollapsed" class="logo-text">云财务</span>
+      <img src="/logo.png" alt="智慧经营" class="logo-img" />
+      <span v-show="!appStore.sidebarCollapsed" class="logo-text">智慧经营</span>
     </div>
 
     <!-- 一级模块菜单 -->
