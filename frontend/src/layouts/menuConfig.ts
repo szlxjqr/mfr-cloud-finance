@@ -22,9 +22,14 @@ export interface MenuItem {
   groups?: MenuGroup[]
 }
 
-/** 左侧主导航菜单配置 —— 单一真相源 */
+/**
+ * 左侧主导航菜单配置 —— 单一真相源
+ * 设计：业务场景（合同/税务/报销/工资/资产）各自作为一级目录；
+ * 账务管理作为"容器"，收编 总账/出纳/发票/结账/报表。
+ */
 export const menuItems: MenuItem[] = [
   { title: '首页', path: '/dashboard', icon: 'HomeFilled', module: 'dashboard' },
+
   {
     title: '合同管理',
     icon: 'DocumentCopy',
@@ -65,102 +70,70 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
+
   {
-    title: '总账',
-    icon: 'Document',
-    module: 'general-ledger',
+    title: '税务管理',
+    icon: 'Money',
+    module: 'tax',
     groups: [
       {
-        title: '凭证管理',
-        icon: 'Document',
-        color: '#409EFF',
-        children: [
-          { title: '凭证', path: '/general-ledger/voucher' },
-          { title: '查看凭证', path: '/general-ledger/voucher-list' },
-          { title: '原始凭证', path: '/general-ledger/original-voucher' },
-        ],
-      },
-      {
-        title: '账簿',
-        icon: 'Coin',
-        color: '#E6A23C',
-        children: [
-          { title: '总账', path: '/general-ledger/general' },
-          { title: '明细账', path: '/general-ledger/detail' },
-          { title: '余额表', path: '/general-ledger/balance' },
-          { title: '序时账', path: '/general-ledger/chronological' },
-          { title: '多栏账', path: '/general-ledger/columnar' },
-          { title: '科目汇总表', path: '/general-ledger/account-summary' },
-        ],
-      },
-      {
-        title: '辅助账簿',
-        icon: 'Grid',
-        color: '#909399',
-        children: [
-          { title: '科目辅助明细账', path: '/general-ledger/aux-detail' },
-          { title: '科目辅助余额表', path: '/general-ledger/aux-balance' },
-          { title: '数量外币明细账', path: '/general-ledger/qty-fx-detail' },
-          { title: '数量外币余额表', path: '/general-ledger/qty-fx-balance' },
-          { title: '核算项目明细账', path: '/general-ledger/project-detail' },
-          { title: '核算项目余额表', path: '/general-ledger/project-balance' },
-        ],
-      },
-    ],
-  },
-  {
-    title: '报表',
-    icon: 'DataAnalysis',
-    module: 'reports',
-    groups: [
-      {
-        title: '财务报表',
+        title: '税务工作台',
         icon: 'DataAnalysis',
         color: '#67C23A',
-        children: [
-          { title: '资产负债表', path: '/reports/balance-sheet' },
-          { title: '利润表', path: '/reports/income-statement' },
-          { title: '利润表季报', path: '/reports/income-statement-quarterly' },
-          { title: '现金流量表', path: '/reports/cash-flow' },
-          { title: '现金流量表季报', path: '/reports/cash-flow-quarterly' },
-        ],
+        children: [{ title: '工作台', path: '/tax/workbench' }],
+      },
+      {
+        title: '个税',
+        icon: 'User',
+        color: '#409EFF',
+        children: [{ title: '个税申报', path: '/tax/individual' }],
+      },
+      {
+        title: '印花税',
+        icon: 'Postcard',
+        color: '#E6A23C',
+        children: [{ title: '印花税', path: '/tax/stamp' }],
+      },
+      {
+        title: '发票税务汇总',
+        icon: 'Histogram',
+        color: '#909399',
+        children: [{ title: '税务汇总', path: '/tax/summary' }],
       },
     ],
   },
+
   {
-    title: '出纳',
-    icon: 'Money',
-    module: 'cashier',
+    title: '报销管理',
+    icon: 'Tickets',
+    module: 'reimburse',
     groups: [
       {
-        title: '资金管理',
-        icon: 'Money',
-        color: '#9B59B6',
+        title: '报销单',
+        icon: 'Document',
+        color: '#67C23A',
         children: [
-          { title: '日记账', path: '/cashier/diary' },
-          { title: '业务类型', path: '/cashier/biz-type' },
-          { title: '核对总账', path: '/cashier/check-general' },
+          { title: '报销单', path: '/reimburse/bill' },
+          { title: '我的报销', path: '/reimburse/mine' },
         ],
       },
-    ],
-  },
-  {
-    title: '资产',
-    icon: 'OfficeBuilding',
-    module: 'assets',
-    groups: [
       {
-        title: '固定资产',
-        icon: 'OfficeBuilding',
-        color: '#13C2C2',
-        children: [
-          { title: '固定资产管理', path: '/assets/fixed-asset' },
-        ],
+        title: '审批',
+        icon: 'Select',
+        color: '#409EFF',
+        children: [{ title: '待审批', path: '/reimburse/approve' }],
+      },
+      {
+        title: '报销查询',
+        icon: 'Search',
+        color: '#E6A23C',
+        children: [{ title: '报销查询', path: '/reimburse/query' }],
       },
     ],
   },
+
   {
-    title: '工资',
+    title: '工资管理',
     icon: 'User',
     module: 'payroll',
     groups: [
@@ -187,11 +160,58 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
+
   {
-    title: '发票',
-    icon: 'Ticket',
-    module: 'invoice',
+    title: '资产管理',
+    icon: 'OfficeBuilding',
+    module: 'assets',
     groups: [
+      {
+        title: '固定资产',
+        icon: 'OfficeBuilding',
+        color: '#13C2C2',
+        children: [{ title: '固定资产管理', path: '/assets/fixed-asset' }],
+      },
+    ],
+  },
+
+  {
+    title: '账务管理',
+    icon: 'Coin',
+    module: 'accounting',
+    groups: [
+      {
+        title: '总账',
+        icon: 'Document',
+        color: '#409EFF',
+        children: [
+          { title: '凭证录入', path: '/general-ledger/voucher' },
+          { title: '查看凭证', path: '/general-ledger/voucher-list' },
+          { title: '原始凭证', path: '/general-ledger/original-voucher' },
+          { title: '总账', path: '/general-ledger/general' },
+          { title: '明细账', path: '/general-ledger/detail' },
+          { title: '余额表', path: '/general-ledger/balance' },
+          { title: '序时账', path: '/general-ledger/chronological' },
+          { title: '多栏账', path: '/general-ledger/columnar' },
+          { title: '科目汇总表', path: '/general-ledger/account-summary' },
+          { title: '科目辅助明细账', path: '/general-ledger/aux-detail' },
+          { title: '科目辅助余额表', path: '/general-ledger/aux-balance' },
+          { title: '数量外币明细账', path: '/general-ledger/qty-fx-detail' },
+          { title: '数量外币余额表', path: '/general-ledger/qty-fx-balance' },
+          { title: '核算项目明细账', path: '/general-ledger/project-detail' },
+          { title: '核算项目余额表', path: '/general-ledger/project-balance' },
+        ],
+      },
+      {
+        title: '出纳',
+        icon: 'Money',
+        color: '#9B59B6',
+        children: [
+          { title: '日记账', path: '/cashier/diary' },
+          { title: '业务类型', path: '/cashier/biz-type' },
+          { title: '核对总账', path: '/cashier/check-general' },
+        ],
+      },
       {
         title: '发票',
         icon: 'Ticket',
@@ -200,24 +220,10 @@ export const menuItems: MenuItem[] = [
           { title: '进项发票', path: '/invoice/input' },
           { title: '销项发票', path: '/invoice/output' },
           { title: '费用发票', path: '/invoice/expense' },
-        ],
-      },
-      {
-        title: '发票设置',
-        icon: 'Wallet',
-        color: '#E6A23C',
-        children: [
           { title: '发票抬头', path: '/invoice/title' },
           { title: '发票设置', path: '/invoice/setting' },
         ],
       },
-    ],
-  },
-  {
-    title: '结账',
-    icon: 'CircleCheck',
-    module: 'closing',
-    groups: [
       {
         title: '结账',
         icon: 'CircleCheck',
@@ -227,8 +233,21 @@ export const menuItems: MenuItem[] = [
           { title: '结账', path: '/closing/close' },
         ],
       },
+      {
+        title: '报表',
+        icon: 'DataAnalysis',
+        color: '#67C23A',
+        children: [
+          { title: '资产负债表', path: '/reports/balance-sheet' },
+          { title: '利润表', path: '/reports/income-statement' },
+          { title: '利润表季报', path: '/reports/income-statement-quarterly' },
+          { title: '现金流量表', path: '/reports/cash-flow' },
+          { title: '现金流量表季报', path: '/reports/cash-flow-quarterly' },
+        ],
+      },
     ],
   },
+
   {
     title: '设置',
     icon: 'Setting',
@@ -262,5 +281,6 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
+
   { title: '新手指引', path: '/guide', icon: 'Notebook', module: 'guide' },
 ]
