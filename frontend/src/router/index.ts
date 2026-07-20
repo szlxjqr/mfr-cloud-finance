@@ -41,6 +41,62 @@ const router = createRouter({
           meta: { title: '仪表盘', icon: 'Odometer' },
         },
 
+        /* ====== 合同管理模块 ====== */
+        {
+          path: 'contract',
+          name: 'ContractOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '合同管理', module: 'contract' },
+        },
+        {
+          path: 'contract/hr',
+          name: 'HRContractList',
+          component: () => import('@/views/contract/ContractList.vue'),
+          props: { type: 'hr' },
+          meta: { title: '人事合同', group: '人事合同' },
+        },
+        {
+          path: 'contract/hr-template',
+          name: 'HRContractTemplate',
+          component: () => import('@/views/contract/ContractTemplate.vue'),
+          props: { type: 'hr' },
+          meta: { title: '合同模板', group: '人事合同' },
+        },
+        {
+          path: 'contract/sales',
+          name: 'SalesContractList',
+          component: () => import('@/views/contract/ContractList.vue'),
+          props: { type: 'sales' },
+          meta: { title: '销售合同', group: '销售合同' },
+        },
+        {
+          path: 'contract/sales-template',
+          name: 'SalesContractTemplate',
+          component: () => import('@/views/contract/ContractTemplate.vue'),
+          props: { type: 'sales' },
+          meta: { title: '合同模板', group: '销售合同' },
+        },
+        {
+          path: 'contract/purchase',
+          name: 'PurchaseContractList',
+          component: () => import('@/views/contract/ContractList.vue'),
+          props: { type: 'purchase' },
+          meta: { title: '采购合同', group: '采购合同' },
+        },
+        {
+          path: 'contract/purchase-template',
+          name: 'PurchaseContractTemplate',
+          component: () => import('@/views/contract/ContractTemplate.vue'),
+          props: { type: 'purchase' },
+          meta: { title: '合同模板', group: '采购合同' },
+        },
+        {
+          path: 'contract/parties',
+          name: 'ContractParties',
+          component: () => import('@/views/contract/PartyList.vue'),
+          meta: { title: '往来单位', group: '往来单位' },
+        },
+
         /* ====== 总账模块 — 三级子菜单 ====== */
         {
           path: 'general-ledger',

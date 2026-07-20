@@ -26,6 +26,46 @@ export interface MenuItem {
 export const menuItems: MenuItem[] = [
   { title: '首页', path: '/dashboard', icon: 'HomeFilled', module: 'dashboard' },
   {
+    title: '合同管理',
+    icon: 'DocumentCopy',
+    module: 'contract',
+    groups: [
+      {
+        title: '人事合同',
+        icon: 'User',
+        color: '#67C23A',
+        children: [
+          { title: '合同列表', path: '/contract/hr' },
+          { title: '合同模板', path: '/contract/hr-template' },
+        ],
+      },
+      {
+        title: '销售合同',
+        icon: 'Sell',
+        color: '#409EFF',
+        children: [
+          { title: '合同列表', path: '/contract/sales' },
+          { title: '合同模板', path: '/contract/sales-template' },
+        ],
+      },
+      {
+        title: '采购合同',
+        icon: 'ShoppingCart',
+        color: '#E6A23C',
+        children: [
+          { title: '合同列表', path: '/contract/purchase' },
+          { title: '合同模板', path: '/contract/purchase-template' },
+        ],
+      },
+      {
+        title: '往来单位',
+        icon: 'OfficeBuilding',
+        color: '#909399',
+        children: [{ title: '往来单位', path: '/contract/parties' }],
+      },
+    ],
+  },
+  {
     title: '总账',
     icon: 'Document',
     module: 'general-ledger',

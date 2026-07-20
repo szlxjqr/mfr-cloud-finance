@@ -5,8 +5,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import contracts
 from app.api import dashboard
 from app.db import init_db
+from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 
 
 @asynccontextmanager
@@ -29,6 +31,8 @@ app.add_middleware(
 
 # 注册仪表盘路由
 app.include_router(dashboard.router, prefix="/api")
+# 注册合同管理路由（往来单位 / 人事·销售·采购合同 / 合同模板）
+app.include_router(contracts.router, prefix="/api")
 
 
 @app.get("/")
