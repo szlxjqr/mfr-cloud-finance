@@ -6,6 +6,7 @@ from app.models.contract import (
     PurchaseContract,
     SalesContract,
 )
+from app.models.reimburse import ReimbursementBill
 
 __all__ = [
     "Parties",
@@ -13,4 +14,5 @@ __all__ = [
     "SalesContract",
     "PurchaseContract",
     "ContractTemplate",
+    "ReimbursementBill",
 ]

@@ -8,8 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import contracts
 from app.api import dashboard
+from app.api import reimburse
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
+from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
 
 
 @asynccontextmanager
@@ -34,6 +36,8 @@ app.add_middleware(
 app.include_router(dashboard.router, prefix="/api")
 # 注册合同管理路由（往来单位 / 人事·销售·采购合同 / 合同模板）
 app.include_router(contracts.router, prefix="/api")
+# 注册报销管理路由（报销单 CRUD + 状态流转）
+app.include_router(reimburse.router, prefix="/api")
 
 
 @app.get("/health")
