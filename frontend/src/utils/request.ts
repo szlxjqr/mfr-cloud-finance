@@ -5,7 +5,7 @@ import axios from 'axios'
  * baseURL 支持通过 Vite 环境变量 VITE_API_BASE 覆盖（生产 / 云部署用）。
  */
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE ?? 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE ?? '/api',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
