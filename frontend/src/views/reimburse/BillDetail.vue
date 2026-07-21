@@ -2,32 +2,34 @@
   <div class="expense-form" ref="formRef">
     <div class="form-title">
       <div class="company">深圳市流形机器人科技有限公司</div>
-      <div class="doc-type">物品报销单</div>
+      <div class="doc-type">采购报销单</div>
       <div class="unit">单位：元</div>
     </div>
 
     <!-- 一、基本信息 -->
     <div class="section-title">一、基本信息</div>
-    <table class="info-table">
+    <table class="info-table base-table">
       <tr>
         <td class="label">报销单号</td>
-        <td>{{ bill.bill_no || '-' }}</td>
+        <td class="bill-no">{{ bill.bill_no || '-' }}</td>
         <td class="label">申请日期</td>
-        <td>{{ bill.submit_date || '-' }}</td>
+        <td class="date-cell">{{ bill.submit_date || '-' }}</td>
         <td class="label">报销人</td>
         <td>{{ bill.applicant || '-' }}</td>
-        <td class="label">部门</td>
-        <td>{{ bill.department || '-' }}</td>
       </tr>
       <tr>
+        <td class="label">部门</td>
+        <td>{{ bill.department || '-' }}</td>
         <td class="label">成本中心</td>
         <td>{{ bill.department || '-' }}</td>
+        <td class="label">报销类型</td>
+        <td>采购报销</td>
+      </tr>
+      <tr>
         <td class="label">项目编号</td>
         <td>-</td>
         <td class="label">项目名称</td>
-        <td>-</td>
-        <td class="label">报销类型</td>
-        <td>物品采购/费用报销</td>
+        <td colspan="3">-</td>
       </tr>
     </table>
 
@@ -75,14 +77,12 @@
 
     <!-- 四、汇总与付款 -->
     <div class="section-title">四、汇总与付款</div>
-    <table class="info-table">
+    <table class="info-table summary-table">
       <tr>
-        <td class="label">费用合计(元)</td>
-        <td class="num-strong">¥{{ totalAmount.toFixed(2) }}</td>
-        <td class="label">税金合计(元)</td>
-        <td class="num-strong">¥{{ totalTax.toFixed(2) }}</td>
-        <td class="label">价税合计(元)</td>
-        <td class="num-strong">¥{{ totalWithTax.toFixed(2) }}</td>
+        <td class="label">报销金额(元)</td>
+        <td class="num-strong" colspan="2">¥{{ totalWithTax.toFixed(2) }}</td>
+        <td class="label">应支付(元)</td>
+        <td class="num-strong" colspan="2">¥{{ totalWithTax.toFixed(2) }}</td>
         <td class="label">状态提示</td>
         <td>{{ bill.status }}</td>
       </tr>
@@ -90,13 +90,9 @@
         <td class="label">审批人</td>
         <td>{{ bill.approver || '-' }}</td>
         <td class="label">审批日期</td>
-        <td>{{ bill.approve_date || '-' }}</td>
+        <td class="date-cell" colspan="2">{{ bill.approve_date || '-' }}</td>
         <td class="label">审批意见</td>
-        <td colspan="3">{{ bill.approve_remark || '-' }}</td>
-      </tr>
-      <tr>
-        <td class="label">应支付(元)</td>
-        <td colspan="7" class="num-strong">¥{{ totalWithTax.toFixed(2) }}</td>
+        <td colspan="2">{{ bill.approve_remark || '-' }}</td>
       </tr>
     </table>
 
@@ -208,8 +204,6 @@ const invoiceRows = computed<InvoiceRow[]>(() => {
   return rows
 })
 
-const totalAmount = computed(() => invoiceRows.value.reduce((s, it) => s + it.amount, 0))
-const totalTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.tax, 0))
 const totalWithTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.total, 0))
 </script>
 
@@ -218,11 +212,11 @@ const totalWithTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.t
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 16mm;
+  padding: 14mm 16mm;
   box-sizing: border-box;
   background: #fff;
   color: #000;
-  font-size: 10pt;
+  font-size: 9pt;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
@@ -234,27 +228,27 @@ const totalWithTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.t
   margin-bottom: 12px;
 }
 .company {
-  font-size: 16pt;
+  font-size: 15pt;
   font-weight: bold;
   letter-spacing: 2px;
 }
 .doc-type {
-  font-size: 18pt;
+  font-size: 17pt;
   font-weight: bold;
-  margin-top: 4px;
+  margin-top: 3px;
 }
 .unit {
   position: absolute;
   right: 0;
   top: 0;
-  font-size: 10pt;
+  font-size: 9pt;
   color: #333;
 }
 
 .section-title {
   font-weight: bold;
-  margin: 14px 0 6px;
-  font-size: 11pt;
+  margin: 12px 0 5px;
+  font-size: 10pt;
 }
 
 table {
@@ -268,7 +262,7 @@ table {
 .detail-table td,
 .sign-table td {
   border: 1px solid #333;
-  padding: 4px 6px;
+  padding: 3px 5px;
   word-break: break-all;
   vertical-align: middle;
 }
@@ -277,7 +271,32 @@ table {
   background: #f2f2f2;
   font-weight: 600;
   text-align: center;
-  width: 90px;
+  width: 78px;
+  font-size: 8.5pt;
+}
+
+/* 基本信息 6 列，每格更宽 */
+.base-table td {
+  font-size: 9pt;
+}
+
+.bill-no {
+  word-break: break-all;
+  line-height: 1.2;
+  text-align: center;
+  font-size: 8.5pt;
+  font-family: 'Courier New', monospace;
+}
+
+.date-cell {
+  white-space: nowrap;
+  font-size: 8pt;
+  text-align: center;
+}
+
+/* 汇总表：金额醒目但字号受控 */
+.summary-table .num-strong {
+  font-size: 9pt;
 }
 
 /* 登机牌式紧凑发票卡片 —— 黑白灰度打印友好 */
@@ -311,14 +330,14 @@ table {
   writing-mode: vertical-rl;
   text-orientation: upright;
   color: #000;
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 700;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   line-height: 1;
   white-space: nowrap;
 }
 .ib-stripe-text.long {
-  font-size: 10pt;
+  font-size: 9pt;
   letter-spacing: 1px;
 }
 
@@ -344,7 +363,7 @@ table {
   min-width: 0;
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   letter-spacing: 0.3px;
   color: #000;
   white-space: nowrap;
@@ -353,7 +372,7 @@ table {
 }
 .ib-date {
   flex: 0 0 auto;
-  font-size: 7pt;
+  font-size: 6.5pt;
   color: #555;
   white-space: nowrap;
 }
@@ -361,7 +380,7 @@ table {
 /* 销方 / 内容 */
 .ib-seller {
   font-weight: 600;
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: #000;
   line-height: 1.3;
   white-space: nowrap;
@@ -370,13 +389,13 @@ table {
   margin-bottom: 1px;
 }
 .ib-item {
-  font-size: 7.5pt;
+  font-size: 7pt;
   color: #444;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 /* 底部统计：4 列紧凑 */
@@ -394,14 +413,14 @@ table {
 }
 .ib-stat .l {
   display: block;
-  font-size: 6.5pt;
+  font-size: 6pt;
   color: #555;
   letter-spacing: 0.3px;
   line-height: 1.1;
 }
 .ib-stat .v {
   display: block;
-  font-size: 8.5pt;
+  font-size: 8pt;
   font-weight: 600;
   color: #000;
   font-family: 'Courier New', monospace;
@@ -425,7 +444,7 @@ table {
   background: #f2f2f2;
 }
 .ib-stub .l {
-  font-size: 6.5pt;
+  font-size: 6pt;
   color: #555;
   letter-spacing: 0.5px;
   line-height: 1.1;
@@ -433,7 +452,7 @@ table {
 .ib-stub .amt {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 11pt;
+  font-size: 10pt;
   color: #000;
   line-height: 1.15;
   margin: 2px 0;
