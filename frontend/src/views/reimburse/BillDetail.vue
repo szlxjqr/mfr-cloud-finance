@@ -44,22 +44,30 @@
       </tr>
     </table>
 
-    <!-- 三、费用明细（模拟发票票面，方框卡片） -->
+    <!-- 三、费用明细（模拟火车票/登机牌：发票卡片） -->
     <div class="section-title">三、费用明细</div>
     <div class="invoice-cards">
       <div class="invoice-box" v-for="inv in invoiceRows" :key="inv.id">
-        <div class="ib-head">
-          <span class="ib-code">{{ inv.invoice_code || '-' }}</span>
-          <span class="ib-meta">{{ inv.invoice_type }} · {{ inv.invoice_date || '日期不详' }}</span>
+        <div class="ib-stripe"></div>
+        <div class="ib-main">
+          <div class="ib-head">
+            <span class="ib-tag">{{ inv.invoice_type }}</span>
+            <span class="ib-code">{{ inv.invoice_code || '-' }}</span>
+            <span class="ib-meta">{{ inv.invoice_date || '日期不详' }}</span>
+          </div>
+          <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
+          <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
+          <div class="ib-stats">
+            <div class="ib-stat"><span class="l">数量</span><span class="v">{{ inv.qty }}</span></div>
+            <div class="ib-stat"><span class="l">不含税</span><span class="v">¥{{ inv.amount.toFixed(2) }}</span></div>
+            <div class="ib-stat"><span class="l">税率</span><span class="v">{{ inv.tax_rate }}</span></div>
+            <div class="ib-stat"><span class="l">税金</span><span class="v">¥{{ inv.tax.toFixed(2) }}</span></div>
+          </div>
         </div>
-        <div class="ib-body">
-          <div class="ib-row ib-full"><span class="ib-label">销方</span><span class="ib-val">{{ inv.seller_name }}</span></div>
-          <div class="ib-row ib-full"><span class="ib-label">项目</span><span class="ib-val">{{ inv.items }}</span></div>
-          <div class="ib-row"><span class="ib-label">数量</span><span class="ib-val num">{{ inv.qty }}</span></div>
-          <div class="ib-row"><span class="ib-label">不含税</span><span class="ib-val num">¥{{ inv.amount.toFixed(2) }}</span></div>
-          <div class="ib-row"><span class="ib-label">税率</span><span class="ib-val num">{{ inv.tax_rate }}</span></div>
-          <div class="ib-row"><span class="ib-label">税金</span><span class="ib-val num">¥{{ inv.tax.toFixed(2) }}</span></div>
-          <div class="ib-row ib-full ib-total"><span class="ib-label">价税合计</span><span class="ib-val num">¥{{ inv.total.toFixed(2) }}</span></div>
+        <div class="ib-stub">
+          <div class="l">价税合计</div>
+          <div class="amt">¥{{ inv.total.toFixed(2) }}</div>
+          <div class="sub">税金 ¥{{ inv.tax.toFixed(2) }}</div>
         </div>
       </div>
       <div v-if="!invoiceRows.length" class="empty">暂无发票明细</div>
@@ -256,70 +264,149 @@ table {
   width: 90px;
 }
 
-/* 模拟发票票面：方框卡片两列网格 */
+/* 模拟火车票/登机牌：发票卡片 */
 .invoice-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
 }
 
 .invoice-box {
-  width: calc(50% - 3px);
-  border: 1px solid #333;
+  width: calc(50% - 3.5px);
+  display: flex;
+  border: 1px solid #cfd6e0;
+  border-radius: 7px;
   box-sizing: border-box;
   break-inside: avoid;
-  font-size: 9.5pt;
+  background: #fff;
+  font-size: 10pt;
+  box-shadow: 0 1px 1px rgba(20,40,80,0.05);
 }
 
+/* 左侧品牌色细条 */
+.ib-stripe {
+  flex: 0 0 5px;
+  background: linear-gradient(180deg, #185fa5, #2f7fc4);
+  border-radius: 7px 0 0 7px;
+}
+
+.ib-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 9px;
+}
+
+/* 表头：类型标签 + 大号编码 + 日期 */
 .ib-head {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 3px 6px;
-  border-bottom: 1px solid #333;
-  background: #f2f2f2;
-}
-.ib-code {
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-}
-.ib-meta {
-  font-size: 8.5pt;
-  color: #333;
-}
-
-.ib-body {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  column-gap: 10px;
-  row-gap: 2px;
-  padding: 4px 6px;
-}
-.ib-row {
-  display: flex;
-  justify-content: space-between;
+  align-items: baseline;
   gap: 6px;
+  border-bottom: 1px solid #e6ebf2;
+  padding-bottom: 3px;
+  margin-bottom: 4px;
 }
-.ib-full {
-  grid-column: 1 / -1;
-}
-.ib-label {
-  color: #555;
+.ib-tag {
+  flex: 0 0 auto;
+  font-size: 7pt;
+  color: #185fa5;
+  border: 1px solid #9cc2ea;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.5;
   white-space: nowrap;
 }
-.ib-val {
-  font-weight: 500;
-  text-align: right;
-  word-break: break-all;
-}
-.ib-val.num {
+.ib-code {
   font-family: 'Courier New', monospace;
-}
-.ib-total {
-  border-top: 1px dashed #999;
-  padding-top: 3px;
-  margin-top: 2px;
   font-weight: 700;
+  font-size: 10.5pt;
+  letter-spacing: 0.2px;
+  color: #1a2a3a;
+}
+.ib-meta {
+  margin-left: auto;
+  font-size: 7.5pt;
+  color: #9aa6b2;
+  white-space: nowrap;
+}
+
+/* 主体：销方/物品 */
+.ib-seller {
+  font-weight: 600;
+  font-size: 9.5pt;
+  color: #222;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ib-item {
+  font-size: 8pt;
+  color: #6b7785;
+  margin: 1px 0 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部一排小号统计 */
+.ib-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px 4px;
+  border-top: 1px dashed #d8dee6;
+  padding-top: 4px;
+}
+.ib-stat {
+  text-align: center;
+  min-width: 0;
+}
+.ib-stat .l {
+  display: block;
+  font-size: 6.8pt;
+  color: #9aa6b2;
+  letter-spacing: 0.3px;
+}
+.ib-stat .v {
+  display: block;
+  font-size: 8.8pt;
+  font-weight: 600;
+  color: #2a3642;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 右侧存根区：虚线穿孔分隔，放大价税合计 */
+.ib-stub {
+  flex: 0 0 31%;
+  position: relative;
+  border-left: 1px dashed #b9c4d0;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  background: #f7fafe;
+  border-radius: 0 7px 7px 0;
+}
+.ib-stub .l {
+  font-size: 7pt;
+  color: #9aa6b2;
+  letter-spacing: 0.5px;
+}
+.ib-stub .amt {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 13pt;
+  color: #c0392b;
+  line-height: 1.1;
+  margin: 1px 0;
+}
+.ib-stub .sub {
+  font-size: 7pt;
+  color: #95a2af;
+  font-family: 'Courier New', monospace;
 }
 
 .num {
