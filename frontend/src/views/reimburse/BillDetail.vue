@@ -44,20 +44,18 @@
       </tr>
     </table>
 
-    <!-- 三、费用明细（模拟火车票/登机牌：发票卡片） -->
+    <!-- 三、费用明细（登机牌式紧凑发票卡片） -->
     <div class="section-title">三、费用明细</div>
     <div class="invoice-cards">
       <div class="invoice-box" v-for="inv in invoiceRows" :key="inv.id">
-        <div class="ib-stripe"></div>
+        <div class="ib-stripe">
+          <span class="ib-stripe-text" :class="{ long: (inv.invoice_type || '').length > 2 }">{{ inv.invoice_type }}</span>
+        </div>
         <div class="ib-main">
           <div class="ib-head">
-            <span class="ib-code">{{ inv.invoice_no || '-' }}</span>
+            <span class="ib-code" :title="inv.invoice_no || ''">{{ inv.invoice_no || '-' }}</span>
+            <span class="ib-date">{{ inv.invoice_date || '日期不详' }}</span>
           </div>
-          <div class="ib-date">
-            <div class="ib-date-label">开票日期</div>
-            <div class="ib-date-val">{{ inv.invoice_date || '日期不详' }}</div>
-          </div>
-          <div class="ib-type-badge">{{ inv.invoice_type }}</div>
           <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
           <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
           <div class="ib-stats">
@@ -283,115 +281,123 @@ table {
   width: 90px;
 }
 
-/* 模拟火车票/登机牌：发票卡片 */
+/* 登机牌式紧凑发票卡片 */
 .invoice-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 8px;
 }
 
 .invoice-box {
-  width: calc(50% - 3.5px);
+  width: calc(50% - 4px);
   display: flex;
-  border: 1px solid #cfd6e0;
-  border-radius: 7px;
+  border: 1px solid #c8d0db;
+  border-radius: 8px;
   box-sizing: border-box;
   break-inside: avoid;
   background: #fff;
-  font-size: 10pt;
-  box-shadow: 0 1px 1px rgba(20,40,80,0.05);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(20, 40, 80, 0.06);
 }
 
-/* 左侧品牌色细条 */
+/* 左侧类型色带：竖排大字，占满整个高度，消灭空白 */
 .ib-stripe {
-  flex: 0 0 5px;
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: linear-gradient(180deg, #185fa5, #2f7fc4);
-  border-radius: 7px 0 0 7px;
+  position: relative;
+}
+.ib-stripe::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 12%;
+  bottom: 12%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.ib-stripe-text {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  color: #fff;
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 3px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.ib-stripe-text.long {
+  font-size: 10pt;
+  letter-spacing: 1px;
 }
 
 .ib-main {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 4px 8px 5px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
-/* 表头：类型标签 + 大号编码 */
+/* 顶部：发票号码 + 开票日期 左右分置，互不遮挡 */
 .ib-head {
   display: flex;
-  align-items: center;
-  gap: 5px;
-  border-bottom: 1px solid #e6ebf2;
-  padding-bottom: 2px;
-  margin-bottom: 2px;
-}
-.ib-type-badge {
-  display: inline-block;
-  align-self: flex-start;
-  margin: 2px 0 3px;
-  padding: 2px 10px;
-  font-size: 11pt;
-  font-weight: 700;
-  color: #fff;
-  background: linear-gradient(135deg, #185fa5, #2f7fc4);
-  border-radius: 5px;
-  box-shadow: 0 1px 2px rgba(24, 95, 165, 0.25);
-  white-space: nowrap;
-  letter-spacing: 0.5px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
 }
 .ib-code {
   flex: 1 1 auto;
   min-width: 0;
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 10pt;
-  letter-spacing: 0.2px;
+  font-size: 9.5pt;
+  letter-spacing: 0.3px;
   color: #1a2a3a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ib-date {
-  margin-bottom: 2px;
+  flex: 0 0 auto;
+  font-size: 7pt;
+  color: #7a8a9a;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ib-date-label {
-  font-size: 6.5pt;
-  color: #9aa6b2;
-  line-height: 1.2;
-}
-.ib-date-val {
-  font-size: 8pt;
-  color: #4a5568;
-  line-height: 1.3;
 }
 
-/* 主体：销方/物品 */
+/* 销方 / 物品 */
 .ib-seller {
   font-weight: 600;
   font-size: 9pt;
   color: #222;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 1px;
 }
 .ib-item {
   font-size: 7.5pt;
   color: #6b7785;
-  margin: 0 0 4px;
+  line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-bottom: 4px;
 }
 
-/* 底部一排小号统计 */
+/* 底部统计：4 列紧凑 */
 .ib-stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 2px 4px;
+  gap: 2px 6px;
   border-top: 1px dashed #d8dee6;
   padding-top: 4px;
+  margin-top: auto;
 }
 .ib-stat {
   text-align: center;
@@ -399,39 +405,41 @@ table {
 }
 .ib-stat .l {
   display: block;
-  font-size: 6.8pt;
+  font-size: 6.5pt;
   color: #9aa6b2;
   letter-spacing: 0.3px;
+  line-height: 1.1;
 }
 .ib-stat .v {
   display: block;
-  font-size: 8.8pt;
+  font-size: 8.5pt;
   font-weight: 600;
   color: #2a3642;
   font-family: 'Courier New', monospace;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
-/* 右侧存根区：虚线穿孔分隔，价税合计适度放大 */
+/* 右侧存根区：虚线穿孔，价税合计 */
 .ib-stub {
-  flex: 0 0 24%;
+  flex: 0 0 23%;
   position: relative;
   border-left: 1px dashed #b9c4d0;
-  padding: 4px 6px;
+  padding: 4px 5px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
   background: #f7fafe;
-  border-radius: 0 7px 7px 0;
 }
 .ib-stub .l {
   font-size: 6.5pt;
-  color: #9aa6b2;
+  color: #8a98a8;
   letter-spacing: 0.5px;
+  line-height: 1.1;
 }
 .ib-stub .amt {
   font-family: 'Courier New', monospace;
@@ -439,7 +447,7 @@ table {
   font-size: 11pt;
   color: #c0392b;
   line-height: 1.15;
-  margin: 1px 0;
+  margin: 2px 0;
   white-space: nowrap;
 }
 .ib-stub .sub {
