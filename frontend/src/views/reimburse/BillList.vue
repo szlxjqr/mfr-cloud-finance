@@ -81,16 +81,31 @@
         </div>
         <el-table :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
           <el-table-column prop="invoice_date" label="开票日期" width="110" />
-          <el-table-column prop="invoice_type" label="类型" width="120" />
-          <el-table-column prop="invoice_code" label="发票编码" width="190" show-overflow-tooltip />
-          <el-table-column prop="no" label="发票号码" width="130" />
-          <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
-          <el-table-column label="合计" width="120" align="right">
+          <el-table-column prop="invoice_type" label="类型" width="100" />
+          <el-table-column prop="invoice_code" label="发票编码" width="170" show-overflow-tooltip />
+          <el-table-column prop="no" label="发票号码" width="120" />
+          <el-table-column prop="seller_name" label="销方名称" min-width="140" show-overflow-tooltip />
+          <el-table-column label="不含税金额" width="110" align="right">
+            <template #default="{ row }">
+              ¥{{ invoiceSubtotal(row).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="税率" width="80" align="center">
+            <template #default="{ row }">
+              {{ invoiceTaxRateLabel(row) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="税金" width="100" align="right">
+            <template #default="{ row }">
+              ¥{{ invoiceTax(row).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="含税价金额" width="110" align="right">
             <template #default="{ row }">
               ¥{{ invoiceTotal(row).toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80" align="center">
+          <el-table-column label="操作" width="70" align="center">
             <template #default="{ row }">
               <el-button link type="danger" size="small" @click="unlinkInvoice(row)">移除</el-button>
             </template>
@@ -434,8 +449,28 @@ async function loadLinkedInvoices() {
   }
 }
 
+function invoiceSubtotal(inv: Invoice): number {
+  return (inv.details || []).reduce((sum, d) => sum + (d.amount || 0), 0)
+}
+
+function invoiceTax(inv: Invoice): number {
+  return (inv.details || []).reduce((sum, d) => sum + (d.tax || 0), 0)
+}
+
 function invoiceTotal(inv: Invoice): number {
-  return inv.details.reduce((sum, d) => sum + (d.total || 0), 0)
+  return (inv.details || []).reduce((sum, d) => sum + (d.total || 0), 0)
+}
+
+function invoiceTaxRateLabel(inv: Invoice): string {
+  const details = inv.details || []
+  if (details.length === 0) return '-'
+  const rates = Array.from(new Set(details.map((d) => d.tax_rate).filter((r) => r !== null && r !== undefined)))
+  if (rates.length === 0) return '-'
+  if (rates.length === 1) {
+    const r = Number(rates[0])
+    return `${r}%`
+  }
+  return '多税率'
 }
 
 async function openCreate() {
