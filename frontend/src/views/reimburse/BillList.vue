@@ -136,8 +136,61 @@
       </template>
     </el-dialog>
 
-    <!-- 增加发票弹窗（简化录入） -->
+    <!-- 增加发票弹窗（支持上传识别 + 人工核实） -->
     <el-dialog v-model="invoiceDialogVisible" title="增加发票" width="780px" :close-on-click-modal="false">
+      <!-- 上传识别区 -->
+      <div class="recognize-section">
+        <div class="recognize-title">
+          <el-icon><Picture /></el-icon>
+          <span>上传发票自动识别</span>
+        </div>
+        <el-upload
+          drag
+          action="#"
+          :auto-upload="false"
+          accept=".jpg,.jpeg,.png,.pdf,.ofd"
+          :show-file-list="false"
+          :disabled="recognizing"
+          :on-change="onRecognizeFileChange"
+          class="recognize-uploader"
+        >
+          <el-icon class="recognize-upload-icon"><Picture /></el-icon>
+          <div class="recognize-upload-text">
+            <p>点击或拖拽上传发票图片 / PDF / OFD</p>
+            <p class="recognize-upload-tip">支持 JPG、PNG、PDF、OFD 格式，上传后自动识别并填入下方表单</p>
+          </div>
+        </el-upload>
+
+        <div v-if="recognizeFile" class="recognize-file">
+          <div class="recognize-file-info">
+            <el-icon><Document /></el-icon>
+            <span class="recognize-file-name">{{ recognizeFile.name }}</span>
+            <el-button text type="danger" size="small" :disabled="recognizing" @click="removeRecognizeFile">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
+          <div v-if="recognizePreviewUrl && recognizeFile.type.startsWith('image')" class="recognize-image-preview">
+            <img :src="recognizePreviewUrl" alt="发票预览" />
+          </div>
+        </div>
+
+        <div v-if="recognizing" class="recognize-loading">
+          <el-icon class="recognize-spin"><Refresh /></el-icon>
+          <span>正在识别发票内容，请稍候…</span>
+        </div>
+
+        <el-alert
+          v-if="recognizeError"
+          :title="recognizeError"
+          type="warning"
+          :closable="false"
+          show-icon
+          class="recognize-error"
+        />
+      </div>
+
+      <el-divider content-position="left">识别结果核实</el-divider>
+
       <el-form ref="invoiceFormRef" :model="invoiceForm" :rules="invoiceRules" label-width="100px">
         <div class="invoice-form-row">
           <el-form-item label="发票类型" prop="invoice_type" style="flex: 1">
@@ -247,11 +300,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Picture, Document, Close, Refresh } from '@element-plus/icons-vue'
 import { reimburseApi } from '@/api/reimburse'
 import { invoiceApi } from '@/api/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
 import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
+import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
 
@@ -509,9 +563,113 @@ async function confirmLink() {
   }
 }
 
-/* ============ 增加发票 ============ */
+/* ============ 增加发票（上传识别） ============ */
 const invoiceDialogVisible = ref(false)
 const invoiceFormRef = ref<any>(null)
+
+const recognizeFile = ref<File | null>(null)
+const recognizePreviewUrl = ref('')
+const recognizing = ref(false)
+const recognizeError = ref('')
+
+function resetRecognizeState() {
+  recognizeFile.value = null
+  recognizePreviewUrl.value = ''
+  recognizing.value = false
+  recognizeError.value = ''
+}
+
+function onRecognizeFileChange(uploadFile: any) {
+  const raw = uploadFile?.raw || uploadFile
+  if (!raw) return
+  recognizeFile.value = raw
+  recognizePreviewUrl.value = raw.type?.startsWith('image/') ? URL.createObjectURL(raw) : ''
+  recognizeError.value = ''
+  startRecognize()
+}
+
+function removeRecognizeFile() {
+  resetRecognizeState()
+}
+
+async function startRecognize() {
+  if (!recognizeFile.value) return
+  recognizing.value = true
+  recognizeError.value = ''
+  try {
+    const parsed = await parseInvoiceFile(recognizeFile.value)
+    applyRecognized(parsed)
+    ElMessage.success('发票识别完成，请核对下方信息')
+  } catch (err: any) {
+    console.error('发票识别失败', err)
+    recognizeError.value = '发票识别失败：' + (err?.message || '请检查文件格式或改为手工录入')
+  } finally {
+    recognizing.value = false
+  }
+}
+
+function applyRecognized(p: ParsedInvoice) {
+  // 1. 发票类型推断
+  let invoiceType = p.type || '增值税普通发票'
+  if (/专票/.test(invoiceType)) invoiceType = '增值税专用发票'
+  else if (/普通发票|电子发票/.test(invoiceType) && !/专用/.test(invoiceType)) invoiceType = '增值税普通发票'
+  else if (/火车|铁路/.test(invoiceType)) invoiceType = '火车票'
+  else if (/机票|航空/.test(invoiceType)) invoiceType = '机票'
+
+  // 2. 根据类型给默认科目和税率
+  const isTravel = /火车|铁路|机票|航空/.test(invoiceType)
+  const isService = /服务|代理/.test(invoiceType)
+  const defaultAccount = isTravel ? '管理费用-差旅费' : isService ? '管理费用' : '管理费用'
+  const defaultTaxRate = isTravel ? 9 : isService ? 6 : 13
+
+  // 3. 明细映射
+  let details: InvoiceCreatePayload['details'] = []
+  if (p.items && p.items.length > 0) {
+    details = p.items.map((it) => {
+      const amount = Number(it.amount) || 0
+      const taxRate = it.taxRate && it.taxRate > 0 ? it.taxRate : defaultTaxRate
+      const tax = Number(it.tax) || Number((amount * (taxRate / 100)).toFixed(2))
+      return {
+        biz_type: isTravel ? '费用报销' : '采购商品',
+        item: it.name || (isTravel ? '差旅费' : '见发票明细'),
+        qty: Number(it.qty) || 1,
+        amount,
+        tax_rate: taxRate,
+        tax,
+        total: Number((amount + tax).toFixed(2)),
+      }
+    })
+  } else {
+    const amount = Number(p.amount) || 0
+    const tax = Number(p.tax) || 0
+    const total = Number(p.total) || Number((amount + tax).toFixed(2))
+    details = [
+      {
+        biz_type: isTravel ? '费用报销' : '采购商品',
+        item: p.item || (isTravel ? '差旅费' : '见发票明细'),
+        qty: 1,
+        amount,
+        tax_rate: p.taxRate && p.taxRate > 0 ? p.taxRate : defaultTaxRate,
+        tax,
+        total,
+      },
+    ]
+  }
+
+  // 4. 填充表单（保留原值兜底，便于用户只修改错误字段）
+  Object.assign(invoiceForm, {
+    invoice_type: invoiceType,
+    code: p.code || null,
+    no: p.no || invoiceForm.no,
+    invoice_date: p.date || invoiceForm.invoice_date,
+    buyer_name: p.buyerName || invoiceForm.buyer_name,
+    buyer_tax_no: p.buyerTaxNo || invoiceForm.buyer_tax_no,
+    seller_name: p.sellerName || invoiceForm.seller_name,
+    seller_tax_no: p.sellerTaxNo || invoiceForm.seller_tax_no,
+    account: defaultAccount,
+    details,
+  })
+}
 
 function emptyInvoiceForm(): InvoiceCreatePayload {
   return {
@@ -568,6 +726,7 @@ function openAddInvoice() {
   }
   Object.assign(invoiceForm, emptyInvoiceForm())
   invoiceForm.reimbursement_bill_id = editingId.value
+  resetRecognizeState()
   invoiceDialogVisible.value = true
 }
 
@@ -708,5 +867,104 @@ onMounted(load)
 .detail-table th {
   background: #f5f7fa;
   font-weight: 600;
+}
+
+/* 上传识别区 */
+.recognize-section {
+  margin-bottom: 8px;
+}
+.recognize-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-color-primary);
+  margin-bottom: 12px;
+}
+.recognize-uploader :deep(.el-upload-dragger) {
+  width: 100%;
+  padding: 32px 20px;
+  border: 2px dashed var(--el-color-primary-light-5);
+  border-radius: 8px;
+  background: var(--el-color-primary-light-9);
+}
+.recognize-uploader :deep(.el-upload-dragger:hover) {
+  border-color: var(--el-color-primary);
+}
+.recognize-uploader :deep(.el-upload.is-disabled .el-upload-dragger) {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.recognize-upload-icon {
+  font-size: 40px;
+  color: var(--el-color-primary);
+  margin-bottom: 8px;
+}
+.recognize-upload-text p {
+  margin: 0;
+  color: var(--el-text-color-primary);
+  font-size: 15px;
+  font-weight: 500;
+}
+.recognize-upload-tip {
+  font-size: 12px !important;
+  color: var(--el-text-color-secondary) !important;
+  margin-top: 6px !important;
+}
+.recognize-file {
+  margin-top: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fff;
+}
+.recognize-file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.recognize-file-name {
+  flex: 1;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recognize-image-preview {
+  display: flex;
+  justify-content: center;
+  max-height: 200px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.recognize-image-preview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 4px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+.recognize-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 16px;
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  border-radius: 6px;
+}
+.recognize-spin {
+  font-size: 22px;
+  animation: recognize-spin 1s linear infinite;
+}
+@keyframes recognize-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.recognize-error {
+  margin-top: 12px;
 }
 </style>
