@@ -79,7 +79,7 @@
             <el-icon><Plus /></el-icon>增加发票
           </el-button>
         </div>
-        <el-table :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
+        <el-table :key="linkedTableKey" :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
           <el-table-column prop="invoice_date" label="开票日期" width="95" />
           <el-table-column prop="invoice_type" label="类型" width="90" />
           <el-table-column prop="invoice_code" label="发票编码" width="150" show-overflow-tooltip />
@@ -349,6 +349,7 @@ const editing = ref(false)
 const editingId = ref<number | null>(null)
 const previewBillNo = ref<string | null>(null)
 const linkedInvoices = ref<Invoice[]>([])
+const linkedTableKey = ref(0)
 
 const emptyForm = () => ({
   bill_no: null as string | null,
@@ -444,21 +445,28 @@ async function loadLinkedInvoices() {
   try {
     const res = await invoiceApi.list({ reimbursement_bill_id: editingId.value })
     linkedInvoices.value = res.data
+    linkedTableKey.value += 1
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '加载已关联发票失败')
   }
 }
 
+function toNum(v: any): number {
+  if (v === null || v === undefined || v === '') return 0
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
 function invoiceSubtotal(inv: Invoice): number {
-  return (inv.details || []).reduce((sum, d) => sum + (d.amount || 0), 0)
+  return (inv.details || []).reduce((sum, d) => sum + toNum(d.amount), 0)
 }
 
 function invoiceTax(inv: Invoice): number {
-  return (inv.details || []).reduce((sum, d) => sum + (d.tax || 0), 0)
+  return (inv.details || []).reduce((sum, d) => sum + toNum(d.tax), 0)
 }
 
 function invoiceTotal(inv: Invoice): number {
-  return (inv.details || []).reduce((sum, d) => sum + (d.total || 0), 0)
+  return (inv.details || []).reduce((sum, d) => sum + toNum(d.total), 0)
 }
 
 function invoiceTaxRateLabel(inv: Invoice): string {
@@ -479,6 +487,7 @@ async function openCreate() {
   editingId.value = null
   previewBillNo.value = null
   linkedInvoices.value = []
+  linkedTableKey.value += 1
   dialogVisible.value = true
   try {
     const res = await reimburseApi.nextBillNo()
