@@ -495,57 +495,8 @@ table {
   color: #333;
 }
 
-@media print {
-  /* 显式声明 A4 纸张 + 统一页边距，避免被系统默认纸张（如 Letter）缩放裁切 */
-  @page {
-    size: A4;
-    margin: 14mm 16mm;
-  }
-
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: #fff;
-    font-size: 9pt;
-  }
-
-  .expense-form {
-    /* 填满 A4 内容区（210mm - 32mm = 178mm 宽），不再固定 210mm 导致横向溢出 */
-    width: auto;
-    /* 自然流式分页：内容多长就印几页，不再强制撑满一页 */
-    min-height: 0;
-    margin: 0;
-    padding: 0;
-    box-shadow: none;
-    /* 保留浅灰底（类型带/存根区）在黑白打印中的灰度呈现，不丢样式 */
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* 标题、区块标题不与其后内容分离（防止标题孤行在页底） */
-  .form-title,
-  .section-title {
-    break-after: avoid;
-    page-break-after: avoid;
-  }
-
-  /* 表格整体尽量不被拆行 */
-  .info-table,
-  .sign-table {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* 发票卡片容器：允许在卡片之间自然分页 */
-  .invoice-cards {
-    break-inside: auto;
-  }
-
-  /* 单张发票卡片：整卡不跨页 —— 放不下时整卡移至下一页，宁留白也不拆卡 */
-  .invoice-box {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    -webkit-column-break-inside: avoid;
-  }
-}
+/* 打印逻辑已迁移到 MyReimburse.vue 的 printDetail()：
+   点「打印报销单」时克隆 .expense-form 到独立打印窗口，
+   彻底绕开 el-dialog 的 fixed/overflow/居中 对打印分页的干扰。
+   本组件仅保留屏幕预览样式；A4 与整卡不跨页规则在打印窗口注入。 */
 </style>

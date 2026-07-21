@@ -114,7 +114,74 @@ async function openDetail(row: ReimbursementBill) {
 }
 
 function printDetail() {
-  window.print()
+  // 克隆报销单表单到独立打印窗口：
+  // 彻底绕开 el-dialog 的 fixed/overflow/居中 对打印分页的干扰（它会把表单头部顶出可打印区而被裁掉）。
+  const form = document.querySelector('.detail-dialog .expense-form') as HTMLElement | null
+  if (!form) {
+    window.print()
+    return
+  }
+
+  const win = window.open('', '_blank')
+  if (!win) {
+    // 弹窗被拦截时的兜底：仍用整页打印
+    window.print()
+    return
+  }
+
+  // 收集当前页面的全部样式（dev 为 <style> 注入、生产为 <link>），保证克隆出的表单样式一致
+  const styleTexts = Array.from(document.querySelectorAll('style'))
+    .map((s) => s.textContent || '')
+    .filter(Boolean)
+  const linkHrefs = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(
+    (l) => (l as HTMLLinkElement).href
+  )
+
+  // 打印窗口专用：A4 + 整卡不跨页 + 灰度保留
+  const printCss = `
+    @page { size: A4; margin: 12mm; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    .expense-form {
+      width: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+    .form-title, .section-title { break-after: avoid; page-break-after: avoid; }
+    .info-table, .sign-table { break-inside: avoid; page-break-inside: avoid; }
+    .invoice-cards { break-inside: auto; }
+    .invoice-box { break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; }
+  `
+
+  win.document.open()
+  win.document.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">')
+  win.document.write('<title>采购报销单</title>')
+  linkHrefs.forEach((h) => win.document.write(`<link rel="stylesheet" href="${h}">`))
+  styleTexts.forEach((css) => win.document.write(`<style>${css}</style>`))
+  win.document.write(`<style>${printCss}</style>`)
+  win.document.write('</head><body>')
+  win.document.write(form.outerHTML)
+  win.document.write('</body></html>')
+  win.document.close()
+
+  // 等样式与字体加载完成再打印，避免空白/错位；用守卫避免重复打印
+  let printed = false
+  const triggerPrint = () => {
+    if (printed) return
+    printed = true
+    win.focus()
+    win.print()
+  }
+  if (win.document.readyState === 'complete') {
+    setTimeout(triggerPrint, 300)
+  } else {
+    win.onload = triggerPrint
+    // 兜底：若 onload 未触发，600ms 后强制打印
+    setTimeout(triggerPrint, 600)
+  }
 }
 
 onMounted(load)
@@ -143,29 +210,5 @@ onMounted(load)
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-</style>
-
-<style>
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .detail-dialog .el-dialog__body,
-  .detail-dialog .el-dialog__body * {
-    visibility: visible;
-  }
-  .detail-dialog .el-dialog__body {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    padding: 0;
-    margin: 0;
-  }
-  .detail-dialog .el-dialog__header,
-  .detail-dialog .el-dialog__footer {
-    display: none !important;
-  }
 }
 </style>
