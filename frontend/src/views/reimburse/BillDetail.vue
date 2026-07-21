@@ -57,7 +57,7 @@
             <span class="ib-date">{{ inv.invoice_date || '日期不详' }}</span>
           </div>
           <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
-          <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
+          <div class="ib-item" :title="inv.items">内容：{{ inv.items }}</div>
           <div class="ib-stats">
             <div class="ib-stat"><span class="l">数量</span><span class="v">{{ inv.qty }}</span></div>
             <div class="ib-stat"><span class="l">不含税</span><span class="v">¥{{ inv.amount.toFixed(2) }}</span></div>
@@ -281,7 +281,7 @@ table {
   width: 90px;
 }
 
-/* 登机牌式紧凑发票卡片 */
+/* 登机牌式紧凑发票卡片 —— 黑白灰度打印友好 */
 .invoice-cards {
   display: flex;
   flex-wrap: wrap;
@@ -291,22 +291,22 @@ table {
 .invoice-box {
   width: calc(50% - 4px);
   display: flex;
-  border: 1px solid #c8d0db;
-  border-radius: 8px;
+  border: 1px solid #999;
+  border-radius: 6px;
   box-sizing: border-box;
   break-inside: avoid;
   background: #fff;
   overflow: hidden;
-  box-shadow: 0 1px 2px rgba(20, 40, 80, 0.06);
 }
 
-/* 左侧类型色带：竖排大字，占满整个高度，消灭空白 */
+/* 左侧类型带：浅灰底 + 黑字，打印无碳粉浪费 */
 .ib-stripe {
   flex: 0 0 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #185fa5, #2f7fc4);
+  background: #e8e8e8;
+  border-right: 1px solid #999;
   position: relative;
 }
 .ib-stripe::after {
@@ -316,12 +316,12 @@ table {
   top: 12%;
   bottom: 12%;
   width: 1px;
-  background: rgba(255, 255, 255, 0.22);
+  background: #bbb;
 }
 .ib-stripe-text {
   writing-mode: vertical-rl;
   text-orientation: upright;
-  color: #fff;
+  color: #000;
   font-size: 13pt;
   font-weight: 700;
   letter-spacing: 3px;
@@ -342,7 +342,7 @@ table {
   justify-content: space-between;
 }
 
-/* 顶部：发票号码 + 开票日期 左右分置，互不遮挡 */
+/* 顶部：发票号码 + 开票日期 左右分置 */
 .ib-head {
   display: flex;
   align-items: baseline;
@@ -357,7 +357,7 @@ table {
   font-weight: 700;
   font-size: 9.5pt;
   letter-spacing: 0.3px;
-  color: #1a2a3a;
+  color: #000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -365,15 +365,15 @@ table {
 .ib-date {
   flex: 0 0 auto;
   font-size: 7pt;
-  color: #7a8a9a;
+  color: #555;
   white-space: nowrap;
 }
 
-/* 销方 / 物品 */
+/* 销方 / 内容 */
 .ib-seller {
   font-weight: 600;
   font-size: 9pt;
-  color: #222;
+  color: #000;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
@@ -382,7 +382,7 @@ table {
 }
 .ib-item {
   font-size: 7.5pt;
-  color: #6b7785;
+  color: #444;
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
@@ -395,7 +395,7 @@ table {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 2px 6px;
-  border-top: 1px dashed #d8dee6;
+  border-top: 1px dashed #999;
   padding-top: 4px;
   margin-top: auto;
 }
@@ -406,7 +406,7 @@ table {
 .ib-stat .l {
   display: block;
   font-size: 6.5pt;
-  color: #9aa6b2;
+  color: #555;
   letter-spacing: 0.3px;
   line-height: 1.1;
 }
@@ -414,7 +414,7 @@ table {
   display: block;
   font-size: 8.5pt;
   font-weight: 600;
-  color: #2a3642;
+  color: #000;
   font-family: 'Courier New', monospace;
   white-space: nowrap;
   overflow: hidden;
@@ -422,22 +422,22 @@ table {
   line-height: 1.25;
 }
 
-/* 右侧存根区：虚线穿孔，价税合计 */
+/* 右侧存根区：浅灰底 + 黑字 */
 .ib-stub {
   flex: 0 0 23%;
   position: relative;
-  border-left: 1px dashed #b9c4d0;
+  border-left: 1px dashed #999;
   padding: 4px 5px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: #f7fafe;
+  background: #f5f5f5;
 }
 .ib-stub .l {
   font-size: 6.5pt;
-  color: #8a98a8;
+  color: #555;
   letter-spacing: 0.5px;
   line-height: 1.1;
 }
@@ -445,14 +445,14 @@ table {
   font-family: 'Courier New', monospace;
   font-weight: 700;
   font-size: 11pt;
-  color: #c0392b;
+  color: #000;
   line-height: 1.15;
   margin: 2px 0;
   white-space: nowrap;
 }
 .ib-stub .sub {
   font-size: 6.5pt;
-  color: #95a2af;
+  color: #666;
   font-family: 'Courier New', monospace;
   white-space: nowrap;
 }
