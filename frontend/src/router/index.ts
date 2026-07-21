@@ -118,7 +118,7 @@ const router = createRouter({
           meta: { title: '报销管理', module: 'reimburse' },
         },
         { path: 'reimburse/bill', name: 'ReimburseBill', component: () => import('@/views/reimburse/BillList.vue'), meta: { title: '报销单', group: '报销单' } },
-        { path: 'reimburse/mine', name: 'ReimburseMine', component: Placeholder, props: { title: '我的报销' }, meta: { title: '我的报销', group: '报销单' } },
+        { path: 'reimburse/mine', name: 'ReimburseMine', component: () => import('@/views/reimburse/MyReimburse.vue'), meta: { title: '我的报销', group: '报销单' } },
         { path: 'reimburse/approve', name: 'ReimburseApprove', component: Placeholder, props: { title: '待审批' }, meta: { title: '待审批', group: '审批' } },
         { path: 'reimburse/query', name: 'ReimburseQuery', component: Placeholder, props: { title: '报销查询' }, meta: { title: '报销查询', group: '报销查询' } },
 

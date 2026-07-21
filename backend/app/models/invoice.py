@@ -39,6 +39,10 @@ class Invoice(Base):
     reimbursement_bill_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("reimbursement_bills.id"), nullable=True, index=True
     )  # 关联报销单（未报销为 NULL）
+    bill: Mapped[Optional["ReimbursementBill"]] = relationship(
+        "ReimbursementBill",
+        back_populates="invoices",
+    )
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 归档附件路径（PDF/OFD）
     route_info: Mapped[Optional[str]] = mapped_column(String(100))  # 路线（火车票/机票用）
     traveler: Mapped[Optional[str]] = mapped_column(String(100))  # 旅客姓名（火车票/机票用）

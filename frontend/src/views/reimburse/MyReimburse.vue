@@ -1,0 +1,171 @@
+<template>
+  <div class="page">
+    <div class="toolbar">
+      <div class="toolbar-title">我的报销</div>
+      <el-input v-model="applicant" placeholder="当前用户/申请人" clearable style="width: 160px" @change="load" />
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 130px" @change="load">
+        <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
+      </el-select>
+      <el-button type="primary" @click="load">刷新</el-button>
+    </div>
+
+    <el-table :data="list" border stripe v-loading="loading" empty-text="暂无报销单">
+      <el-table-column prop="bill_no" label="报销单号" width="160" />
+      <el-table-column prop="applicant" label="报销人" width="100" />
+      <el-table-column prop="department" label="部门" width="120" show-overflow-tooltip />
+      <el-table-column label="发票" width="150" align="center">
+        <template #default="{ row }">
+          <span v-if="row.invoices?.length">
+            {{ row.invoices.length }} 张 /
+            ¥{{ invoiceTotal(row).toFixed(2) }}
+          </span>
+          <span v-else class="text-muted">未挂票</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="报销金额" width="120" align="right">
+        <template #default="{ row }">
+          {{ row.amount != null ? '¥' + Number(row.amount).toFixed(2) : '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="reason" label="事由" show-overflow-tooltip />
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="submit_date" label="提交日期" width="110" />
+      <el-table-column prop="approve_date" label="审批日期" width="110" />
+      <el-table-column label="操作" width="120" fixed="right">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row)">查看详情</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 报销单详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="物品报销单" width="900px" :close-on-click-modal="false" class="detail-dialog">
+      <BillDetail v-if="currentBill" :bill="currentBill" />
+      <template #footer>
+        <div class="detail-footer">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button type="primary" @click="printDetail">打印报销单</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { reimburseApi } from '@/api/reimburse'
+import type { ReimbursementBill } from '@/types/reimburse'
+import BillDetail from './BillDetail.vue'
+
+const loading = ref(false)
+const list = ref<ReimbursementBill[]>([])
+const applicant = ref('沈雷')
+const statusFilter = ref('')
+const detailVisible = ref(false)
+const currentBill = ref<ReimbursementBill | null>(null)
+
+const statusOptions = ['待审批', '已通过', '已驳回', '已支付']
+
+function statusTag(status: string) {
+  const map: Record<string, string> = {
+    草稿: 'info',
+    待审批: 'warning',
+    已通过: 'success',
+    已驳回: 'danger',
+    已支付: 'primary',
+  }
+  return map[status] || 'info'
+}
+
+function invoiceTotal(bill: ReimbursementBill): number {
+  return (bill.invoices || []).reduce((sum, inv) => {
+    return sum + (inv.details || []).reduce((s, d) => s + Number(d.total || 0), 0)
+  }, 0)
+}
+
+async function load() {
+  loading.value = true
+  try {
+    const params: Record<string, string> = {}
+    if (applicant.value.trim()) params.applicant = applicant.value.trim()
+    if (statusFilter.value) params.status = statusFilter.value
+    const res = await reimburseApi.list(params)
+    list.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function openDetail(row: ReimbursementBill) {
+  try {
+    const res = await reimburseApi.get(row.id)
+    currentBill.value = res.data
+    detailVisible.value = true
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载详情失败')
+  }
+}
+
+function printDetail() {
+  window.print()
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.page {
+  padding: 16px;
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.toolbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin-right: auto;
+}
+.text-muted {
+  color: #909399;
+}
+.detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+</style>
+
+<style>
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .detail-dialog .el-dialog__body,
+  .detail-dialog .el-dialog__body * {
+    visibility: visible;
+  }
+  .detail-dialog .el-dialog__body {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    padding: 0;
+    margin: 0;
+  }
+  .detail-dialog .el-dialog__header,
+  .detail-dialog .el-dialog__footer {
+    display: none !important;
+  }
+}
+</style>

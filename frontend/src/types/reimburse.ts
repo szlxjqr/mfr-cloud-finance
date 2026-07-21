@@ -1,3 +1,5 @@
+import type { Invoice } from './invoice'
+
 export type ReimburseStatus = '草稿' | '待审批' | '已通过' | '已驳回' | '已支付'
 
 export interface ReimbursementBill {
@@ -14,4 +16,5 @@ export interface ReimbursementBill {
   approve_remark?: string | null
   attachment_path?: string | null
   remark?: string | null
+  invoices?: Invoice[]
 }

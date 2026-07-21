@@ -4,6 +4,7 @@ import type { ReimbursementBill } from '@/types/reimburse'
 export const reimburseApi = {
   list: (params?: { keyword?: string; status?: string; applicant?: string }) =>
     http.get<ReimbursementBill[]>('/reimbursements', { params }),
+  get: (id: number) => http.get<ReimbursementBill>(`/reimbursements/${id}`),
   nextBillNo: () => http.get<{ bill_no: string }>('/reimbursements/next-bill-no'),
   create: (data: Partial<ReimbursementBill>) => http.post<ReimbursementBill>('/reimbursements', data),
   update: (id: number, data: Partial<ReimbursementBill>) =>

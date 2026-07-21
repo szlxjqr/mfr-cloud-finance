@@ -4,9 +4,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
+from app.models import invoice as im
 from app.models import reimburse as m
 from app.schemas import reimburse as s
 from app.utils.codegen import gen_bill_no
@@ -76,7 +77,16 @@ def create_bill(payload: s.ReimbursementBillCreate, db: Session = Depends(get_db
 
 @router.get("/{bid}", response_model=s.ReimbursementBillRead)
 def get_bill(bid: int, db: Session = Depends(get_db)):
-    return _get_or_404(db, bid)
+    obj = (
+        db.query(m.ReimbursementBill)
+        .options(
+            selectinload(m.ReimbursementBill.invoices).selectinload(im.Invoice.details)
+        )
+        .get(bid)
+    )
+    if not obj:
+        raise HTTPException(status_code=404, detail="报销单不存在")
+    return obj
 
 
 @router.put("/{bid}", response_model=s.ReimbursementBillRead)

@@ -3,8 +3,10 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
+from typing import List
+
 from sqlalchemy import Date, Numeric, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -26,3 +28,9 @@ class ReimbursementBill(Base):
     approve_remark: Mapped[Optional[str]] = mapped_column(Text)  # 审批意见
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 附件路径
     remark: Mapped[Optional[str]] = mapped_column(Text)  # 备注
+
+    invoices: Mapped[List["Invoice"]] = relationship(
+        "Invoice",
+        back_populates="bill",
+        lazy="selectin",
+    )

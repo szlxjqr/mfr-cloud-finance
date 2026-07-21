@@ -1,9 +1,11 @@
 """报销管理 Pydantic 模型。"""
 from datetime import date
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.invoice import InvoiceRead
 
 
 class ReimbursementBillBase(BaseModel):
@@ -42,6 +44,7 @@ class ReimbursementBillUpdate(BaseModel):
 
 class ReimbursementBillRead(ReimbursementBillBase):
     id: int
+    invoices: List[InvoiceRead] = []
     model_config = ConfigDict(from_attributes=True)
 
 
