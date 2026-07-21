@@ -44,7 +44,7 @@
       </tr>
     </table>
 
-    <!-- 三、费用明细（发票明细） -->
+    <!-- 三、费用明细（按发票汇总） -->
     <div class="section-title">三、费用明细</div>
     <table class="detail-table">
       <thead>
@@ -52,9 +52,9 @@
           <th style="width: 40px">序号</th>
           <th style="width: 90px">日期</th>
           <th style="width: 150px">发票编码</th>
-          <th style="width: 100px">发票类型</th>
+          <th style="width: 90px">发票类型</th>
           <th>销方名称</th>
-          <th style="width: 120px">项目/物品</th>
+          <th style="width: 130px">项目/物品</th>
           <th style="width: 50px">数量</th>
           <th style="width: 90px">不含税金额</th>
           <th style="width: 60px">税率</th>
@@ -63,22 +63,20 @@
         </tr>
       </thead>
       <tbody>
-        <template v-for="(inv, idx) in flatItems" :key="inv.key">
-          <tr>
-            <td>{{ idx + 1 }}</td>
-            <td>{{ inv.invoice_date || '-' }}</td>
-            <td>{{ inv.invoice_code || '-' }}</td>
-            <td>{{ inv.invoice_type }}</td>
-            <td>{{ inv.seller_name }}</td>
-            <td>{{ inv.item || '-' }}</td>
-            <td>{{ inv.qty }}</td>
-            <td class="num">¥{{ inv.amount.toFixed(2) }}</td>
-            <td class="num">{{ (inv.tax_rate * 100).toFixed(0) }}%</td>
-            <td class="num">¥{{ inv.tax.toFixed(2) }}</td>
-            <td class="num">¥{{ inv.total.toFixed(2) }}</td>
-          </tr>
-        </template>
-        <tr v-if="!flatItems.length">
+        <tr v-for="(inv, idx) in invoiceRows" :key="inv.id">
+          <td>{{ idx + 1 }}</td>
+          <td>{{ inv.invoice_date || '-' }}</td>
+          <td>{{ inv.invoice_code || '-' }}</td>
+          <td>{{ inv.invoice_type }}</td>
+          <td>{{ inv.seller_name }}</td>
+          <td>{{ inv.items }}</td>
+          <td>{{ inv.qty }}</td>
+          <td class="num">¥{{ inv.amount.toFixed(2) }}</td>
+          <td class="num">{{ inv.tax_rate }}</td>
+          <td class="num">¥{{ inv.tax.toFixed(2) }}</td>
+          <td class="num">¥{{ inv.total.toFixed(2) }}</td>
+        </tr>
+        <tr v-if="!invoiceRows.length">
           <td colspan="11" class="empty">暂无发票明细</td>
         </tr>
       </tbody>
@@ -143,16 +141,16 @@ const props = defineProps<{
   bill: ReimbursementBill
 }>()
 
-interface FlatItem {
-  key: string
+interface InvoiceRow {
+  id: number
   invoice_date?: string | null
   invoice_code?: string | null
   invoice_type: string
   seller_name: string
-  item?: string | null
+  items: string
   qty: number
   amount: number
-  tax_rate: number
+  tax_rate: string
   tax: number
   total: number
 }
@@ -162,47 +160,50 @@ function toNum(v: any): number {
   return isNaN(n) ? 0 : n
 }
 
-const flatItems = computed<FlatItem[]>(() => {
-  const items: FlatItem[] = []
+// 按发票聚合：一行一发票
+const invoiceRows = computed<InvoiceRow[]>(() => {
+  const rows: InvoiceRow[] = []
   ;(props.bill.invoices || []).forEach((inv: Invoice) => {
-    if (inv.details && inv.details.length) {
-      inv.details.forEach((d: InvoiceDetail, idx: number) => {
-        items.push({
-          key: `${inv.id}-${d.id || idx}`,
-          invoice_date: inv.invoice_date,
-          invoice_code: inv.invoice_code,
-          invoice_type: inv.invoice_type,
-          seller_name: inv.seller_name,
-          item: d.item,
-          qty: toNum(d.qty),
-          amount: toNum(d.amount),
-          tax_rate: toNum(d.tax_rate),
-          tax: toNum(d.tax),
-          total: toNum(d.total),
-        })
-      })
-    } else {
-      items.push({
-        key: `${inv.id}-head`,
-        invoice_date: inv.invoice_date,
-        invoice_code: inv.invoice_code,
-        invoice_type: inv.invoice_type,
-        seller_name: inv.seller_name,
-        item: '-',
-        qty: 0,
-        amount: 0,
-        tax_rate: 0,
-        tax: 0,
-        total: 0,
-      })
+    const details = inv.details || []
+    let qty = 0
+    let amount = 0
+    let tax = 0
+    let total = 0
+    const itemSet = new Set<string>()
+    details.forEach((d: InvoiceDetail) => {
+      qty += toNum(d.qty)
+      amount += toNum(d.amount)
+      tax += toNum(d.tax)
+      total += toNum(d.total)
+      if (d.item) itemSet.add(String(d.item).trim())
+    })
+    let itemsText = '-'
+    if (itemSet.size) {
+      const arr = Array.from(itemSet)
+      itemsText = arr.length > 3 ? arr.slice(0, 3).join('、') + '等' : arr.join('、')
     }
+    // 有效税率 = 税金 / 不含税（四舍五入至整数百分比）
+    const rate = amount > 0 ? Math.round((tax / amount) * 100) : 0
+    rows.push({
+      id: inv.id,
+      invoice_date: inv.invoice_date,
+      invoice_code: inv.invoice_code,
+      invoice_type: inv.invoice_type,
+      seller_name: inv.seller_name,
+      items: itemsText,
+      qty,
+      amount,
+      tax_rate: rate + '%',
+      tax,
+      total,
+    })
   })
-  return items
+  return rows
 })
 
-const totalAmount = computed(() => flatItems.value.reduce((s, it) => s + it.amount, 0))
-const totalTax = computed(() => flatItems.value.reduce((s, it) => s + it.tax, 0))
-const totalWithTax = computed(() => flatItems.value.reduce((s, it) => s + it.total, 0))
+const totalAmount = computed(() => invoiceRows.value.reduce((s, it) => s + it.amount, 0))
+const totalTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.tax, 0))
+const totalWithTax = computed(() => invoiceRows.value.reduce((s, it) => s + it.total, 0))
 </script>
 
 <style scoped>
