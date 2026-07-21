@@ -44,43 +44,26 @@
       </tr>
     </table>
 
-    <!-- 三、费用明细（按发票汇总） -->
+    <!-- 三、费用明细（模拟发票票面，方框卡片） -->
     <div class="section-title">三、费用明细</div>
-    <table class="detail-table">
-      <thead>
-        <tr>
-          <th style="width: 40px">序号</th>
-          <th style="width: 90px">日期</th>
-          <th style="width: 150px">发票编码</th>
-          <th style="width: 90px">发票类型</th>
-          <th>销方名称</th>
-          <th style="width: 130px">项目/物品</th>
-          <th style="width: 50px">数量</th>
-          <th style="width: 90px">不含税金额</th>
-          <th style="width: 60px">税率</th>
-          <th style="width: 80px">税金</th>
-          <th style="width: 90px">价税合计</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(inv, idx) in invoiceRows" :key="inv.id">
-          <td>{{ idx + 1 }}</td>
-          <td>{{ inv.invoice_date || '-' }}</td>
-          <td>{{ inv.invoice_code || '-' }}</td>
-          <td>{{ inv.invoice_type }}</td>
-          <td>{{ inv.seller_name }}</td>
-          <td>{{ inv.items }}</td>
-          <td>{{ inv.qty }}</td>
-          <td class="num">¥{{ inv.amount.toFixed(2) }}</td>
-          <td class="num">{{ inv.tax_rate }}</td>
-          <td class="num">¥{{ inv.tax.toFixed(2) }}</td>
-          <td class="num">¥{{ inv.total.toFixed(2) }}</td>
-        </tr>
-        <tr v-if="!invoiceRows.length">
-          <td colspan="11" class="empty">暂无发票明细</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="invoice-cards">
+      <div class="invoice-box" v-for="inv in invoiceRows" :key="inv.id">
+        <div class="ib-head">
+          <span class="ib-code">{{ inv.invoice_code || '-' }}</span>
+          <span class="ib-meta">{{ inv.invoice_type }} · {{ inv.invoice_date || '日期不详' }}</span>
+        </div>
+        <div class="ib-body">
+          <div class="ib-row ib-full"><span class="ib-label">销方</span><span class="ib-val">{{ inv.seller_name }}</span></div>
+          <div class="ib-row ib-full"><span class="ib-label">项目</span><span class="ib-val">{{ inv.items }}</span></div>
+          <div class="ib-row"><span class="ib-label">数量</span><span class="ib-val num">{{ inv.qty }}</span></div>
+          <div class="ib-row"><span class="ib-label">不含税</span><span class="ib-val num">¥{{ inv.amount.toFixed(2) }}</span></div>
+          <div class="ib-row"><span class="ib-label">税率</span><span class="ib-val num">{{ inv.tax_rate }}</span></div>
+          <div class="ib-row"><span class="ib-label">税金</span><span class="ib-val num">¥{{ inv.tax.toFixed(2) }}</span></div>
+          <div class="ib-row ib-full ib-total"><span class="ib-label">价税合计</span><span class="ib-val num">¥{{ inv.total.toFixed(2) }}</span></div>
+        </div>
+      </div>
+      <div v-if="!invoiceRows.length" class="empty">暂无发票明细</div>
+    </div>
 
     <!-- 四、汇总与付款 -->
     <div class="section-title">四、汇总与付款</div>
@@ -273,24 +256,70 @@ table {
   width: 90px;
 }
 
-.detail-table th {
+/* 模拟发票票面：方框卡片两列网格 */
+.invoice-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.invoice-box {
+  width: calc(50% - 3px);
+  border: 1px solid #333;
+  box-sizing: border-box;
+  break-inside: avoid;
+  font-size: 9.5pt;
+}
+
+.ib-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 6px;
+  border-bottom: 1px solid #333;
   background: #f2f2f2;
-  font-weight: 600;
-  text-align: center;
-  font-size: 9.5pt;
+}
+.ib-code {
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+}
+.ib-meta {
+  font-size: 8.5pt;
+  color: #333;
 }
 
-.detail-table td {
-  font-size: 9.5pt;
+.ib-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  padding: 4px 6px;
 }
-
-.detail-table td {
-  text-align: center;
+.ib-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
 }
-
-.detail-table td:nth-child(5),
-.detail-table td:nth-child(6) {
-  text-align: left;
+.ib-full {
+  grid-column: 1 / -1;
+}
+.ib-label {
+  color: #555;
+  white-space: nowrap;
+}
+.ib-val {
+  font-weight: 500;
+  text-align: right;
+  word-break: break-all;
+}
+.ib-val.num {
+  font-family: 'Courier New', monospace;
+}
+.ib-total {
+  border-top: 1px dashed #999;
+  padding-top: 3px;
+  margin-top: 2px;
+  font-weight: 700;
 }
 
 .num {
