@@ -25,5 +25,6 @@ venv/
 .env
 .env.local
 *.db
+!backend/smart_finance.db
 *.sqlite3
 
