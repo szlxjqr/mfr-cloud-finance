@@ -49,7 +49,7 @@
     </el-table>
 
     <!-- 报销单新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑报销单' : '新建报销单'" width="720px" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" :title="editing ? '编辑报销单' : '新建报销单'" width="1040px" :close-on-click-modal="false">
       <el-form :model="form" label-width="100px">
         <el-form-item label="报销单编号">
           <el-input :model-value="form.bill_no || previewBillNo || '保存后自动生成'" disabled />
@@ -80,27 +80,27 @@
           </el-button>
         </div>
         <el-table :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
-          <el-table-column prop="invoice_date" label="开票日期" width="110" />
-          <el-table-column prop="invoice_type" label="类型" width="100" />
-          <el-table-column prop="invoice_code" label="发票编码" width="170" show-overflow-tooltip />
-          <el-table-column prop="no" label="发票号码" width="120" />
-          <el-table-column prop="seller_name" label="销方名称" min-width="140" show-overflow-tooltip />
-          <el-table-column label="不含税金额" width="110" align="right">
+          <el-table-column prop="invoice_date" label="开票日期" width="95" />
+          <el-table-column prop="invoice_type" label="类型" width="90" />
+          <el-table-column prop="invoice_code" label="发票编码" width="150" show-overflow-tooltip />
+          <el-table-column prop="no" label="发票号码" width="110" />
+          <el-table-column prop="seller_name" label="销方名称" min-width="120" show-overflow-tooltip />
+          <el-table-column label="不含税金额" width="95" align="right">
             <template #default="{ row }">
               ¥{{ invoiceSubtotal(row).toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column label="税率" width="80" align="center">
+          <el-table-column label="税率" width="70" align="center">
             <template #default="{ row }">
               {{ invoiceTaxRateLabel(row) }}
             </template>
           </el-table-column>
-          <el-table-column label="税金" width="100" align="right">
+          <el-table-column label="税金" width="90" align="right">
             <template #default="{ row }">
               ¥{{ invoiceTax(row).toFixed(2) }}
             </template>
           </el-table-column>
-          <el-table-column label="含税价金额" width="110" align="right">
+          <el-table-column label="含税价金额" width="95" align="right">
             <template #default="{ row }">
               ¥{{ invoiceTotal(row).toFixed(2) }}
             </template>
