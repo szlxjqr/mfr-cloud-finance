@@ -79,9 +79,9 @@
     <div class="section-title">四、汇总与付款</div>
     <table class="info-table summary-table">
       <tr>
-        <td class="label">报销金额(元)</td>
+        <td class="label">报销金额<br><span class="unit-sub">（元）</span></td>
         <td class="num-strong" colspan="2">¥{{ totalWithTax.toFixed(2) }}</td>
-        <td class="label">应支付(元)</td>
+        <td class="label">支付金额<br><span class="unit-sub">（元）</span></td>
         <td class="num-strong" colspan="2">¥{{ totalWithTax.toFixed(2) }}</td>
         <td class="label">状态提示</td>
         <td>{{ bill.status }}</td>
@@ -273,6 +273,11 @@ table {
   text-align: center;
   width: 78px;
   font-size: 8.5pt;
+}
+.label .unit-sub {
+  font-size: 7pt;
+  font-weight: normal;
+  color: #555;
 }
 
 /* 基本信息 6 列，每格更宽 */
