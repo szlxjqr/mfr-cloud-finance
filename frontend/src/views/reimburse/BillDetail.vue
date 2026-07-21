@@ -52,9 +52,12 @@
         <div class="ib-main">
           <div class="ib-head">
             <span class="ib-tag">{{ inv.invoice_type }}</span>
-            <span class="ib-code">{{ inv.invoice_code || '-' }}</span>
+            <span class="ib-code">{{ inv.invoice_no || '-' }}</span>
           </div>
-          <div class="ib-date">开票：{{ inv.invoice_date || '日期不详' }}</div>
+          <div class="ib-date">
+            <div class="ib-date-label">开票日期</div>
+            <div class="ib-date-val">{{ inv.invoice_date || '日期不详' }}</div>
+          </div>
           <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
           <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
           <div class="ib-stats">
@@ -135,6 +138,7 @@ const props = defineProps<{
 interface InvoiceRow {
   id: number
   invoice_date?: string | null
+  invoice_no?: string | null
   invoice_code?: string | null
   invoice_type: string
   seller_name: string
@@ -192,6 +196,7 @@ const invoiceRows = computed<InvoiceRow[]>(() => {
     rows.push({
       id: inv.id,
       invoice_date: inv.invoice_date,
+      invoice_no: inv.no,
       invoice_code: inv.invoice_code,
       invoice_type: abbrevInvoiceType(inv.invoice_type),
       seller_name: inv.seller_name,
@@ -342,12 +347,20 @@ table {
   text-overflow: ellipsis;
 }
 .ib-date {
-  font-size: 7pt;
-  color: #8b98a8;
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.ib-date-label {
+  font-size: 6.5pt;
+  color: #9aa6b2;
+  line-height: 1.2;
+}
+.ib-date-val {
+  font-size: 8pt;
+  color: #4a5568;
+  line-height: 1.3;
 }
 
 /* 主体：销方/物品 */
