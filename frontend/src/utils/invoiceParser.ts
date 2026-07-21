@@ -61,8 +61,14 @@ function parseMoney(s: string): number {
 // （如「合 计」「销 售 方」「金 额」在提取文本里常带空格）
 function normLabels(t: string): string {
   const map: [RegExp, string][] = [
-    [/购\s*买\s*方/g, '购买方'],
-    [/销\s*售\s*方/g, '销售方'],
+    [/购\s*买\s*方\s*(?:信\s*息|名\s*称)?/g, '购买方名称'],
+    [/购\s*方\s*(?:信\s*息|名\s*称)?/g, '购买方名称'],
+    [/买\s*方\s*(?:信\s*息|名\s*称)?/g, '购买方名称'],
+    [/购\s*货\s*单\s*位/g, '购买方名称'],
+    [/销\s*售\s*方\s*(?:信\s*息|名\s*称)?/g, '销售方名称'],
+    [/销\s*方\s*(?:信\s*息|名\s*称)?/g, '销售方名称'],
+    [/卖\s*方\s*(?:信\s*息|名\s*称)?/g, '销售方名称'],
+    [/销\s*货\s*单\s*位/g, '销售方名称'],
     [/金\s*额/g, '金额'],
     [/税\s*额/g, '税额'],
     [/名\s*称/g, '名称'],
@@ -78,6 +84,52 @@ function normLabels(t: string): string {
   ]
   for (const [re, rep] of map) t = t.replace(re, rep)
   return t
+}
+
+// 公司名匹配模式（允许中间带少量空格）
+const COMPANY_RE =
+  /([\u4e00-\u9fa5A-Za-z0-9（）()·\-\s]{2,60}(?:科技有限公司|有限公司|有限责任公司|股份公司|集团))/g
+
+function cleanCompany(s: string): string {
+  return s.trim().replace(/\s+/g, ' ')
+}
+
+/**
+ * 按「购买方名称 / 销售方名称」标签定位购销方公司名。
+ * 数电票/OFD/XML 的文本顺序常与票面视觉顺序不同，不能简单取「第一个/最后一个公司名」，
+ * 必须以标签为锚点才能保证 buyer/seller 不互换。
+ */
+function extractBuyerSellerByLabels(text: string): {
+  buyerName?: string
+  sellerName?: string
+} {
+  const result: { buyerName?: string; sellerName?: string } = {}
+  // 在标签后一段范围内取第一个公司名；标签与值之间可能有冒号、空格、换行
+  const re = /(购买方名称|销售方名称)[：:\s]*([\u4e00-\u9fa5A-Za-z0-9（）()·\-\s]{2,80}(?:科技有限公司|有限公司|有限责任公司|股份公司|集团))/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text))) {
+    const label = m[1]
+    const comp = cleanCompany(m[2])
+    if (label === '购买方名称') result.buyerName = result.buyerName || comp
+    else result.sellerName = result.sellerName || comp
+  }
+  return result
+}
+
+/**
+ * 兜底启发式：按文本中出现的顺序取公司名。
+ * 传统纸质发票通常是购买方在前、销售方在后，故第一个当 buyer，最后一个当 seller。
+ */
+function extractBuyerSellerByOrder(text: string): {
+  buyerName?: string
+  sellerName?: string
+} {
+  const comps = [...text.matchAll(COMPANY_RE)].map((m) => cleanCompany(m[1]))
+  if (!comps.length) return {}
+  return {
+    sellerName: comps[comps.length - 1],
+    buyerName: comps.length > 1 ? comps[0] : undefined,
+  }
 }
 
 // 从任意文本中用正则提取发票常见字段
@@ -116,14 +168,21 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     }
   }
 
-  // 3. 购买方 / 销售方名称：收集所有公司名
-  //    发票中购买方在前、销售方在后；购买方 = 第一个，销售方 = 最后一个
-  const compRe =
-    /([\u4e00-\u9fa5A-Za-z0-9（）()·\-]{2,40}(?:科技有限公司|有限公司|有限责任公司|股份公司|集团))/g
-  const comps = [...norm.matchAll(compRe)].map((m) => m[1].trim().replace(/\s+/g, ' '))
-  if (comps.length) {
-    result.sellerName = comps[comps.length - 1]
-    if (comps.length > 1) result.buyerName = comps[0]
+  // 3. 购买方 / 销售方名称：优先按标签定位，其次按出现顺序兜底。
+  //    数电票/OFD/XML 提取顺序常与票面视觉顺序不同，简单「第一个=购买方、最后一个=销售方」会反。
+  const byLabels = extractBuyerSellerByLabels(norm)
+  const byOrder = extractBuyerSellerByOrder(norm)
+  result.buyerName = byLabels.buyerName || byOrder.buyerName
+  result.sellerName = byLabels.sellerName || byOrder.sellerName
+
+  // 自保：如果 buyer/seller 中有一个是本企业（深圳市流形机器人科技有限公司），
+  // 本企业作为进项发票的收受方，应当是购买方；若被放到 seller 则互换。
+  const selfName = '深圳市流形机器人科技有限公司'
+  const hasSelfBuyer = result.buyerName === selfName
+  const hasSelfSeller = result.sellerName === selfName
+  if (hasSelfSeller && result.buyerName && !hasSelfBuyer) {
+    result.sellerName = result.buyerName
+    result.buyerName = selfName
   }
 
   // 4. 纳税人识别号（统一社会信用代码 18 位）
