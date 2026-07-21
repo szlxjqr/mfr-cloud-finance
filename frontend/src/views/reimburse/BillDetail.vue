@@ -52,12 +52,12 @@
         <div class="ib-main">
           <div class="ib-head">
             <span class="ib-code">{{ inv.invoice_no || '-' }}</span>
-            <span class="ib-tag">{{ inv.invoice_type }}</span>
           </div>
           <div class="ib-date">
             <div class="ib-date-label">开票日期</div>
             <div class="ib-date-val">{{ inv.invoice_date || '日期不详' }}</div>
           </div>
+          <div class="ib-type-badge">{{ inv.invoice_type }}</div>
           <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
           <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
           <div class="ib-stats">
@@ -324,16 +324,19 @@ table {
   padding-bottom: 2px;
   margin-bottom: 2px;
 }
-.ib-tag {
-  flex: 0 0 auto;
-  margin-left: 4px;
-  font-size: 7pt;
+.ib-type-badge {
+  display: inline-block;
+  align-self: flex-start;
+  margin: 2px 0 3px;
+  padding: 2px 10px;
+  font-size: 11pt;
+  font-weight: 700;
   color: #fff;
-  background: #185fa5;
-  border-radius: 3px;
-  padding: 0 4px;
-  line-height: 1.5;
+  background: linear-gradient(135deg, #185fa5, #2f7fc4);
+  border-radius: 5px;
+  box-shadow: 0 1px 2px rgba(24, 95, 165, 0.25);
   white-space: nowrap;
+  letter-spacing: 0.5px;
 }
 .ib-code {
   flex: 1 1 auto;
