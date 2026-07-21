@@ -9,10 +9,10 @@
     </div>
 
     <el-table :data="list" border stripe v-loading="loading">
-      <el-table-column prop="bill_no" label="单号" width="150" />
+      <el-table-column prop="bill_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
-      <el-table-column label="发票" width="130" align="center">
+      <el-table-column label="发票" width="150" align="center">
         <template #default="{ row }">
           <span v-if="summaryMap[row.id]?.invoice_count">
             {{ summaryMap[row.id].invoice_count }} 张 /
@@ -49,10 +49,10 @@
     </el-table>
 
     <!-- 报销单新增/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑报销单' : '新建报销单'" width="640px">
+    <el-dialog v-model="dialogVisible" :title="editing ? '编辑报销单' : '新建报销单'" width="720px" :close-on-click-modal="false">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="单号" v-if="editing">
-          <el-input :model-value="form.bill_no ?? ''" disabled />
+        <el-form-item label="报销单编号">
+          <el-input :model-value="form.bill_no || previewBillNo || '保存后自动生成'" disabled />
         </el-form-item>
         <el-form-item label="申请人">
           <el-input v-model="form.applicant" placeholder="必填" />
@@ -70,6 +70,33 @@
           <el-input v-model="form.remark" type="textarea" :rows="2" />
         </el-form-item>
       </el-form>
+
+      <!-- 已关联发票（编辑模式或保存后可见） -->
+      <div v-if="editing && editingId" class="linked-invoices">
+        <div class="linked-header">
+          <span class="linked-title">已关联发票</span>
+          <el-button type="primary" size="small" @click="openAddInvoice">
+            <el-icon><Plus /></el-icon>增加发票
+          </el-button>
+        </div>
+        <el-table :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
+          <el-table-column prop="invoice_date" label="开票日期" width="110" />
+          <el-table-column prop="invoice_type" label="类型" width="120" />
+          <el-table-column prop="no" label="发票号码" width="130" />
+          <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
+          <el-table-column label="合计" width="120" align="right">
+            <template #default="{ row }">
+              ¥{{ invoiceTotal(row).toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" align="center">
+            <template #default="{ row }">
+              <el-button link type="danger" size="small" @click="unlinkInvoice(row)">移除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="save">保存</el-button>
@@ -108,18 +135,140 @@
         <el-button type="primary" :disabled="selectedInvoiceIds.length === 0" @click="confirmLink">关联 {{ selectedInvoiceIds.length }} 张发票</el-button>
       </template>
     </el-dialog>
+
+    <!-- 增加发票弹窗（简化录入） -->
+    <el-dialog v-model="invoiceDialogVisible" title="增加发票" width="780px" :close-on-click-modal="false">
+      <el-form ref="invoiceFormRef" :model="invoiceForm" :rules="invoiceRules" label-width="100px">
+        <div class="invoice-form-row">
+          <el-form-item label="发票类型" prop="invoice_type" style="flex: 1">
+            <el-select v-model="invoiceForm.invoice_type" style="width: 100%">
+              <el-option v-for="t in invoiceTypes" :key="t" :label="t" :value="t" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="开票日期" prop="invoice_date" style="flex: 1">
+            <el-date-picker v-model="invoiceForm.invoice_date" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+          </el-form-item>
+        </div>
+        <div class="invoice-form-row">
+          <el-form-item label="发票代码" prop="code" style="flex: 1">
+            <el-input v-model="invoiceForm.code" placeholder="数电票可空" />
+          </el-form-item>
+          <el-form-item label="发票号码" prop="no" style="flex: 1">
+            <el-input v-model="invoiceForm.no" placeholder="必填" />
+          </el-form-item>
+        </div>
+        <el-form-item label="购买方">
+          <el-input v-model="invoiceForm.buyer_name" placeholder="购买方名称" />
+        </el-form-item>
+        <el-form-item label="销方名称" prop="seller_name">
+          <el-input v-model="invoiceForm.seller_name" placeholder="必填" />
+        </el-form-item>
+        <div class="invoice-form-row">
+          <el-form-item label="结算科目" prop="account" style="flex: 1">
+            <el-select v-model="invoiceForm.account" placeholder="请选择" style="width: 100%">
+              <el-option v-for="a in accountOptions" :key="a" :label="a" :value="a" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="是否认证" style="flex: 1">
+            <el-radio-group v-model="invoiceForm.certify">
+              <el-radio label="current">本期认证</el-radio>
+              <el-radio label="none">暂不认证</el-radio>
+            </el-radio-group>
+          </el-form-item>
+        </div>
+        <el-form-item label="备注">
+          <el-input v-model="invoiceForm.remark" type="textarea" :rows="2" />
+        </el-form-item>
+
+        <!-- 明细 -->
+        <div class="detail-section">
+          <table class="detail-table">
+            <thead>
+              <tr>
+                <th style="width: 120px">业务类型</th>
+                <th style="min-width: 160px">开票项目</th>
+                <th style="width: 70px">数量</th>
+                <th style="width: 110px">金额</th>
+                <th style="width: 90px">税率%</th>
+                <th style="width: 100px">税额</th>
+                <th style="width: 110px">价税合计</th>
+                <th style="width: 50px">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(d, idx) in invoiceForm.details" :key="idx">
+                <td>
+                  <el-select v-model="d.biz_type" size="small" style="width: 100%">
+                    <el-option v-for="b in bizTypeOptions" :key="b" :label="b" :value="b" />
+                  </el-select>
+                </td>
+                <td>
+                  <el-input v-model="d.item" size="small" placeholder="开票项目" />
+                </td>
+                <td>
+                  <el-input-number v-model="d.qty" :min="1" :controls="false" size="small" style="width: 100%" />
+                </td>
+                <td>
+                  <el-input-number v-model="d.amount" :min="0" :precision="2" :controls="false" size="small" style="width: 100%" @change="calcDetail(d)" />
+                </td>
+                <td>
+                  <el-select v-model="d.tax_rate" size="small" style="width: 100%" @change="calcDetail(d)">
+                    <el-option v-for="r in taxRateOptions" :key="r" :label="r" :value="Number(r)" />
+                  </el-select>
+                </td>
+                <td>
+                  <el-input-number v-model="d.tax" :precision="2" :controls="false" size="small" style="width: 100%" disabled />
+                </td>
+                <td>
+                  <el-input-number v-model="d.total" :precision="2" :controls="false" size="small" style="width: 100%" disabled />
+                </td>
+                <td>
+                  <el-button text type="danger" size="small" @click="removeDetail(idx)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <el-button text type="primary" size="small" @click="addDetail">
+            <el-icon><Plus /></el-icon>添加明细行
+          </el-button>
+        </div>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="invoiceDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitInvoice">保存并关联</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
 import { reimburseApi } from '@/api/reimburse'
 import { invoiceApi } from '@/api/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
-import type { Invoice } from '@/types/invoice'
+import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
+
+const invoiceTypes = [
+  '增值税专用发票',
+  '增值税普通发票',
+  '电子专用发票',
+  '电子普通发票',
+  '机动车销售统一发票',
+  '火车票',
+  '机票',
+  '航空运输电子客票行程单',
+  '铁路电子客票',
+]
+const taxRateOptions = ['0', '1', '3', '6', '9', '13']
+const accountOptions = ['库存商品', '管理费用', '销售费用', '固定资产', '原材料', '工程施工', '管理费用-差旅费']
+const bizTypeOptions = ['采购商品', '接受服务', '采购固定资产', '费用报销', '其他']
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
@@ -128,6 +277,8 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
+const previewBillNo = ref<string | null>(null)
+const linkedInvoices = ref<Invoice[]>([])
 
 const emptyForm = () => ({
   bill_no: null as string | null,
@@ -215,31 +366,73 @@ async function loadInvoiceSummaries(bills: ReimbursementBill[]) {
   summaryMap.value = map
 }
 
-function openCreate() {
+async function loadLinkedInvoices() {
+  if (!editingId.value) {
+    linkedInvoices.value = []
+    return
+  }
+  try {
+    const res = await invoiceApi.list({ reimbursement_bill_id: editingId.value })
+    linkedInvoices.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载已关联发票失败')
+  }
+}
+
+function invoiceTotal(inv: Invoice): number {
+  return inv.details.reduce((sum, d) => sum + (d.total || 0), 0)
+}
+
+async function openCreate() {
   Object.assign(form, emptyForm())
   editing.value = false
   editingId.value = null
+  previewBillNo.value = null
+  linkedInvoices.value = []
   dialogVisible.value = true
+  try {
+    const res = await reimburseApi.nextBillNo()
+    previewBillNo.value = res.data.bill_no
+  } catch (e: any) {
+    // 预占单号失败仍可继续，保存时后端会生成
+    console.warn('预占单号失败', e)
+  }
 }
+
 function openEdit(row: ReimbursementBill) {
   Object.assign(form, emptyForm(), row)
   editing.value = true
   editingId.value = row.id
+  previewBillNo.value = row.bill_no ?? null
   dialogVisible.value = true
+  loadLinkedInvoices()
 }
+
 async function save() {
   const payload: Record<string, unknown> = { ...form }
   if (payload.amount === '' || payload.amount === null) payload.amount = null
   if (editing.value && editingId.value != null) {
     await reimburseApi.update(editingId.value, payload)
     ElMessage.success('已更新')
+    dialogVisible.value = false
+    load()
   } else {
-    await reimburseApi.create(payload)
+    // 新建：若有预占单号则传入，保持前后一致
+    if (previewBillNo.value && !payload.bill_no) {
+      payload.bill_no = previewBillNo.value
+    }
+    const res = await reimburseApi.create(payload)
     ElMessage.success('已创建')
+    // 保存后进入编辑态，方便继续增加发票
+    editing.value = true
+    editingId.value = res.data.id
+    form.bill_no = res.data.bill_no ?? null
+    previewBillNo.value = res.data.bill_no ?? null
+    await loadLinkedInvoices()
+    await load()
   }
-  dialogVisible.value = false
-  load()
 }
+
 async function runAction(action: RowAction['action'], row: ReimbursementBill) {
   const map = {
     submit: reimburseApi.submit,
@@ -251,6 +444,7 @@ async function runAction(action: RowAction['action'], row: ReimbursementBill) {
   ElMessage.success('操作成功')
   load()
 }
+
 async function remove(row: ReimbursementBill) {
   await ElMessageBox.confirm(`确认删除报销单 ${row.bill_no ?? row.id}？`, '提示', { type: 'warning' })
   await reimburseApi.remove(row.id)
@@ -315,6 +509,124 @@ async function confirmLink() {
   }
 }
 
+/* ============ 增加发票 ============ */
+const invoiceDialogVisible = ref(false)
+const invoiceFormRef = ref<any>(null)
+
+function emptyInvoiceForm(): InvoiceCreatePayload {
+  return {
+    invoice_type: '增值税专用发票',
+    code: null,
+    no: '',
+    invoice_date: null,
+    buyer_name: null,
+    buyer_tax_no: null,
+    seller_name: '',
+    seller_tax_no: null,
+    seller_address_phone: null,
+    seller_bank_account: null,
+    account: null,
+    certify: 'none',
+    remark: null,
+    reimbursement_bill_id: editingId.value,
+    attachment_path: null,
+    route_info: null,
+    traveler: null,
+    details: [{ biz_type: '费用报销', item: '', qty: 1, amount: 0, tax_rate: 13, tax: 0, total: 0 }],
+  }
+}
+const invoiceForm = reactive<InvoiceCreatePayload>(emptyInvoiceForm())
+
+const invoiceRules = {
+  invoice_type: [{ required: true, message: '请选择发票类型', trigger: 'change' }],
+  no: [{ required: true, message: '请输入发票号码', trigger: 'blur' }],
+  seller_name: [{ required: true, message: '请输入销方名称', trigger: 'blur' }],
+  account: [{ required: true, message: '请选择结算科目', trigger: 'change' }],
+}
+
+function calcDetail(d: any) {
+  d.tax = Number((d.amount * (d.tax_rate / 100)).toFixed(2))
+  d.total = Number((d.amount + d.tax).toFixed(2))
+}
+
+function addDetail() {
+  invoiceForm.details.push({ biz_type: '费用报销', item: '', qty: 1, amount: 0, tax_rate: 13, tax: 0, total: 0 })
+}
+
+function removeDetail(idx: number) {
+  if (invoiceForm.details.length <= 1) {
+    ElMessage.warning('至少保留一条明细')
+    return
+  }
+  invoiceForm.details.splice(idx, 1)
+}
+
+function openAddInvoice() {
+  if (!editingId.value) {
+    ElMessage.warning('请先保存报销单')
+    return
+  }
+  Object.assign(invoiceForm, emptyInvoiceForm())
+  invoiceForm.reimbursement_bill_id = editingId.value
+  invoiceDialogVisible.value = true
+}
+
+async function submitInvoice() {
+  invoiceFormRef.value?.validate(async (valid: boolean) => {
+    if (!valid) return
+    if (!editingId.value) {
+      ElMessage.warning('报销单未保存')
+      return
+    }
+    for (const d of invoiceForm.details) {
+      calcDetail(d)
+      if (!d.item) {
+        ElMessage.warning('请完善开票项目')
+        return
+      }
+    }
+    const payload: InvoiceCreatePayload = { ...invoiceForm, reimbursement_bill_id: editingId.value }
+    try {
+      await invoiceApi.create(payload)
+      ElMessage.success('发票已保存并关联')
+      invoiceDialogVisible.value = false
+      await loadLinkedInvoices()
+      // 自动按关联发票汇总更新报销单金额
+      await syncBillAmount()
+      await load()
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.detail || '保存发票失败')
+    }
+  })
+}
+
+async function syncBillAmount() {
+  if (!editingId.value) return
+  try {
+    const sumRes = await invoiceApi.summaryByBill(editingId.value)
+    const summary = sumRes.data
+    if (summary.total > 0) {
+      await reimburseApi.update(editingId.value, { amount: summary.total })
+      form.amount = summary.total
+    }
+  } catch (e) {
+    // 汇总更新失败不影响主流程
+    console.warn('汇总更新报销单金额失败', e)
+  }
+}
+
+async function unlinkInvoice(inv: Invoice) {
+  try {
+    await invoiceApi.unlink(inv.id)
+    ElMessage.success('已移除关联')
+    await loadLinkedInvoices()
+    await syncBillAmount()
+    await load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '移除关联失败')
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -349,5 +661,52 @@ onMounted(load)
   color: var(--el-text-color-secondary);
   font-size: 12px;
   margin-left: 4px;
+}
+
+/* 已关联发票 */
+.linked-invoices {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--el-border-color);
+}
+.linked-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.linked-title {
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+}
+
+/* 增加发票弹窗 */
+.invoice-form-row {
+  display: flex;
+  gap: 16px;
+}
+.invoice-form-row .el-form-item {
+  flex: 1;
+  min-width: 0;
+}
+.detail-section {
+  margin-top: 12px;
+}
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin-bottom: 8px;
+}
+.detail-table th,
+.detail-table td {
+  border: 1px solid var(--el-border-color-lighter);
+  padding: 6px;
+  text-align: center;
+  font-size: 13px;
+}
+.detail-table th {
+  background: #f5f7fa;
+  font-weight: 600;
 }
 </style>

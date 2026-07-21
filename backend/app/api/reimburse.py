@@ -29,9 +29,19 @@ def _get_or_404(db: Session, pk: int):
     return obj
 
 
-def _gen_bill_no(obj_id: int) -> str:
-    """单号：BX + 提交日期(YYYYMMDD) + 自增序号(4位)。"""
-    return f"BX{date.today():%Y%m%d}{obj_id:04d}"
+def _gen_bill_no(db: Session) -> str:
+    """单号：四位字母(BXGL) + 四位年份 + 四位年自增编号。"""
+    prefix = "BXGL"
+    year = date.today().year
+    like = f"{prefix}{year}%"
+    stmt = (
+        select(m.ReimbursementBill.bill_no)
+        .where(m.ReimbursementBill.bill_no.like(like))
+        .order_by(m.ReimbursementBill.bill_no.desc())
+    )
+    last = db.scalars(stmt).first()
+    seq = int(last[-4:]) + 1 if last else 1
+    return f"{prefix}{year}{seq:04d}"
 
 
 # ================= CRUD =================
@@ -57,16 +67,20 @@ def list_bills(
     return db.scalars(stmt).all()
 
 
+@router.get("/next-bill-no", response_model=dict)
+def next_bill_no(db: Session = Depends(get_db)):
+    """新建报销单前预占下一个单号（仅预览/预填，真正保存时以入库为准）。"""
+    return {"bill_no": _gen_bill_no(db)}
+
+
 @router.post("", response_model=s.ReimbursementBillRead, status_code=201)
 def create_bill(payload: s.ReimbursementBillCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
-    # 单号留空时，先入库取 id，再生成 BX+日期+序号 的唯一单号
-    data["bill_no"] = None
+    # 单号留空时自动生成；前端也可预占单号后传入，确保新建弹窗预览与入库一致
+    if not data.get("bill_no"):
+        data["bill_no"] = _gen_bill_no(db)
     obj = m.ReimbursementBill(**data)
     db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    obj.bill_no = _gen_bill_no(obj.id)
     db.commit()
     db.refresh(obj)
     return obj
