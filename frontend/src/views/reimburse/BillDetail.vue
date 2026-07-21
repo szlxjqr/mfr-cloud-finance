@@ -53,8 +53,8 @@
           <div class="ib-head">
             <span class="ib-tag">{{ inv.invoice_type }}</span>
             <span class="ib-code">{{ inv.invoice_code || '-' }}</span>
-            <span class="ib-meta">{{ inv.invoice_date || '日期不详' }}</span>
           </div>
+          <div class="ib-date">开票：{{ inv.invoice_date || '日期不详' }}</div>
           <div class="ib-seller" :title="inv.seller_name">{{ inv.seller_name }}</div>
           <div class="ib-item" :title="inv.items">物品：{{ inv.items }}</div>
           <div class="ib-stats">
@@ -151,6 +151,20 @@ function toNum(v: any): number {
   return isNaN(n) ? 0 : n
 }
 
+// 发票类型缩写（如火车票/登机牌上的简短标识）
+function abbrevInvoiceType(type?: string | null): string {
+  if (!type) return '发票'
+  const t = String(type).trim()
+  if (t.includes('电子') && t.includes('专用')) return '电子专票'
+  if (t.includes('电子') && t.includes('普通')) return '电子普票'
+  if (t.includes('专用')) return '专票'
+  if (t.includes('普通')) return '普票'
+  if (t.includes('电子')) return '电票'
+  if (t.includes('机动车')) return '机动车'
+  if (t.includes('卷票')) return '卷票'
+  return t.length > 4 ? t.slice(0, 4) : t
+}
+
 // 按发票聚合：一行一发票
 const invoiceRows = computed<InvoiceRow[]>(() => {
   const rows: InvoiceRow[] = []
@@ -179,7 +193,7 @@ const invoiceRows = computed<InvoiceRow[]>(() => {
       id: inv.id,
       invoice_date: inv.invoice_date,
       invoice_code: inv.invoice_code,
-      invoice_type: inv.invoice_type,
+      invoice_type: abbrevInvoiceType(inv.invoice_type),
       seller_name: inv.seller_name,
       items: itemsText,
       qty,
@@ -293,17 +307,17 @@ table {
 .ib-main {
   flex: 1 1 auto;
   min-width: 0;
-  padding: 5px 9px;
+  padding: 4px 8px 5px;
 }
 
-/* 表头：类型标签 + 大号编码 + 日期 */
+/* 表头：类型标签 + 大号编码 */
 .ib-head {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: center;
+  gap: 5px;
   border-bottom: 1px solid #e6ebf2;
-  padding-bottom: 3px;
-  margin-bottom: 4px;
+  padding-bottom: 2px;
+  margin-bottom: 2px;
 }
 .ib-tag {
   flex: 0 0 auto;
@@ -311,37 +325,44 @@ table {
   color: #185fa5;
   border: 1px solid #9cc2ea;
   border-radius: 3px;
-  padding: 0 4px;
-  line-height: 1.5;
+  padding: 0 3px;
+  line-height: 1.4;
   white-space: nowrap;
 }
 .ib-code {
+  flex: 1 1 auto;
+  min-width: 0;
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 10.5pt;
+  font-size: 10pt;
   letter-spacing: 0.2px;
   color: #1a2a3a;
-}
-.ib-meta {
-  margin-left: auto;
-  font-size: 7.5pt;
-  color: #9aa6b2;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ib-date {
+  font-size: 7pt;
+  color: #8b98a8;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 主体：销方/物品 */
 .ib-seller {
   font-weight: 600;
-  font-size: 9.5pt;
+  font-size: 9pt;
   color: #222;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .ib-item {
-  font-size: 8pt;
+  font-size: 7.5pt;
   color: #6b7785;
-  margin: 1px 0 5px;
+  margin: 0 0 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -376,12 +397,12 @@ table {
   text-overflow: ellipsis;
 }
 
-/* 右侧存根区：虚线穿孔分隔，放大价税合计 */
+/* 右侧存根区：虚线穿孔分隔，价税合计适度放大 */
 .ib-stub {
-  flex: 0 0 31%;
+  flex: 0 0 24%;
   position: relative;
   border-left: 1px dashed #b9c4d0;
-  padding: 6px 8px;
+  padding: 4px 6px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -391,22 +412,24 @@ table {
   border-radius: 0 7px 7px 0;
 }
 .ib-stub .l {
-  font-size: 7pt;
+  font-size: 6.5pt;
   color: #9aa6b2;
   letter-spacing: 0.5px;
 }
 .ib-stub .amt {
   font-family: 'Courier New', monospace;
   font-weight: 700;
-  font-size: 13pt;
+  font-size: 11pt;
   color: #c0392b;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 1px 0;
+  white-space: nowrap;
 }
 .ib-stub .sub {
-  font-size: 7pt;
+  font-size: 6.5pt;
   color: #95a2af;
   font-family: 'Courier New', monospace;
+  white-space: nowrap;
 }
 
 .num {
