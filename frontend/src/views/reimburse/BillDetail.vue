@@ -68,7 +68,6 @@
         <div class="ib-stub">
           <div class="l">价税合计</div>
           <div class="amt">¥{{ inv.total.toFixed(2) }}</div>
-          <div class="sub">税金 ¥{{ inv.tax.toFixed(2) }}</div>
         </div>
       </div>
       <div v-if="!invoiceRows.length" class="empty">暂无发票明细</div>
@@ -305,18 +304,8 @@ table {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #e8e8e8;
+  background: #e6e6e6;
   border-right: 1px solid #999;
-  position: relative;
-}
-.ib-stripe::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 12%;
-  bottom: 12%;
-  width: 1px;
-  background: #bbb;
 }
 .ib-stripe-text {
   writing-mode: vertical-rl;
@@ -345,7 +334,7 @@ table {
 /* 顶部：发票号码 + 开票日期 左右分置 */
 .ib-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 3px;
@@ -433,7 +422,7 @@ table {
   justify-content: center;
   align-items: center;
   text-align: center;
-  background: #f5f5f5;
+  background: #f2f2f2;
 }
 .ib-stub .l {
   font-size: 6.5pt;
@@ -448,12 +437,6 @@ table {
   color: #000;
   line-height: 1.15;
   margin: 2px 0;
-  white-space: nowrap;
-}
-.ib-stub .sub {
-  font-size: 6.5pt;
-  color: #666;
-  font-family: 'Courier New', monospace;
   white-space: nowrap;
 }
 
