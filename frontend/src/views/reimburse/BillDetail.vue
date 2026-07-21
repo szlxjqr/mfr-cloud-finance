@@ -51,8 +51,8 @@
         <div class="ib-stripe"></div>
         <div class="ib-main">
           <div class="ib-head">
-            <span class="ib-tag">{{ inv.invoice_type }}</span>
             <span class="ib-code">{{ inv.invoice_no || '-' }}</span>
+            <span class="ib-tag">{{ inv.invoice_type }}</span>
           </div>
           <div class="ib-date">
             <div class="ib-date-label">开票日期</div>
@@ -326,12 +326,13 @@ table {
 }
 .ib-tag {
   flex: 0 0 auto;
+  margin-left: 4px;
   font-size: 7pt;
-  color: #185fa5;
-  border: 1px solid #9cc2ea;
+  color: #fff;
+  background: #185fa5;
   border-radius: 3px;
-  padding: 0 3px;
-  line-height: 1.4;
+  padding: 0 4px;
+  line-height: 1.5;
   white-space: nowrap;
 }
 .ib-code {
