@@ -319,7 +319,11 @@ async function applyAiResult(parsed: ParsedInvoice) {
         ElMessage.warning(`已保存，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)
       }
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.detail || '保存识别结果失败')
+      if (e?.response?.status === 409) {
+        ElMessage.warning(e?.response?.data?.detail || '该发票已存在，不能重复录入')
+      } else {
+        ElMessage.error(e?.response?.data?.detail || '保存识别结果失败')
+      }
     }
   } else {
     resetForm()
@@ -544,7 +548,11 @@ async function submitForm() {
       ElMessage.success(dialogMode.value === 'add' ? '已新增' : '已保存')
       dialogVisible.value = false
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.detail || '保存失败')
+      if (e?.response?.status === 409) {
+        ElMessage.warning(e?.response?.data?.detail || '该发票已存在，不能重复录入')
+      } else {
+        ElMessage.error(e?.response?.data?.detail || '保存失败')
+      }
     }
   })
 }

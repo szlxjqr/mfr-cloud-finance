@@ -37,6 +37,18 @@ def _build_invoice(payload: s.InvoiceCreate) -> m.Invoice:
     return obj
 
 
+def _find_duplicate(db: Session, no: str, code: Optional[str]) -> Optional[m.Invoice]:
+    """按 发票代码+号码 判定是否为重复发票（数电票 code 为空时仅按号码，且排除带代码的纸票以免误判）。"""
+    no_norm = (no or "").strip()
+    code_norm = (code or "").strip()
+    stmt = select(m.Invoice).where(m.Invoice.no == no_norm)
+    if code_norm:
+        stmt = stmt.where(m.Invoice.code == code_norm)
+    else:
+        stmt = stmt.where(m.Invoice.code.is_(None))
+    return db.scalar(stmt)
+
+
 def _replace_details(obj: m.Invoice, details: List[s.InvoiceDetailCreate]) -> None:
     """更新时整单替换明细行。"""
     obj.details.clear()
@@ -96,6 +108,14 @@ def list_invoices(
 
 @router.post("", response_model=s.InvoiceRead, status_code=201)
 def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db)):
+    # 唯一性校验：同一发票号码不允许重复录入（防重复报销）
+    dup = _find_duplicate(db, payload.no, payload.code)
+    if dup:
+        dup_info = f"号码 {payload.no}" + (f"（代码 {payload.code}）" if payload.code else "")
+        raise HTTPException(
+            status_code=409,
+            detail=f"发票已存在（{dup_info}），请勿重复录入。",
+        )
     obj = _build_invoice(payload)
     db.add(obj)
     db.commit()

@@ -754,7 +754,11 @@ async function submitInvoice() {
       await syncBillAmount()
       await load()
     } catch (e: any) {
-      ElMessage.error(e?.response?.data?.detail || '保存发票失败')
+      if (e?.response?.status === 409) {
+        ElMessage.warning(e?.response?.data?.detail || '该发票已存在，不能重复录入')
+      } else {
+        ElMessage.error(e?.response?.data?.detail || '保存发票失败')
+      }
     }
   })
 }
