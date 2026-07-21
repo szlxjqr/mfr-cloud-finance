@@ -56,6 +56,7 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     _ensure_invoice_code_column(engine)
+    _ensure_reimbursement_bills_columns(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -75,3 +76,16 @@ def _ensure_invoice_code_column(engine) -> None:
         conn.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_code ON invoices(invoice_code)")
         )
+
+
+def _ensure_reimbursement_bills_columns(engine) -> None:
+    """为已存在的 reimbursement_bills 表补加审批相关字段。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("reimbursement_bills")]
+    with engine.begin() as conn:
+        if "approver" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN approver VARCHAR(100)"))
+        if "approve_remark" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN approve_remark TEXT"))

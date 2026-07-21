@@ -310,6 +310,43 @@
         <el-button type="primary" @click="submitInvoice">保存并关联</el-button>
       </template>
     </el-dialog>
+
+    <!-- 审批弹窗 -->
+    <el-dialog
+      v-model="approveDialogVisible"
+      :title="approveAction === 'approve' ? '审批通过' : '驳回报销单'"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="approveFormRef"
+        :model="approveForm"
+        :rules="approveRules"
+        label-width="90px"
+      >
+        <el-form-item label="报销单号">
+          <el-input :model-value="approveRow?.bill_no ?? approveRow?.id" disabled />
+        </el-form-item>
+        <el-form-item label="审批人" prop="approver">
+          <el-input v-model="approveForm.approver" placeholder="请输入审批人姓名" />
+        </el-form-item>
+        <el-form-item label="审批意见">
+          <el-input
+            v-model="approveForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="选填"
+          />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="approveDialogVisible = false">取消</el-button>
+        <el-button :type="approveAction === 'approve' ? 'success' : 'danger'" @click="submitApprove">
+          {{ approveAction === 'approve' ? '确认通过' : '确认驳回' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -350,6 +387,16 @@ const editingId = ref<number | null>(null)
 const previewBillNo = ref<string | null>(null)
 const linkedInvoices = ref<Invoice[]>([])
 const linkedTableKey = ref(0)
+
+// 审批弹窗
+const approveDialogVisible = ref(false)
+const approveAction = ref<'approve' | 'reject' | null>(null)
+const approveRow = ref<ReimbursementBill | null>(null)
+const approveForm = ref({ approver: '', remark: '' })
+const approveFormRef = ref<any>(null)
+const approveRules = {
+  approver: [{ required: true, message: '请输入审批人', trigger: 'blur' }],
+}
 
 const emptyForm = () => ({
   bill_no: null as string | null,
@@ -402,7 +449,7 @@ function transformActions(row: ReimbursementBill): RowAction[] {
         { action: 'reject', label: '驳回', type: 'danger' },
       ]
     case '已通过':
-      return [{ action: 'pay', label: '支付', type: 'primary' }]
+      return [{ action: 'pay', label: '提交财务', type: 'primary' }]
     default:
       return []
   }
@@ -533,14 +580,45 @@ async function save() {
 }
 
 async function runAction(action: RowAction['action'], row: ReimbursementBill) {
+  if (action === 'approve' || action === 'reject') {
+    approveAction.value = action
+    approveRow.value = row
+    approveForm.value = { approver: '', remark: '' }
+    approveDialogVisible.value = true
+    return
+  }
+
+  if (action === 'pay') {
+    await ElMessageBox.confirm(`确认将报销单 ${row.bill_no ?? row.id} 提交给财务？`, '提示', { type: 'warning' })
+  }
+
   const map = {
     submit: reimburseApi.submit,
-    approve: reimburseApi.approve,
-    reject: reimburseApi.reject,
     pay: reimburseApi.pay,
   }
   await map[action](row.id)
   ElMessage.success('操作成功')
+  load()
+}
+
+async function submitApprove() {
+  if (!approveFormRef.value) return
+  await approveFormRef.value.validate()
+  if (!approveRow.value || !approveAction.value) return
+
+  const row = approveRow.value
+  const data = {
+    approver: approveForm.value.approver,
+    remark: approveForm.value.remark,
+  }
+  if (approveAction.value === 'approve') {
+    await reimburseApi.approve(row.id, data)
+    ElMessage.success('审批通过')
+  } else {
+    await reimburseApi.reject(row.id, data)
+    ElMessage.success('已驳回')
+  }
+  approveDialogVisible.value = false
   load()
 }
 

@@ -15,6 +15,8 @@ class ReimbursementBillBase(BaseModel):
     status: str = "草稿"
     submit_date: Optional[date] = None
     approve_date: Optional[date] = None
+    approver: Optional[str] = None
+    approve_remark: Optional[str] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
 
@@ -32,6 +34,8 @@ class ReimbursementBillUpdate(BaseModel):
     status: Optional[str] = None
     submit_date: Optional[date] = None
     approve_date: Optional[date] = None
+    approver: Optional[str] = None
+    approve_remark: Optional[str] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
 
@@ -39,3 +43,8 @@ class ReimbursementBillUpdate(BaseModel):
 class ReimbursementBillRead(ReimbursementBillBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
+
+
+class ApprovalBody(BaseModel):
+    approver: str
+    remark: Optional[str] = None

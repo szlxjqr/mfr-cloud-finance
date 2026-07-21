@@ -10,6 +10,8 @@ export interface ReimbursementBill {
   status: ReimburseStatus
   submit_date?: string | null
   approve_date?: string | null
+  approver?: string | null
+  approve_remark?: string | null
   attachment_path?: string | null
   remark?: string | null
 }

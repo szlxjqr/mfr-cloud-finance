@@ -111,23 +111,32 @@ def submit_bill(bid: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{bid}/approve", response_model=s.ReimbursementBillRead)
-def approve_bill(bid: int, db: Session = Depends(get_db)):
+def approve_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj = _get_or_404(db, bid)
     if "approve" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许审批通过")
+    if not body.approver or not body.approver.strip():
+        raise HTTPException(status_code=422, detail="审批人不能为空")
     obj.status = _STATUS_FLOW[obj.status]["approve"]
     obj.approve_date = date.today()
+    obj.approver = body.approver.strip()
+    obj.approve_remark = body.remark.strip() if body.remark else None
     db.commit()
     db.refresh(obj)
     return obj
 
 
 @router.post("/{bid}/reject", response_model=s.ReimbursementBillRead)
-def reject_bill(bid: int, db: Session = Depends(get_db)):
+def reject_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj = _get_or_404(db, bid)
     if "reject" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许驳回")
+    if not body.approver or not body.approver.strip():
+        raise HTTPException(status_code=422, detail="审批人不能为空")
     obj.status = _STATUS_FLOW[obj.status]["reject"]
+    obj.approve_date = date.today()
+    obj.approver = body.approver.strip()
+    obj.approve_remark = body.remark.strip() if body.remark else None
     db.commit()
     db.refresh(obj)
     return obj

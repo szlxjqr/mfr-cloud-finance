@@ -22,5 +22,7 @@ class ReimbursementBill(Base):
     status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回/已支付
     submit_date: Mapped[Optional[date]] = mapped_column(Date)  # 提交日期
     approve_date: Mapped[Optional[date]] = mapped_column(Date)  # 审批日期
+    approver: Mapped[Optional[str]] = mapped_column(String(100))  # 审批人
+    approve_remark: Mapped[Optional[str]] = mapped_column(Text)  # 审批意见
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 附件路径
     remark: Mapped[Optional[str]] = mapped_column(Text)  # 备注
