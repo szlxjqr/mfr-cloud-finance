@@ -12,6 +12,7 @@ export interface InvoiceDetail {
 
 export interface Invoice {
   id: number
+  invoice_code?: string | null
   invoice_type: string
   code?: string | null
   no: string

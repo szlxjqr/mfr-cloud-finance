@@ -82,6 +82,7 @@
         <el-table :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
           <el-table-column prop="invoice_date" label="开票日期" width="110" />
           <el-table-column prop="invoice_type" label="类型" width="120" />
+          <el-table-column prop="invoice_code" label="发票编码" width="190" show-overflow-tooltip />
           <el-table-column prop="no" label="发票号码" width="130" />
           <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
           <el-table-column label="合计" width="120" align="right">

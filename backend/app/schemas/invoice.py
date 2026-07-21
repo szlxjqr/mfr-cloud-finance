@@ -73,6 +73,7 @@ class InvoiceUpdate(BaseModel):
 
 class InvoiceRead(InvoiceBase):
     id: int
+    invoice_code: Optional[str] = None
     created_at: datetime
     details: List[InvoiceDetailRead] = []
     model_config = ConfigDict(from_attributes=True)

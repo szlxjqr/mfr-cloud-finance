@@ -14,6 +14,7 @@ from app.db import get_db
 from app.models import invoice as m
 from app.models import reimburse as rm
 from app.schemas import invoice as s
+from app.utils.codegen import gen_invoice_code
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -116,7 +117,9 @@ def create_invoice(payload: s.InvoiceCreate, db: Session = Depends(get_db)):
             status_code=409,
             detail=f"发票已存在（{dup_info}），请勿重复录入。",
         )
+    # 生成 16 位可读发票编码（并发安全，见 app/utils/codegen.py）
     obj = _build_invoice(payload)
+    obj.invoice_code = gen_invoice_code(db, payload.invoice_type, payload.invoice_date)
     db.add(obj)
     db.commit()
     db.refresh(obj)

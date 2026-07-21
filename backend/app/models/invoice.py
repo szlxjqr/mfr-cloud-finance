@@ -22,6 +22,7 @@ class Invoice(Base):
     __tablename__ = "invoices"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    invoice_code: Mapped[Optional[str]] = mapped_column(String(16))  # 16位可读业务编码：FP+日期+类型码+序号
     invoice_type: Mapped[str] = mapped_column(String(50), default="增值税专用发票")  # 专票/普票/数电票/火车票/机票等
     code: Mapped[Optional[str]] = mapped_column(String(50))  # 发票代码（数电票已取消，可空）
     no: Mapped[str] = mapped_column(String(50), index=True)  # 发票号码

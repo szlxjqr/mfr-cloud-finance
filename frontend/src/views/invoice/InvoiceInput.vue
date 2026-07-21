@@ -37,6 +37,7 @@ interface InvoiceDetail {
 interface InvoiceRecord {
   id: string
   invoiceId: number
+  invoiceCode: string
   type: string
   code: string
   no: string
@@ -119,6 +120,7 @@ function flattenInvoices(invoices: Invoice[]): InvoiceRecord[] {
   for (const inv of invoices) {
     const header = {
       invoiceId: inv.id,
+      invoiceCode: inv.invoice_code || '',
       type: inv.invoice_type,
       code: inv.code || '',
       no: inv.no,
@@ -794,6 +796,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </template>
         </el-table-column>
 
+        <el-table-column prop="invoiceCode" label="发票编码" width="190" show-overflow-tooltip />
         <el-table-column prop="code" label="发票代码" width="130" show-overflow-tooltip />
         <el-table-column prop="no" label="发票号码" width="110" show-overflow-tooltip />
         <el-table-column prop="bizType" label="业务类型" min-width="110" show-overflow-tooltip />

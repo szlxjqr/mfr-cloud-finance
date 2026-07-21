@@ -14,6 +14,7 @@ from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
 from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
+from app.models import code_counter as code_counter_model  # noqa: F401 注册编码计数器模型
 
 
 @asynccontextmanager
