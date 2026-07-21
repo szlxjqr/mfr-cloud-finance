@@ -51,7 +51,7 @@
         <tr>
           <th style="width: 40px">序号</th>
           <th style="width: 90px">日期</th>
-          <th style="width: 130px">发票编码</th>
+          <th style="width: 150px">发票编码</th>
           <th style="width: 100px">发票类型</th>
           <th>销方名称</th>
           <th style="width: 120px">项目/物品</th>
@@ -214,7 +214,7 @@ const totalWithTax = computed(() => flatItems.value.reduce((s, it) => s + it.tot
   box-sizing: border-box;
   background: #fff;
   color: #000;
-  font-size: 10.5pt;
+  font-size: 10pt;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
@@ -260,7 +260,7 @@ table {
 .detail-table td,
 .sign-table td {
   border: 1px solid #333;
-  padding: 6px 8px;
+  padding: 4px 6px;
   word-break: break-all;
   vertical-align: middle;
 }
@@ -276,6 +276,11 @@ table {
   background: #f2f2f2;
   font-weight: 600;
   text-align: center;
+  font-size: 9.5pt;
+}
+
+.detail-table td {
+  font-size: 9.5pt;
 }
 
 .detail-table td {
