@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
 import {
   Plus,
   Delete,
@@ -18,8 +17,11 @@ import {
   Document,
   Close,
 } from '@element-plus/icons-vue'
+import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
+import { invoiceApi } from '@/api/invoice'
+import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 
-/** 发票明细行 */
+/** 发票明细行（前端编辑态） */
 interface InvoiceDetail {
   id: string
   bizType: string
@@ -31,10 +33,10 @@ interface InvoiceDetail {
   total: number
 }
 
-/** 发票主记录 */
+/** 发票记录（前端表格展平形态：一条明细一行，同发票 invoiceId 相同） */
 interface InvoiceRecord {
   id: string
-  invoiceId: string
+  invoiceId: number
   type: string
   code: string
   no: string
@@ -69,56 +71,26 @@ const invoiceTypes = [
   '电子专用发票',
   '电子普通发票',
   '机动车销售统一发票',
+  '火车票',
+  '机票',
+  '航空运输电子客票行程单',
+  '铁路电子客票',
 ]
 
 const taxRateOptions = ['0', '1', '3', '6', '9', '13']
-const accountOptions = ['库存商品', '管理费用', '销售费用', '固定资产', '原材料', '工程施工']
+const accountOptions = ['库存商品', '管理费用', '销售费用', '固定资产', '原材料', '工程施工', '管理费用-差旅费']
 const bizTypeOptions = ['采购商品', '接受服务', '采购固定资产', '费用报销', '其他']
 
-/** 示例数据 */
-const rows = reactive<InvoiceRecord[]>([
-  {
-    id: genId(),
-    invoiceId: 'inv_sample_1',
-    type: '增值税专用发票',
-    code: '044002100111',
-    no: '12345678',
-    date: '2026-05-01',
-    sellerName: '某办公用品有限公司',
-    sellerTaxNo: '91440100MA5xxxxxx',
-    sellerAddressPhone: '广州市天河区xxx 020-12345678',
-    sellerBankAccount: '中国工商银行广州分行 6222xxxxxxxx',
-    buyerName: '示例采购企业有限公司',
-    buyerTaxNo: '91440000MA6xxxxxx',
-    account: '库存商品',
-    certify: 'none',
-    remark: '',
-    bizType: '采购商品',
-    item: '办公用品',
-    qty: 10,
-    amount: 1000,
-    taxRate: 13,
-    tax: 130,
-    total: 1130,
-  },
-])
+/** 表格数据源（从后端加载） */
+const rows = reactive<InvoiceRecord[]>([])
+const loading = ref(false)
 
 /** 期间 */
 const period = ref<string>('2026-05')
 
-/** 搜索 / 筛选关键字 */
+/** 搜索关键字 */
 const keyword = ref('')
-const filteredRows = computed<InvoiceRecord[]>(() => {
-  const kw = keyword.value.trim().toLowerCase()
-  if (!kw) return rows
-  return rows.filter(
-    (r) =>
-      r.bizType.toLowerCase().includes(kw) ||
-      r.item.toLowerCase().includes(kw) ||
-      r.sellerName.toLowerCase().includes(kw) ||
-      r.account.toLowerCase().includes(kw),
-  )
-})
+const filteredRows = computed<InvoiceRecord[]>(() => rows)
 
 /** 选中行 */
 const selectedIds = ref<Set<string>>(new Set())
@@ -134,6 +106,91 @@ function onRowClick(row: InvoiceRecord) {
   if (selectedIds.value.has(row.id)) selectedIds.value.delete(row.id)
   else selectedIds.value.add(row.id)
 }
+
+/* ============ 数据加载 ============ */
+function lastDayOfMonth(ym: string): string {
+  const [y, m] = ym.split('-').map(Number)
+  const d = new Date(y, m, 0)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function flattenInvoices(invoices: Invoice[]): InvoiceRecord[] {
+  const result: InvoiceRecord[] = []
+  for (const inv of invoices) {
+    const header = {
+      invoiceId: inv.id,
+      type: inv.invoice_type,
+      code: inv.code || '',
+      no: inv.no,
+      date: inv.invoice_date || '',
+      sellerName: inv.seller_name,
+      sellerTaxNo: inv.seller_tax_no || '',
+      sellerAddressPhone: inv.seller_address_phone || '',
+      sellerBankAccount: inv.seller_bank_account || '',
+      buyerName: inv.buyer_name || '',
+      buyerTaxNo: inv.buyer_tax_no || '',
+      account: inv.account || '',
+      certify: (inv.certify as 'current' | 'none') || 'none',
+      remark: inv.remark || '',
+    }
+    if (!inv.details || inv.details.length === 0) {
+      result.push({
+        id: `inv_${inv.id}_empty`,
+        ...header,
+        bizType: '',
+        item: '',
+        qty: 0,
+        amount: 0,
+        taxRate: 0,
+        tax: 0,
+        total: 0,
+      })
+    } else {
+      for (const d of inv.details) {
+        result.push({
+          id: String(d.id),
+          ...header,
+          bizType: d.biz_type || '',
+          item: d.item || '',
+          qty: Number(d.qty) || 0,
+          amount: Number(d.amount) || 0,
+          taxRate: Number(d.tax_rate) || 0,
+          tax: Number(d.tax) || 0,
+          total: Number(d.total) || 0,
+        })
+      }
+    }
+  }
+  return result
+}
+
+async function loadList() {
+  loading.value = true
+  try {
+    const params: Record<string, any> = {}
+    if (keyword.value.trim()) params.keyword = keyword.value.trim()
+    if (period.value) {
+      params.start_date = `${period.value}-01`
+      params.end_date = lastDayOfMonth(period.value)
+    }
+    const res = await invoiceApi.list(params)
+    rows.splice(0, rows.length, ...flattenInvoices(res.data))
+    selectedIds.value.clear()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载发票列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+let listTimer: ReturnType<typeof setTimeout> | null = null
+function debouncedLoadList() {
+  if (listTimer) clearTimeout(listTimer)
+  listTimer = setTimeout(() => loadList(), 300)
+}
+
+onMounted(loadList)
+watch([keyword, period], debouncedLoadList)
 
 /* ============ AI 发票识别弹窗 ============ */
 const aiDialogVisible = ref(false)
@@ -158,7 +215,6 @@ function onAiFileChange(uploadFile: any) {
   aiFile.value = raw
   aiPreviewUrl.value = URL.createObjectURL(raw)
   aiResult.value = null
-  // 上传即自动开始识别
   startAiRecognize()
 }
 
@@ -180,7 +236,6 @@ function startAiRecognize() {
     .then((parsed: ParsedInvoice) => {
       aiResult.value = buildResultFromParsed(parsed)
       aiRecognizing.value = false
-      // 展示结果约 1 秒后进行核心字段校验与录入
       setTimeout(() => applyAiResult(parsed), 1000)
     })
     .catch((err) => {
@@ -190,9 +245,7 @@ function startAiRecognize() {
     })
 }
 
-// 将解析结果映射为表单模型（含明细行）
 function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
-  // 多条明细：每条 ParsedLineItem 对应一行明细；单条/无明细：用发票级合计生成单行
   let details: InvoiceDetail[]
   if (p.items && p.items.length > 0) {
     details = p.items.map((it) => ({
@@ -219,11 +272,23 @@ function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
       },
     ]
   }
+
+  // 根据发票类型给默认税率：火车票/机票 9%；代理/服务 6%；其余默认 13%
+  const typeHint = p.type || ''
+  const isTravel = /火车|铁路|机票|航空/.test(typeHint)
+  const isService = /服务|代理/.test(typeHint)
+  details.forEach((d) => {
+    if (isTravel && (!d.taxRate || d.taxRate === 13)) d.taxRate = 9
+    else if (isService && (!d.taxRate || d.taxRate === 13)) d.taxRate = 6
+    ensureDetailComputed(d)
+  })
+
   return {
+    invoiceId: null,
     type: p.type || '增值税专用发票',
     code: p.code || '',
     no: p.no || '',
-    account: p.account || '库存商品',
+    account: isTravel ? '管理费用-差旅费' : (p.account || '库存商品'),
     date: p.date || '2026-05-18',
     sellerName: p.sellerName || '',
     sellerTaxNo: p.sellerTaxNo || '',
@@ -237,56 +302,28 @@ function buildResultFromParsed(p: ParsedInvoice): Partial<typeof formModel> {
   }
 }
 
-function applyAiResult(parsed: ParsedInvoice) {
+async function applyAiResult(parsed: ParsedInvoice) {
   if (!aiResult.value) return
-  const data = aiResult.value
-  // 核心字段校验：代码 / 号码 / 日期 / 销售方 / 金额价税合计
   const validation = validateInvoice(parsed)
   if (validation.ok) {
-    // 校验通过：直接插入主列表
-    const details = data.details?.length
-      ? data.details
-      : [emptyDetail()]
-    details.forEach((d) => {
-    ensureDetailComputed(d)
-    rows.push({
-      id: genId(),
-      invoiceId: genId(),
-      type: data.type || '增值税专用发票',
-      code: data.code || '',
-      no: data.no || '',
-      date: data.date || '2026-05-18',
-      sellerName: data.sellerName || '',
-      sellerTaxNo: data.sellerTaxNo || '',
-      sellerAddressPhone: data.sellerAddressPhone || '',
-      sellerBankAccount: data.sellerBankAccount || '',
-      buyerName: data.buyerName || '',
-      buyerTaxNo: data.buyerTaxNo || '',
-      account: data.account || '库存商品',
-      certify: data.certify || 'none',
-      remark: data.remark || '',
-      bizType: d.bizType || '采购商品',
-      item: d.item || '见发票明细',
-      qty: d.qty || 1,
-      amount: d.amount ?? 0,
-      taxRate: d.taxRate ?? 13,
-      tax: d.tax ?? 0,
-      total: d.total ?? 0,
-    })
-    })
-    aiDialogVisible.value = false
-    // 发票是权威文件：已识别的金额/税额/价税合计原样保存，此处仅用公式做一致性校验提示
-    const verify = verifyInvoice(parsed)
-    const addCount = details.length
-    if (verify.consistent) {
-      ElMessage.success(`已识别并新增 1 张发票（${addCount} 条明细）`)
-    } else {
-      ElMessage.warning(`已新增，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)
+    const data = aiResult.value
+    const details = data.details?.length ? data.details : [emptyDetail()]
+    try {
+      await invoiceApi.create(buildPayload({ ...data, details } as typeof formModel))
+      await loadList()
+      aiDialogVisible.value = false
+      const verify = verifyInvoice(parsed)
+      if (verify.consistent) {
+        ElMessage.success('已识别并保存发票')
+      } else {
+        ElMessage.warning(`已保存，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)
+      }
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.detail || '保存识别结果失败')
     }
   } else {
-    // 校验失败：打开新增弹窗回填已识别字段，不录入，并提示缺失核心字段
     resetForm()
-    Object.assign(formModel, data)
+    Object.assign(formModel, aiResult.value)
     if (!formModel.details || formModel.details.length === 0) {
       formModel.details = [emptyDetail()]
     }
@@ -305,7 +342,7 @@ const dialogMode = ref<'add' | 'edit'>('add')
 const formRef = ref<FormInstance>()
 
 const formModel = reactive<{
-  invoiceId: string
+  invoiceId: number | null
   type: string
   code: string
   no: string
@@ -321,7 +358,7 @@ const formModel = reactive<{
   remark: string
   details: InvoiceDetail[]
 }>({
-  invoiceId: '',
+  invoiceId: null,
   type: '增值税专用发票',
   code: '',
   no: '',
@@ -361,7 +398,7 @@ function emptyDetail(): InvoiceDetail {
 
 function resetForm() {
   Object.assign(formModel, {
-    invoiceId: '',
+    invoiceId: null,
     type: '增值税专用发票',
     code: '',
     no: '',
@@ -384,9 +421,6 @@ function calcDetail(row: InvoiceDetail) {
   row.total = Number((row.amount + row.tax).toFixed(2))
 }
 
-// 与 calcDetail 不同：识别到的税额/价税合计是发票上的权威值，已存在则信任原值，
-// 不再用「金额×税率」重算（避免 276.42×6%=16.5852 四舍五入成 16.59 的 1 分钱误差）。
-// 仅当税额或价税合计缺失时才补算。
 function ensureDetailComputed(row: InvoiceDetail) {
   if (row.tax > 0 && row.total > 0) return
   if (row.tax <= 0) row.tax = Number((row.amount * (row.taxRate / 100)).toFixed(2))
@@ -425,7 +459,6 @@ function openAdd() {
 
 function openEdit(row: InvoiceRecord) {
   dialogMode.value = 'edit'
-  // 收集同一张发票的所有明细行
   const siblings = rows.filter((r) => r.invoiceId === row.invoiceId)
   const details: InvoiceDetail[] = siblings.map((r) => ({
     id: r.id,
@@ -458,14 +491,40 @@ function openEdit(row: InvoiceRecord) {
   formRef.value?.clearValidate()
 }
 
-function submitForm() {
-  formRef.value?.validate((valid) => {
+function buildPayload(model: typeof formModel): InvoiceCreatePayload {
+  return {
+    invoice_type: model.type,
+    code: model.code || null,
+    no: model.no,
+    invoice_date: model.date || null,
+    buyer_name: model.buyerName || null,
+    buyer_tax_no: model.buyerTaxNo || null,
+    seller_name: model.sellerName,
+    seller_tax_no: model.sellerTaxNo || null,
+    seller_address_phone: model.sellerAddressPhone || null,
+    seller_bank_account: model.sellerBankAccount || null,
+    account: model.account || null,
+    certify: model.certify,
+    remark: model.remark || null,
+    details: model.details.map((d) => ({
+      biz_type: d.bizType || null,
+      item: d.item || null,
+      qty: d.qty,
+      amount: d.amount,
+      tax_rate: d.taxRate,
+      tax: d.tax,
+      total: d.total,
+    })),
+  }
+}
+
+async function submitForm() {
+  formRef.value?.validate(async (valid) => {
     if (!valid) return
     if (formModel.details.length === 0) {
       ElMessage.warning('请至少录入一条明细')
       return
     }
-    // 校验明细
     for (const d of formModel.details) {
       if (!d.bizType || !d.item) {
         ElMessage.warning('请完善业务类型和开票项目')
@@ -474,66 +533,48 @@ function submitForm() {
       ensureDetailComputed(d)
     }
 
-    const invoiceId = dialogMode.value === 'add' ? genId() : formModel.invoiceId
-
-    // 删除旧发票的明细行（编辑时）
-    if (dialogMode.value === 'edit') {
-      for (let i = rows.length - 1; i >= 0; i--) {
-        if (rows[i].invoiceId === invoiceId) rows.splice(i, 1)
+    const payload = buildPayload(formModel)
+    try {
+      if (dialogMode.value === 'add') {
+        await invoiceApi.create(payload)
+      } else if (formModel.invoiceId) {
+        await invoiceApi.update(formModel.invoiceId, payload)
       }
+      await loadList()
+      ElMessage.success(dialogMode.value === 'add' ? '已新增' : '已保存')
+      dialogVisible.value = false
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.detail || '保存失败')
     }
-
-    // 添加新行
-    formModel.details.forEach((d) => {
-      rows.push({
-        id: d.id === formModel.details[0].id && dialogMode.value === 'add' ? genId() : d.id,
-        invoiceId,
-        type: formModel.type,
-        code: formModel.code,
-        no: formModel.no,
-        date: formModel.date,
-        sellerName: formModel.sellerName,
-        sellerTaxNo: formModel.sellerTaxNo,
-        sellerAddressPhone: formModel.sellerAddressPhone,
-        sellerBankAccount: formModel.sellerBankAccount,
-        buyerName: formModel.buyerName,
-        buyerTaxNo: formModel.buyerTaxNo,
-        account: formModel.account,
-        certify: formModel.certify,
-        remark: formModel.remark,
-        bizType: d.bizType,
-        item: d.item,
-        qty: d.qty,
-        amount: d.amount,
-        taxRate: d.taxRate,
-        tax: d.tax,
-        total: d.total,
-      })
-    })
-
-    ElMessage.success(dialogMode.value === 'add' ? '已新增' : '已保存')
-    dialogVisible.value = false
   })
 }
 
 /* ============ 删除 ============ */
-function deleteRows(row?: InvoiceRecord) {
+async function deleteRows(row?: InvoiceRecord) {
   const ids = row ? new Set([row.id]) : selectedIds.value
   if (ids.size === 0) {
     ElMessage.warning('请先勾选要删除的发票')
     return
   }
-  ElMessageBox.confirm(`确定要删除选中的 ${ids.size} 条发票吗？`, '删除确认', {
+  const invoiceIds = new Set<number>()
+  rows.forEach((r) => {
+    if (ids.has(r.id)) invoiceIds.add(r.invoiceId)
+  })
+  ElMessageBox.confirm(`确定要删除选中的 ${invoiceIds.size} 张发票吗？`, '删除确认', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
   })
-    .then(() => {
-      for (let i = rows.length - 1; i >= 0; i--) {
-        if (ids.has(rows[i].id)) rows.splice(i, 1)
+    .then(async () => {
+      for (const iid of invoiceIds) {
+        try {
+          await invoiceApi.remove(iid)
+        } catch (e: any) {
+          ElMessage.error(`删除发票 ${iid} 失败：${e?.response?.data?.detail || '未知错误'}`)
+        }
       }
-      selectedIds.value.clear()
-      ElMessage.success(`已删除 ${ids.size} 条发票`)
+      await loadList()
+      ElMessage.success(`已删除 ${invoiceIds.size} 张发票`)
     })
     .catch(() => {})
 }
@@ -548,13 +589,34 @@ function aiMatch() {
 function smartFetch(cmd: string) {
   ElMessage.info(`智能取票：${cmd}`)
 }
-function generateVoucher() {
-  if (selectedIds.value.size === 0) {
+
+async function generateVoucher(_cmd: string) {
+  const selectedInvoiceIds = new Set<number>()
+  rows.forEach((r) => {
+    if (selectedIds.value.has(r.id)) selectedInvoiceIds.add(r.invoiceId)
+  })
+  if (selectedInvoiceIds.size === 0) {
     ElMessage.warning('请先勾选要生成凭证的发票')
     return
   }
-  ElMessage.success(`已为 ${selectedIds.value.size} 条发票生成凭证`)
+  try {
+    const res = await invoiceApi.voucherDraft(Array.from(selectedInvoiceIds))
+    const entries = res.data.entries
+    const totalDebit = entries.reduce((s, e) => s + e.debit, 0)
+    const totalCredit = entries.reduce((s, e) => s + e.credit, 0)
+    const rowsText = entries
+      .map((e) => `借 ${e.debit.toFixed(2)}  贷 ${e.credit.toFixed(2)}  ${e.account}`)
+      .join('\n')
+    ElMessageBox.alert(
+      `凭证分录（${res.data.invoice_count} 张发票）：\n\n${rowsText}\n\n合计：借 ${totalDebit.toFixed(2)} / 贷 ${totalCredit.toFixed(2)}`,
+      '凭证草稿',
+      { confirmButtonText: '知道了' },
+    )
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '生成凭证草稿失败')
+  }
 }
+
 function adjustAccount() {
   if (selectedIds.value.size === 0) {
     ElMessage.warning('请先勾选要调整科目的发票')
@@ -562,11 +624,14 @@ function adjustAccount() {
   }
   ElMessage.info('调整科目功能开发中')
 }
-function handleRefresh() {
+
+async function handleRefresh() {
   keyword.value = ''
   selectedIds.value.clear()
+  await loadList()
   ElMessage.success('已刷新')
 }
+
 function showHelp() {
   ElMessageBox.alert(
     '进项发票用于管理企业收到的增值税专用发票/普通发票：\n\n' +
@@ -579,6 +644,18 @@ function showHelp() {
     '进项发票说明',
     { confirmButtonText: '知道了' },
   )
+}
+
+/* ============ 附件上传 ============ */
+async function handleAttachment(row: InvoiceRecord, file?: File) {
+  if (!file) return
+  try {
+    await invoiceApi.uploadAttachment(row.invoiceId, file)
+    ElMessage.success('附件已归档')
+    await loadList()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '附件上传失败')
+  }
 }
 </script>
 
@@ -594,6 +671,12 @@ function showHelp() {
           format="YYYY年MM期"
           value-format="YYYY-MM"
           class="period-picker"
+        />
+        <el-input
+          v-model="keyword"
+          placeholder="搜索销方/发票号/科目"
+          clearable
+          style="width: 200px"
         />
         <el-dropdown trigger="click" @command="(c: string) => ElMessage.info(`筛选：${c}`)">
           <el-button>
@@ -679,6 +762,7 @@ function showHelp() {
     <!-- 主表格 -->
     <div class="table-wrap">
       <el-table
+        v-loading="loading"
         :data="filteredRows"
         border
         stripe
@@ -719,10 +803,19 @@ function showHelp() {
           <template #default="{ row }">{{ row.total.toFixed(2) }}</template>
         </el-table-column>
 
-        <el-table-column label="操作" width="120" fixed="right" align="center">
+        <el-table-column label="操作" width="180" fixed="right" align="center">
           <template #default="{ row }">
             <el-button text type="primary" size="small" @click.stop="openEdit(row)">编辑</el-button>
             <el-button text type="danger" size="small" @click.stop="deleteRows(row)">删除</el-button>
+            <el-upload
+              action="#"
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="(f: any) => handleAttachment(row, f.raw)"
+              style="display: inline-block"
+            >
+              <el-button text type="success" size="small" @click.stop>归档</el-button>
+            </el-upload>
           </template>
         </el-table-column>
 
@@ -754,7 +847,7 @@ function showHelp() {
           <div class="form-row">
             <el-form-item prop="code" class="required">
               <template #label><span class="form-label">发票代码</span></template>
-              <el-input v-model="formModel.code" placeholder="10或12位发票代码" />
+              <el-input v-model="formModel.code" placeholder="10或12位发票代码（数电票可空）" />
             </el-form-item>
             <el-form-item prop="no" class="required">
               <template #label><span class="form-label">发票号码</span></template>
@@ -904,7 +997,7 @@ function showHelp() {
         <div class="upload-section">
           <el-upload action="#" :auto-upload="false" :show-file-list="false">
             <el-button text>
-              <el-icon><Upload /></el-icon>上传附件
+              <el-icon><Upload /></el-icon>上传附件（请在表格行操作「归档」上传）
             </el-button>
           </el-upload>
         </div>

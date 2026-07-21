@@ -8,9 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import contracts
 from app.api import dashboard
+from app.api import invoice
 from app.api import reimburse
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
+from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
 from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
 
 
@@ -38,6 +40,8 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(contracts.router, prefix="/api")
 # 注册报销管理路由（报销单 CRUD + 状态流转）
 app.include_router(reimburse.router, prefix="/api")
+# 注册发票管理路由（进项发票 CRUD + 关联报销单 + 归档 + 凭证草稿）
+app.include_router(invoice.router, prefix="/api")
 
 
 @app.get("/health")
