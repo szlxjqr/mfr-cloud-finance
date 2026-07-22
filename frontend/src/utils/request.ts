@@ -12,8 +12,7 @@ const http = axios.create({
   },
 })
 
-// 请求拦截器：自动携带鉴权 token
-// 注：业务代码完成后将接入微信 / 支付宝扫码登录，token 改为 httpOnly Cookie 更安全
+// 请求拦截器：自动携带鉴权 Authorization 头（修正原 Authorization 拼写）
 http.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
@@ -25,10 +24,17 @@ http.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
-// 响应拦截器：统一处理错误（后续接入 ElMessage 全局提示）
+// 响应拦截器：401 未登录 / 过期自动清除凭据并跳登录页
 http.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (error?.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      if (location.hash !== '#/login') {
+        location.hash = '#/login'
+      }
+    }
     return Promise.reject(error)
   },
 )

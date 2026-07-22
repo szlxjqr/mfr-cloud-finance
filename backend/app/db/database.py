@@ -50,6 +50,7 @@ def init_db() -> None:
     """
     # 导入模型以注册到 Base.metadata（create_all 才能建出对应表）
     from app.models import contract  # noqa: F401
+    from app.models import employee as _employee  # noqa: F401
     from app.models import invoice as _invoice  # noqa: F401
     from app.models import reimburse as _reimburse  # noqa: F401
     from app.models import purchase as _purchase  # noqa: F401
@@ -60,6 +61,7 @@ def init_db() -> None:
     _ensure_invoice_code_column(engine)
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
+    _seed_admin(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -122,3 +124,40 @@ def _ensure_purchase_columns(engine) -> None:
             conn.execute(text("UPDATE purchase_requisitions SET is_rd_project = '否' WHERE is_rd_project IS NULL"))
         if "rd_project_code" not in cols:
             conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN rd_project_code VARCHAR(100)"))
+
+
+def _seed_admin(engine) -> None:
+    """初始化管理员：固定员工编号 00000000 + 账号 admin（密码 admin123，role=admin）。
+
+    仅在 accounts 表为空时执行，避免重复写入覆盖线上数据。
+    账号 admin / 密码 admin123 仅为初始凭据，上线前应通过环境变量或后台修改。
+    """
+    from sqlalchemy import select, text
+
+    from app.models import employee as _models
+    from app.utils import security
+
+    with SessionLocal() as db:
+        exists = db.scalar(select(_models.Account).limit(1))
+        if exists:
+            return
+
+        # 管理员员工档案
+        admin_emp = _models.Employee(
+            employee_no="00000000",
+            name="管理员",
+            department="管理层",
+            position="系统管理员",
+            status="在职",
+        )
+        db.add(admin_emp)
+        db.flush()
+
+        admin_acc = _models.Account(
+            username="admin",
+            password_hash=security.hash_password("admin123"),
+            employee_no="00000000",
+            role="admin",
+        )
+        db.add(admin_acc)
+        db.commit()

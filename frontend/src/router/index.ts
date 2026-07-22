@@ -30,6 +30,12 @@ const router = createRouter({
   history: createWebHashHistory(),
   routes: [
     {
+      path: '/login',
+      name: 'Login',
+      component: () => import('@/views/login/Login.vue'),
+      meta: { title: '登录', public: true },
+    },
+    {
       path: '/',
       component: MainLayout,
       redirect: '/dashboard',
@@ -49,7 +55,7 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '人员管理', module: 'personnel' },
         },
-        { path: 'employee/management', name: 'EmployeeManagement', component: Placeholder, props: { title: '员工管理' }, meta: { title: '员工管理', group: '人员信息', module: 'personnel' } },
+        { path: 'employee/management', name: 'EmployeeManagement', component: () => import('@/views/employee/EmployeeManagement.vue'), meta: { title: '员工管理', group: '人员信息', module: 'personnel' } },
 
         /* ====== 合同管理模块 ====== */
         {
@@ -256,6 +262,17 @@ const router = createRouter({
       redirect: '/dashboard',
     },
   ],
+})
+
+// 路由守卫：未登录访问受保护页面 → 跳登录页（携带 redirect）
+router.beforeEach((to) => {
+  const token = localStorage.getItem('token')
+  if (!to.meta.public && !token) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+  if (to.path === '/login' && token) {
+    return { path: '/dashboard' }
+  }
 })
 
 export default router

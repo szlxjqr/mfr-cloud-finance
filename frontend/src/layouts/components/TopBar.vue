@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import {
   Search,
@@ -13,6 +15,10 @@ import {
 } from '@element-plus/icons-vue'
 
 const appStore = useAppStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const displayName = computed(() => authStore.user?.name || authStore.user?.username || '管理员')
 
 interface Company {
   value: string
@@ -34,16 +40,18 @@ type UserCommand = 'profile' | 'settings' | 'lock' | 'logout'
 function handleUserCommand(command: UserCommand) {
   switch (command) {
     case 'profile':
-      ElMessage.info('打开个人中心')
+      ElMessage.info('个人中心开发中')
       break
     case 'settings':
-      ElMessage.info('打开账号设置')
+      ElMessage.info('账号设置开发中')
       break
     case 'lock':
       ElMessage.info('已锁定屏幕')
       break
     case 'logout':
+      authStore.logout()
       ElMessage.success('已退出登录')
+      router.replace('/login')
       break
   }
 }
@@ -62,7 +70,7 @@ function handleUserCommand(command: UserCommand) {
       <el-dropdown
         class="company-switch"
         trigger="click"
-        @command="(val: string) => (currentCompany = companies.find((c) => c.value === val)?.label || val)"
+        @command="(val: string) => (currentCompany = companies.find((c: Company) => c.value === val)?.label || val)"
       >
         <span class="company-trigger">
           <span class="company-label">{{ currentCompany }}</span>
@@ -110,8 +118,8 @@ function handleUserCommand(command: UserCommand) {
       <!-- 用户头像 + 下拉菜单 -->
       <el-dropdown class="user-dropdown" trigger="click" @command="handleUserCommand">
         <span class="user-trigger">
-          <el-avatar :size="32" class="user-avatar">M</el-avatar>
-          <span class="user-name hide-md">管理员</span>
+          <el-avatar :size="32" class="user-avatar">{{ displayName.charAt(0) }}</el-avatar>
+          <span class="user-name hide-md">{{ displayName }}</span>
           <el-icon class="hide-md"><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
