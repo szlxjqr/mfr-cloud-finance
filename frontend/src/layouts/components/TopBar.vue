@@ -48,10 +48,6 @@ function handleUserCommand(command: UserCommand) {
   }
 }
 
-/** 进入进销存 */
-function goToErp() {
-  ElMessage.info('正在进入进销存系统…')
-}
 </script>
 
 <template>
@@ -100,14 +96,8 @@ function goToErp() {
 
     <!-- 右侧功能按钮组 -->
     <div class="top-right">
-      <el-button type="warning" round class="erp-btn" @click="goToErp">
-        进入进销存
-      </el-button>
-
       <el-link type="primary" class="nav-link" :underline="false">在线咨询</el-link>
       <el-link type="primary" class="nav-link" :underline="false">帮助中心</el-link>
-      <el-link type="primary" class="nav-link hide-md" :underline="false">员工管理</el-link>
-      <el-link type="primary" class="nav-link hide-md" :underline="false">企业管理</el-link>
 
       <el-tooltip content="AI 助理" placement="bottom">
         <el-tag type="primary" effect="light" round class="ai-tag">AI助理</el-tag>

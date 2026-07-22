@@ -52,11 +52,14 @@ def init_db() -> None:
     from app.models import contract  # noqa: F401
     from app.models import invoice as _invoice  # noqa: F401
     from app.models import reimburse as _reimburse  # noqa: F401
+    from app.models import purchase as _purchase  # noqa: F401
+    from app.models import travel as _travel  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
     _ensure_invoice_code_column(engine)
     _ensure_reimbursement_bills_columns(engine)
+    _ensure_purchase_columns(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -79,7 +82,11 @@ def _ensure_invoice_code_column(engine) -> None:
 
 
 def _ensure_reimbursement_bills_columns(engine) -> None:
-    """为已存在的 reimbursement_bills 表补加审批相关字段。"""
+    """为已存在的 reimbursement_bills 表补加审批相关字段与报销类型/差旅字段。
+
+    - bill_type：报销类型（采购报销 / 差旅报销），旧行回填 '采购报销'
+    - traveler / travel_destination / travel_start / travel_end：差旅报销专属字段
+    """
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)
@@ -89,3 +96,29 @@ def _ensure_reimbursement_bills_columns(engine) -> None:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN approver VARCHAR(100)"))
         if "approve_remark" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN approve_remark TEXT"))
+        # 报销类型与差旅专属字段
+        if "bill_type" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN bill_type VARCHAR(20)"))
+            conn.execute(text("UPDATE reimbursement_bills SET bill_type = '采购报销' WHERE bill_type IS NULL"))
+        if "traveler" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN traveler VARCHAR(100)"))
+        if "travel_destination" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_destination VARCHAR(200)"))
+        if "travel_start" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_start DATE"))
+        if "travel_end" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_end DATE"))
+
+
+def _ensure_purchase_columns(engine) -> None:
+    """为已存在的 purchase_requisitions 表补加「研发项目」相关字段。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("purchase_requisitions")]
+    with engine.begin() as conn:
+        if "is_rd_project" not in cols:
+            conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN is_rd_project VARCHAR(10)"))
+            conn.execute(text("UPDATE purchase_requisitions SET is_rd_project = '否' WHERE is_rd_project IS NULL"))
+        if "rd_project_code" not in cols:
+            conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN rd_project_code VARCHAR(100)"))

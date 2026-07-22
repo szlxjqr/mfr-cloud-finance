@@ -110,6 +110,27 @@ const router = createRouter({
         { path: 'tax/stamp', name: 'TaxStamp', component: Placeholder, props: { title: '印花税' }, meta: { title: '印花税', group: '印花税' } },
         { path: 'tax/summary', name: 'TaxSummary', component: Placeholder, props: { title: '发票税务汇总' }, meta: { title: '税务汇总', group: '发票税务汇总' } },
 
+        /* ====== 采购管理模块 ====== */
+        {
+          path: 'purchase',
+          name: 'PurchaseOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '采购管理', module: 'purchase' },
+        },
+        { path: 'purchase/apply', name: 'PurchaseApply', component: () => import('@/views/purchase/PurchaseApply.vue'), meta: { title: '采购申请', group: '采购' } },
+        { path: 'purchase/approve', name: 'PurchaseApprove', component: () => import('@/views/purchase/PurchaseApprove.vue'), meta: { title: '采购审批', group: '采购' } },
+        { path: 'purchase/mine', name: 'PurchaseMine', component: () => import('@/views/purchase/MyPurchase.vue'), meta: { title: '我的采购', group: '采购' } },
+
+        /* ====== 差旅管理模块 ====== */
+        {
+          path: 'travel',
+          name: 'TravelOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '差旅管理', module: 'travel' },
+        },
+        { path: 'travel/apply', name: 'TravelApply', component: () => import('@/views/travel/TravelApply.vue'), meta: { title: '差旅申请', group: '差旅' } },
+        { path: 'travel/approve', name: 'TravelApprove', component: () => import('@/views/travel/TravelApprove.vue'), meta: { title: '差旅审批', group: '差旅' } },
+
         /* ====== 报销管理模块 ====== */
         {
           path: 'reimburse',
@@ -188,6 +209,8 @@ const router = createRouter({
         { path: 'reports/income-statement-quarterly', name: 'IncomeStatementQuarterly', component: Placeholder, props: { title: '利润表季报' }, meta: { title: '利润表季报', group: '报表', module: 'accounting' } },
         { path: 'reports/cash-flow', name: 'CashFlowStatement', component: Placeholder, props: { title: '现金流量表' }, meta: { title: '现金流量表', group: '报表', module: 'accounting' } },
         { path: 'reports/cash-flow-quarterly', name: 'CashFlowStatementQuarterly', component: Placeholder, props: { title: '现金流量表季报' }, meta: { title: '现金流量表季报', group: '报表', module: 'accounting' } },
+        // --- 员工管理 ---
+        { path: 'employee/management', name: 'EmployeeManagement', component: Placeholder, props: { title: '员工管理' }, meta: { title: '员工管理', group: '员工管理', module: 'accounting' } },
 
         /* ====== 设置模块 ====== */
         {

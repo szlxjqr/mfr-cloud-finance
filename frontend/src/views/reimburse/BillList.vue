@@ -12,6 +12,13 @@
       <el-table-column prop="bill_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
+      <el-table-column label="类型" width="110">
+        <template #default="{ row }">
+          <el-tag :type="(row.bill_type || '采购报销') === '差旅报销' ? 'warning' : 'info'" size="small">
+            {{ row.bill_type || '采购报销' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="发票" width="150" align="center">
         <template #default="{ row }">
           <span v-if="summaryMap[row.id]?.invoice_count">
@@ -54,14 +61,42 @@
         <el-form-item label="报销单编号">
           <el-input :model-value="form.bill_no || previewBillNo || '保存后自动生成'" disabled />
         </el-form-item>
+        <el-form-item label="报销类型" required>
+          <el-radio-group v-model="form.bill_type">
+            <el-radio label="采购报销">采购报销</el-radio>
+            <el-radio label="差旅报销">差旅报销</el-radio>
+          </el-radio-group>
+        </el-form-item>
         <el-form-item label="申请人">
           <el-input v-model="form.applicant" placeholder="必填" />
         </el-form-item>
         <el-form-item label="部门">
           <el-input v-model="form.department" />
         </el-form-item>
+
+        <!-- 差旅报销专属字段 -->
+        <template v-if="form.bill_type === '差旅报销'">
+          <el-form-item label="出差人">
+            <el-input v-model="form.traveler" placeholder="出差人员姓名" />
+          </el-form-item>
+          <el-form-item label="出差地点">
+            <el-input v-model="form.travel_destination" placeholder="如：赣州、南昌" />
+          </el-form-item>
+          <el-form-item label="出差起止">
+            <el-date-picker
+              v-model="travelRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="出发日期"
+              end-placeholder="返回日期"
+              value-format="YYYY-MM-DD"
+              style="width: 100%"
+            />
+          </el-form-item>
+        </template>
+
         <el-form-item label="金额">
-          <el-input v-model.number="form.amount" type="number" placeholder="0.00" />
+          <el-input v-model.number="form.amount" type="number" placeholder="0.00（保存发票后自动汇总）" />
         </el-form-item>
         <el-form-item label="事由">
           <el-input v-model="form.reason" type="textarea" :rows="2" />
@@ -351,7 +386,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, nextTick } from 'vue'
+import { onMounted, reactive, ref, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Picture, Document, Close, Refresh } from '@element-plus/icons-vue'
 import { reimburseApi } from '@/api/reimburse'
@@ -405,8 +440,22 @@ const emptyForm = () => ({
   amount: null as number | null,
   reason: '',
   remark: '',
+  bill_type: '采购报销' as string,
+  traveler: '' as string,
+  travel_destination: '' as string,
+  travel_start: null as string | null,
+  travel_end: null as string | null,
 })
 const form = reactive(emptyForm())
+
+// 出差起止日期区间：与 form.travel_start / travel_end 双向联动
+const travelRange = computed<string[]>({
+  get: () => [form.travel_start || '', form.travel_end || ''],
+  set: (v) => {
+    form.travel_start = v?.[0] || null
+    form.travel_end = v?.[1] || null
+  },
+})
 
 // 每个报销单的发票汇总（金额/张数）
 interface InvoiceSummary {

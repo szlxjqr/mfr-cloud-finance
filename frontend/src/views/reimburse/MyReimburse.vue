@@ -13,6 +13,13 @@
       <el-table-column prop="bill_no" label="报销单号" width="160" />
       <el-table-column prop="applicant" label="报销人" width="100" />
       <el-table-column prop="department" label="部门" width="120" show-overflow-tooltip />
+      <el-table-column label="类型" width="110">
+        <template #default="{ row }">
+          <el-tag :type="(row.bill_type || '采购报销') === '差旅报销' ? 'warning' : 'info'" size="small">
+            {{ row.bill_type || '采购报销' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column label="发票" width="150" align="center">
         <template #default="{ row }">
           <span v-if="row.invoices?.length">
@@ -42,9 +49,10 @@
       </el-table-column>
     </el-table>
 
-    <!-- 报销单详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="物品报销单" width="900px" :close-on-click-modal="false" class="detail-dialog">
-      <BillDetail v-if="currentBill" :bill="currentBill" />
+    <!-- 报销单详情弹窗：按报销类型渲染物品报销单 / 差旅报销单 -->
+    <el-dialog v-model="detailVisible" :title="detailTitle" width="950px" :close-on-click-modal="false" class="detail-dialog">
+      <BillDetail v-if="currentBill && billType(currentBill) === '采购报销'" :bill="currentBill" />
+      <TravelBillDetail v-else-if="currentBill" :bill="currentBill" />
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
@@ -56,11 +64,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { reimburseApi } from '@/api/reimburse'
 import type { ReimbursementBill } from '@/types/reimburse'
 import BillDetail from './BillDetail.vue'
+import TravelBillDetail from './TravelBillDetail.vue'
 
 const loading = ref(false)
 const list = ref<ReimbursementBill[]>([])
@@ -68,6 +77,11 @@ const applicant = ref('沈雷')
 const statusFilter = ref('')
 const detailVisible = ref(false)
 const currentBill = ref<ReimbursementBill | null>(null)
+
+const billType = (b: ReimbursementBill) => b.bill_type || '采购报销'
+const detailTitle = computed(() =>
+  (currentBill.value?.bill_type || '采购报销') === '差旅报销' ? '差旅报销单' : '物品报销单'
+)
 
 const statusOptions = ['待审批', '已通过', '已驳回', '已支付']
 
@@ -151,14 +165,14 @@ function printDetail() {
       -webkit-print-color-adjust: exact;
     }
     .form-title, .section-title { break-after: avoid; page-break-after: avoid; }
-    .info-table, .sign-table { break-inside: avoid; page-break-inside: avoid; }
+    .info-table, .sign-table, .detail-table { break-inside: avoid; page-break-inside: avoid; }
     .invoice-cards { break-inside: auto; }
     .invoice-box { break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; }
   `
 
   win.document.open()
   win.document.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">')
-  win.document.write('<title>采购报销单</title>')
+  win.document.write(`<title>${detailTitle.value}</title>`)
   linkHrefs.forEach((h) => win.document.write(`<link rel="stylesheet" href="${h}">`))
   styleTexts.forEach((css) => win.document.write(`<style>${css}</style>`))
   win.document.write(`<style>${printCss}</style>`)

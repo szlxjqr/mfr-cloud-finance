@@ -111,3 +111,35 @@ def gen_bill_no(db: Session, year: Optional[int] = None) -> str:
     _ensure_counter(db, key, seed=int(mx or 0))
     seq = _alloc_seq(db, key)
     return f"BXGL{y}{seq:04d}"
+
+
+def _seed_from_req_no(db: Session, table: str, prefix: str, year: int) -> int:
+    """从已有 {prefix}{year} 单号里取末尾 4 位最大序号作为 seed（防碰撞）。"""
+    mx = db.execute(
+        text(
+            "SELECT COALESCE(MAX(CAST(SUBSTR(req_no, -4) AS INTEGER)), 0) "
+            f"FROM {table} WHERE req_no LIKE :p"
+        ),
+        {"p": f"{prefix}{year}%"},
+    ).fetchone()[0]
+    return int(mx or 0)
+
+
+def gen_purchase_no(db: Session, year: Optional[int] = None) -> str:
+    """生成采购申请单号：CG + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"PUR|{y}"
+    seed = _seed_from_req_no(db, "purchase_requisitions", "CG", y)
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"CG{y}{seq:04d}"
+
+
+def gen_travel_no(db: Session, year: Optional[int] = None) -> str:
+    """生成差旅申请单号：CL + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"TRV|{y}"
+    seed = _seed_from_req_no(db, "travel_requisitions", "CL", y)
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"CL{y}{seq:04d}"

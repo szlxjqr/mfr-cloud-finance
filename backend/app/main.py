@@ -10,10 +10,14 @@ from app.api import contracts
 from app.api import dashboard
 from app.api import invoice
 from app.api import reimburse
+from app.api import purchase
+from app.api import travel
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
 from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
+from app.models import purchase as purchase_model  # noqa: F401 注册采购申请模型
+from app.models import travel as travel_model  # noqa: F401 注册差旅申请模型
 from app.models import code_counter as code_counter_model  # noqa: F401 注册编码计数器模型
 
 
@@ -41,6 +45,10 @@ app.include_router(dashboard.router, prefix="/api")
 app.include_router(contracts.router, prefix="/api")
 # 注册报销管理路由（报销单 CRUD + 状态流转）
 app.include_router(reimburse.router, prefix="/api")
+# 注册采购管理路由（采购申请单 CRUD + 状态流转）
+app.include_router(purchase.router, prefix="/api")
+# 注册差旅管理路由（差旅申请单 CRUD + 状态流转）
+app.include_router(travel.router, prefix="/api")
 # 注册发票管理路由（进项发票 CRUD + 关联报销单 + 归档 + 凭证草稿）
 app.include_router(invoice.router, prefix="/api")
 

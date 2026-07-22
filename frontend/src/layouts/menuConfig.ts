@@ -104,6 +104,41 @@ export const menuItems: MenuItem[] = [
   },
 
   {
+    title: '采购管理',
+    icon: 'ShoppingCart',
+    module: 'purchase',
+    groups: [
+      {
+        title: '采购',
+        icon: 'ShoppingCart',
+        color: '#E6A23C',
+        children: [
+          { title: '采购申请', path: '/purchase/apply' },
+          { title: '采购审批', path: '/purchase/approve' },
+          { title: '我的采购', path: '/purchase/mine' },
+        ],
+      },
+    ],
+  },
+
+  {
+    title: '差旅管理',
+    icon: 'Promotion',
+    module: 'travel',
+    groups: [
+      {
+        title: '差旅',
+        icon: 'Promotion',
+        color: '#409EFF',
+        children: [
+          { title: '差旅申请', path: '/travel/apply' },
+          { title: '差旅审批', path: '/travel/approve' },
+        ],
+      },
+    ],
+  },
+
+  {
     title: '报销管理',
     icon: 'Tickets',
     module: 'reimburse',
@@ -244,6 +279,12 @@ export const menuItems: MenuItem[] = [
           { title: '现金流量表', path: '/reports/cash-flow' },
           { title: '现金流量表季报', path: '/reports/cash-flow-quarterly' },
         ],
+      },
+      {
+        title: '员工管理',
+        icon: 'User',
+        color: '#409EFF',
+        children: [{ title: '员工管理', path: '/employee/management' }],
       },
     ],
   },

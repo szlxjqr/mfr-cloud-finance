@@ -29,6 +29,15 @@ class ReimbursementBill(Base):
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 附件路径
     remark: Mapped[Optional[str]] = mapped_column(Text)  # 备注
 
+    # 报销类型与差旅专属字段：采购报销无需填写差旅字段，差旅报销填写出差人/地点/起止
+    bill_type: Mapped[str] = mapped_column(
+        String(20), default="采购报销"
+    )  # 报销类型：采购报销 / 差旅报销
+    traveler: Mapped[Optional[str]] = mapped_column(String(100))  # 出差人
+    travel_destination: Mapped[Optional[str]] = mapped_column(String(200))  # 出差地点
+    travel_start: Mapped[Optional[date]] = mapped_column(Date)  # 出差起始日期
+    travel_end: Mapped[Optional[date]] = mapped_column(Date)  # 出差结束日期
+
     invoices: Mapped[List["Invoice"]] = relationship(
         "Invoice",
         back_populates="bill",

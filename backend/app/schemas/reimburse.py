@@ -21,6 +21,11 @@ class ReimbursementBillBase(BaseModel):
     approve_remark: Optional[str] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
+    bill_type: str = "采购报销"
+    traveler: Optional[str] = None
+    travel_destination: Optional[str] = None
+    travel_start: Optional[date] = None
+    travel_end: Optional[date] = None
 
 
 class ReimbursementBillCreate(ReimbursementBillBase):
@@ -40,6 +45,11 @@ class ReimbursementBillUpdate(BaseModel):
     approve_remark: Optional[str] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
+    bill_type: Optional[str] = None
+    traveler: Optional[str] = None
+    travel_destination: Optional[str] = None
+    travel_start: Optional[date] = None
+    travel_end: Optional[date] = None
 
 
 class ReimbursementBillRead(ReimbursementBillBase):
