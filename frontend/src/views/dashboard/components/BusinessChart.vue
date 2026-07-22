@@ -61,7 +61,6 @@ const option = computed<EChartsOption>(() => ({
   yAxis: {
     type: 'value',
     min: 0,
-    max: 700,
     axisLabel: { color: '#909399' },
     splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } },
   },

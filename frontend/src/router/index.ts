@@ -232,7 +232,7 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '综合报表', module: 'comprehensive' },
         },
-        { path: 'comprehensive/dashboard', name: 'ComprehensiveDashboard', component: Placeholder, props: { title: '综合报表看板' }, meta: { title: '综合报表看板', group: '综合报表', module: 'comprehensive' } },
+        { path: 'comprehensive/dashboard', name: 'ComprehensiveDashboard', component: () => import('@/views/comprehensive/ComprehensiveDashboard.vue'), meta: { title: '综合报表看板', group: '综合报表', module: 'comprehensive' } },
 
         /* ====== 系统设置模块 ====== */
         {

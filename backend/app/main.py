@@ -18,6 +18,7 @@ from app.api import subjects
 from app.api import vouchers
 from app.api import ledger
 from app.api import tax
+from app.api import comprehensive
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import employee as employee_model  # noqa: F401 注册员工/账号模型
@@ -71,6 +72,8 @@ app.include_router(vouchers.router, prefix="/api")
 app.include_router(ledger.router, prefix="/api")
 # 注册税务取数路由（从凭证实时汇总进项/销项/应交增值税）
 app.include_router(tax.router, prefix="/api")
+# 注册综合报表路由（跨模块实时聚合看板）
+app.include_router(comprehensive.router, prefix="/api")
 
 
 @app.get("/health")
