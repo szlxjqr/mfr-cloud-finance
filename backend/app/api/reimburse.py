@@ -11,6 +11,7 @@ from app.models import invoice as im
 from app.models import reimburse as m
 from app.schemas import reimburse as s
 from app.utils.codegen import gen_bill_no
+from app.services import voucher_service  # 联动：审批通过 → 自动生成凭证
 
 router = APIRouter(prefix="/reimbursements", tags=["reimbursements"])
 
@@ -131,6 +132,8 @@ def approve_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    # 联动：报销单审批通过 → 自动生成记账凭证（幂等，已生成则跳过）
+    voucher_service.generate_from_reimbursement(db, obj, maker=obj.approver)
     db.commit()
     db.refresh(obj)
     return obj

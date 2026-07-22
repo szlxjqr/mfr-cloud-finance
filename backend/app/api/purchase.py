@@ -10,6 +10,7 @@ from app.db import get_db
 from app.models import purchase as m
 from app.schemas import purchase as s
 from app.utils.codegen import gen_purchase_no
+from app.services import voucher_service  # 联动：审批通过 → 自动确认应付凭证
 
 
 def _build_items(db: Session, req: "m.PurchaseRequisition", items: list[s.PurchaseItemCreate]) -> None:
@@ -135,6 +136,8 @@ def approve_req(rid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    # 联动：采购申请审批通过 → 自动生成「确认应付」凭证（幂等，已生成则跳过）
+    voucher_service.generate_from_purchase(db, obj, maker=obj.approver)
     db.commit()
     db.refresh(obj)
     return obj

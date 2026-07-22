@@ -55,6 +55,8 @@ def init_db() -> None:
     from app.models import reimburse as _reimburse  # noqa: F401
     from app.models import purchase as _purchase  # noqa: F401
     from app.models import travel as _travel  # noqa: F401
+    from app.models import subject as _subject  # noqa: F401
+    from app.models import voucher as _voucher  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
@@ -62,6 +64,7 @@ def init_db() -> None:
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
     _seed_admin(engine)
+    _seed_subjects(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -160,4 +163,68 @@ def _seed_admin(engine) -> None:
             role="admin",
         )
         db.add(admin_acc)
+        db.commit()
+
+
+# 标准会计科目（小企业会计准则风格）。code 即层级表达；direction 为正常余额方向。
+# voucher_service 的科目映射全部引用这里的 code，新增/调整科目在此维护。
+_SUBJECT_SEED: list[dict] = [
+    # ── 资产类（借）──
+    {"code": "1001", "name": "库存现金", "category": "资产", "direction": "借"},
+    {"code": "1002", "name": "银行存款", "category": "资产", "direction": "借"},
+    {"code": "1122", "name": "应收账款", "category": "资产", "direction": "借"},
+    {"code": "1123", "name": "预付账款", "category": "资产", "direction": "借"},
+    {"code": "1403", "name": "原材料", "category": "资产", "direction": "借"},
+    {"code": "1405", "name": "库存商品", "category": "资产", "direction": "借"},
+    {"code": "1601", "name": "固定资产", "category": "资产", "direction": "借"},
+    # ── 负债类（贷）──
+    {"code": "2202", "name": "应付账款", "category": "负债", "direction": "贷"},
+    {"code": "2211", "name": "应付职工薪酬", "category": "负债", "direction": "贷"},
+    {"code": "2221", "name": "应交税费", "category": "负债", "direction": "贷", "level": 1},
+    {"code": "2221.01", "name": "应交增值税", "category": "负债", "direction": "贷", "level": 2, "parent_code": "2221"},
+    {"code": "2221.01.01", "name": "进项税额", "category": "负债", "direction": "贷", "level": 3, "parent_code": "2221.01"},
+    {"code": "2221.01.02", "name": "销项税额", "category": "负债", "direction": "贷", "level": 3, "parent_code": "2221.01"},
+    {"code": "2241", "name": "其他应付款", "category": "负债", "direction": "贷"},
+    # ── 权益类（贷）──
+    {"code": "3001", "name": "实收资本", "category": "权益", "direction": "贷"},
+    {"code": "3103", "name": "本年利润", "category": "权益", "direction": "贷"},
+    {"code": "3104", "name": "利润分配", "category": "权益", "direction": "贷"},
+    # ── 成本类（借）──
+    {"code": "4001", "name": "生产成本", "category": "成本", "direction": "借"},
+    {"code": "4101", "name": "制造费用", "category": "成本", "direction": "借"},
+    {"code": "4301", "name": "研发支出", "category": "成本", "direction": "借"},
+    # ── 损益类 ──
+    {"code": "5001", "name": "主营业务收入", "category": "损益", "direction": "贷"},
+    {"code": "5051", "name": "其他业务收入", "category": "损益", "direction": "贷"},
+    {"code": "5401", "name": "主营业务成本", "category": "损益", "direction": "借"},
+    {"code": "5601", "name": "销售费用", "category": "损益", "direction": "借"},
+    {"code": "5602", "name": "管理费用", "category": "损益", "direction": "借"},
+    {"code": "5603", "name": "财务费用", "category": "损益", "direction": "借"},
+    {"code": "5801", "name": "所得税费用", "category": "损益", "direction": "借"},
+]
+
+
+def _seed_subjects(engine) -> None:
+    """初始化标准会计科目：account_subjects 为空时写入（不清空已有数据）。"""
+    from sqlalchemy import select, text
+
+    from app.models import subject as _models
+
+    with SessionLocal() as db:
+        exists = db.scalar(select(_models.AccountSubject).limit(1))
+        if exists:
+            return
+        for item in _SUBJECT_SEED:
+            db.add(
+                _models.AccountSubject(
+                    code=item["code"],
+                    name=item["name"],
+                    category=item["category"],
+                    direction=item["direction"],
+                    level=item.get("level", 1),
+                    parent_code=item.get("parent_code"),
+                    is_leaf=item.get("is_leaf", True),
+                    status=item.get("status", "启用"),
+                )
+            )
         db.commit()

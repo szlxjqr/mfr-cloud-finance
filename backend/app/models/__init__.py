@@ -9,6 +9,8 @@ from app.models.contract import (
 from app.models.employee import Account, Employee
 from app.models.invoice import Invoice, InvoiceDetail
 from app.models.reimburse import ReimbursementBill
+from app.models.subject import AccountSubject
+from app.models.voucher import Voucher, VoucherEntry
 
 __all__ = [
     "Parties",
@@ -21,4 +23,7 @@ __all__ = [
     "ReimbursementBill",
     "Invoice",
     "InvoiceDetail",
+    "AccountSubject",
+    "Voucher",
+    "VoucherEntry",
 ]

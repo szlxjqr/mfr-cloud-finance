@@ -14,6 +14,8 @@ from app.api import purchase
 from app.api import travel
 from app.api import auth
 from app.api import employees
+from app.api import subjects
+from app.api import vouchers
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import employee as employee_model  # noqa: F401 注册员工/账号模型
@@ -21,6 +23,8 @@ from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
 from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
 from app.models import purchase as purchase_model  # noqa: F401 注册采购申请模型
 from app.models import travel as travel_model  # noqa: F401 注册差旅申请模型
+from app.models import subject as subject_model  # noqa: F401 注册会计科目模型
+from app.models import voucher as voucher_model  # noqa: F401 注册凭证模型
 from app.models import code_counter as code_counter_model  # noqa: F401 注册编码计数器模型
 
 
@@ -58,6 +62,9 @@ app.include_router(invoice.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 # 注册人员管理路由（员工档案 CRUD + 自动建账号）
 app.include_router(employees.router, prefix="/api")
+# 注册会计核算路由（科目 / 凭证 / 余额汇总 / 一键联动）
+app.include_router(subjects.router, prefix="/api")
+app.include_router(vouchers.router, prefix="/api")
 
 
 @app.get("/health")

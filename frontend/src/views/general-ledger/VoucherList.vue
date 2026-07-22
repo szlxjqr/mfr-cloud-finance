@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { listVouchers, syncVouchers } from '@/api/ledger'
+import type { Voucher } from '@/types/ledger'
 
 const router = useRouter()
 
@@ -57,61 +59,52 @@ const selectedIds = ref<string[]>([])
 /** 加载状态 */
 const loading = ref(false)
 
-/** Mock 数据 — 凭证列表 */
-const vouchers = ref<VoucherItem[]>([
-  {
-    id: 'V-2026-05-001', word: '记', number: 1, date: '2026-05-03',
-    period: '2026年05期', attachmentCount: 2,
-    status: 'audited', creator: '张会计', auditor: '李主管', remark: '',
-    expanded: false, totalDebit: 50000, totalCredit: 50000,
-    lines: [
-      { summary: '收到客户A货款', accountName: '银行存款', accountCode: '1002', debitAmount: 50000, creditAmount: 0 },
-      { summary: '收到客户A货款', accountName: '应收账款—客户A', accountCode: '112201', debitAmount: 0, creditAmount: 50000 },
-    ],
-  },
-  {
-    id: 'V-2026-05-002', word: '记', number: 2, date: '2026-05-06',
-    period: '2026年05期', attachmentCount: 1,
-    status: 'audited', creator: '张会计', auditor: '李主管', remark: '',
-    expanded: false, totalDebit: 15000, totalCredit: 15000,
-    lines: [
-      { summary: '采购办公用品', accountName: '管理费用—办公费', accountCode: '660203', debitAmount: 3000, creditAmount: 0 },
-      { summary: '采购办公用品', accountName: '库存现金', accountCode: '1001', debitAmount: 12000, creditAmount: 0 },
-      { summary: '采购办公用品', accountName: '应付账款—供应商B', accountCode: '220201', debitAmount: 0, creditAmount: 15000 },
-    ],
-  },
-  {
-    id: 'V-2026-05-003', word: '付', number: 3, date: '2026-05-10',
-    period: '2026年05期', attachmentCount: 3,
-    status: 'draft', creator: '张会计', auditor: '', remark: '',
-    expanded: false, totalDebit: 8000, totalCredit: 8000,
-    lines: [
-      { summary: '支付房租', accountName: '管理费用—租赁费', accountCode: '660204', debitAmount: 8000, creditAmount: 0 },
-      { summary: '支付房租', accountName: '银行存款', accountCode: '1002', debitAmount: 0, creditAmount: 8000 },
-    ],
-  },
-  {
-    id: 'V-2026-05-004', word: '收', number: 4, date: '2026-05-15',
-    period: '2026年05期', attachmentCount: 1,
-    status: 'draft', creator: '王出纳', auditor: '', remark: '预收款',
-    expanded: false, totalDebit: 20000, totalCredit: 20000,
-    lines: [
-      { summary: '收到预付款', accountName: '银行存款', accountCode: '1002', debitAmount: 20000, creditAmount: 0 },
-      { summary: '收到预付款', accountName: '合同负债—预收账款', accountCode: '224101', debitAmount: 0, creditAmount: 20000 },
-    ],
-  },
-  {
-    id: 'V-2026-05-005', word: '记', number: 5, date: '2026-05-20',
-    period: '2026年05期', attachmentCount: 4,
-    status: 'draft', creator: '张会计', auditor: '', remark: '',
-    expanded: false, totalDebit: 358000, totalCredit: 358000,
-    lines: [
-      { summary: '销售产品一批', accountName: '应收账款—客户C', accountCode: '112202', debitAmount: 358000, creditAmount: 0 },
-      { summary: '销售产品一批', accountName: '主营业务收入', accountCode: '600101', debitAmount: 0, creditAmount: 310000 },
-      { summary: '销售产品一批', accountName: '应交税费—增值税(销)', accountCode: '22210101', debitAmount: 0, creditAmount: 48000 },
-    ],
-  },
-])
+/** 凭证列表（来自后端，业务单审批通过自动生成） */
+const vouchers = ref<VoucherItem[]>([])
+
+/** 后端 Voucher → 前端 VoucherItem 映射 */
+function toItem(v: Voucher): VoucherItem {
+  const lines = (v.entries || []).map(e => ({
+    summary: e.summary || '',
+    accountName: e.subject_name,
+    accountCode: e.subject_code,
+    debitAmount: e.direction === '借' ? e.amount : 0,
+    creditAmount: e.direction === '贷' ? e.amount : 0,
+  }))
+  const totalDebit = lines.reduce((s, l) => s + l.debitAmount, 0)
+  const totalCredit = lines.reduce((s, l) => s + l.creditAmount, 0)
+  const statusMap: Record<string, 'draft' | 'audited' | 'posted'> = {
+    '未审核': 'draft', '已审核': 'audited', '已记账': 'posted',
+  }
+  return {
+    id: String(v.id),
+    word: v.voucher_word,
+    number: v.seq,
+    date: v.date,
+    period: v.period,
+    attachmentCount: v.attach_count,
+    status: statusMap[v.status] || 'draft',
+    creator: v.maker || '',
+    auditor: '',
+    remark: v.summary || '',
+    expanded: false,
+    totalDebit,
+    totalCredit,
+    lines,
+  }
+}
+
+async function loadData() {
+  loading.value = true
+  try {
+    const res = await listVouchers()
+    vouchers.value = res.data.map(toItem)
+  } catch (e) {
+    ElMessage.error('加载凭证失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 /* ==================== 计算属性 ==================== */
 
@@ -141,8 +134,20 @@ function handleSearch() {
 
 /** 刷新 */
 function handleRefresh() {
-  loading.value = true
-  setTimeout(() => { loading.value = false; ElMessage.success('数据已刷新') }, 500)
+  loadData()
+}
+
+/** 一键联动：把「已通过」的报销单/采购申请补生成凭证 */
+async function handleSync() {
+  try {
+    const r = await syncVouchers()
+    const res = r.data
+    ElMessage.success(`联动生成凭证 ${res.generated} 张，跳过 ${res.skipped} 张`)
+    if (res.detail.length) console.log('[凭证联动]', res.detail)
+    await loadData()
+  } catch (e) {
+    ElMessage.error('联动生成失败')
+  }
 }
 
 /** 审核 */
@@ -195,7 +200,7 @@ function handleImport(type?: string) {
 }
 
 onMounted(() => {
-  // 默认加载第一页数据
+  loadData()
 })
 </script>
 
@@ -258,6 +263,7 @@ onMounted(() => {
         <el-checkbox v-model="showDetailLines">展开分录</el-checkbox>
         <el-checkbox v-model="noPagination">取消分页</el-checkbox>
 
+        <el-button type="success" @click="handleSync" title="把已通过的报销单/采购单补生成凭证">一键联动生成</el-button>
         <el-button type="primary" @click="goNew">新增</el-button>
 
         <el-dropdown trigger="click" @command="handleImport">

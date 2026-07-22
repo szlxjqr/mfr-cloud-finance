@@ -143,3 +143,19 @@ def gen_travel_no(db: Session, year: Optional[int] = None) -> str:
     _ensure_counter(db, key, seed=seed)
     seq = _alloc_seq(db, key)
     return f"CL{y}{seq:04d}"
+
+
+def gen_voucher_no(db: Session, year: Optional[int] = None, month: Optional[int] = None) -> "tuple[str, int]":
+    """生成记账凭证号：记-YYYY-MM-NNNN（返回 (凭证号, 序号)）。
+
+    按月计序、并发安全（复用乐观锁分配器）。凭证字固定「记」。
+    """
+    from datetime import date as _date
+
+    now = _date.today()
+    y = year or now.year
+    m = month or now.month
+    key = f"VCH|{y}{m:02d}"
+    _ensure_counter(db, key, seed=0)
+    seq = _alloc_seq(db, key)
+    return (f"记-{y}-{m:02d}-{seq:04d}", seq)
