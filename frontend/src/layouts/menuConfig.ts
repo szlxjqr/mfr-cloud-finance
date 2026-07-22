@@ -133,6 +133,7 @@ export const menuItems: MenuItem[] = [
         children: [
           { title: '差旅申请', path: '/travel/apply' },
           { title: '差旅审批', path: '/travel/approve' },
+          { title: '我的差旅', path: '/travel/mine' },
         ],
       },
     ],
