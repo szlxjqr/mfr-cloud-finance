@@ -16,6 +16,11 @@ export function listEmployees(params?: { keyword?: string; status?: string }) {
   return http.get<Employee[]>('/employees', { params })
 }
 
+/** 预览姓名对应的登录账号（新增时实时带出） */
+export function previewUsername(name: string) {
+  return http.get<{ username: string }>('/employees/username-preview', { params: { name } })
+}
+
 /** 新增员工（后端自动按姓名全拼创建账号） */
 export function createEmployee(data: Partial<Employee>) {
   return http.post<Employee>('/employees', data)

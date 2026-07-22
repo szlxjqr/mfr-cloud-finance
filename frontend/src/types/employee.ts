@@ -5,10 +5,14 @@ export interface Employee {
   name: string
   department?: string | null
   position?: string | null
+  id_card?: string | null
+  gender?: string | null
+  birthday?: string | null
   phone?: string | null
   email?: string | null
   status: string
   hire_date?: string | null
+  role?: string  // admin / gm / employee
   created_at?: string | null
   username?: string | null
 }

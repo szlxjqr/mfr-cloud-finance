@@ -10,6 +10,7 @@ from app.db import get_db
 from app.models import travel as m
 from app.schemas import travel as s
 from app.utils.codegen import gen_travel_no
+from app.utils import approval
 
 router = APIRouter(prefix="/travels", tags=["travels"])
 
@@ -98,11 +99,18 @@ def delete_req(rid: int, db: Session = Depends(get_db)):
 # ================= 状态流转 =================
 @router.post("/{rid}/submit", response_model=s.TravelReqRead)
 def submit_req(rid: int, db: Session = Depends(get_db)):
+    """提交差旅申请 → 一人公司自动审批通过。"""
     obj = _get_or_404(db, rid)
     if "submit" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许提交")
     obj.status = _STATUS_FLOW[obj.status]["submit"]
     obj.submit_date = date.today()
+    # 一人公司：提交即自动审批完成
+    approver = approval.resolve_auto_approver(db, obj.applicant)
+    obj.status = _STATUS_FLOW.get("待审批", {}).get("approve", "已通过")
+    obj.approve_date = date.today()
+    obj.approver = approver
+    obj.approve_remark = "系统自动审批（一人公司）"
     db.commit()
     db.refresh(obj)
     return obj

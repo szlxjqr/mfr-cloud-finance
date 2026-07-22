@@ -5,22 +5,72 @@ import { Plus, Search, Edit, Delete } from '@element-plus/icons-vue'
 import type { Employee } from '@/types/employee'
 import {
   listEmployees,
+  previewUsername,
   createEmployee,
   updateEmployee,
   deleteEmployee,
 } from '@/api/employee'
 
+// 公司部门白名单
+const DEPARTMENTS = ['总经办', '综合办', '研发部', '市场部']
+// 系统角色
+const ROLES = [
+  { value: 'employee', label: '普通员工' },
+  { value: 'gm', label: '总经理' },
+  { value: 'admin', label: '系统管理员' },
+]
+
 const loading = ref(false)
 const list = ref<Employee[]>([])
 const keyword = ref('')
-const statusFilter = ref<string>('')
+
+// 账号实时预览（防抖）
+const previewAccount = ref('')
+let previewTimer: ReturnType<typeof setTimeout> | null = null
+function onNameInput() {
+  if (previewTimer) clearTimeout(previewTimer)
+  previewTimer = setTimeout(async () => {
+    if (!form.name.trim()) {
+      previewAccount.value = ''
+      return
+    }
+    try {
+      const { data } = await previewUsername(form.name.trim())
+      previewAccount.value = data.username
+    } catch {
+      previewAccount.value = ''
+    }
+  }, 300)
+}
+
+// 身份证号解析（前端仅做展示提示，真实解析在后端）
+function onIdCardInput() {
+  const v = (form.id_card || '').trim()
+  if (v.length === 18) {
+    // 简易格式校验，详细校验后端做
+    if (/^\d{17}[\dX]$/i.test(v)) {
+      const y = +v.slice(6, 10)
+      const m = +v.slice(10, 12)
+      const d = +v.slice(12, 14)
+      const dt = new Date(y, m - 1, d)
+      if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
+        const gender = +v[16] % 2 === 1 ? '男' : '女'
+        idPreview.value = `${gender} · ${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+        return
+      }
+    }
+    idPreview.value = '身份证号格式有误'
+  } else {
+    idPreview.value = ''
+  }
+}
+const idPreview = ref('')
 
 async function load() {
   loading.value = true
   try {
     const { data } = await listEmployees({
       keyword: keyword.value || undefined,
-      status: statusFilter.value || undefined,
     })
     list.value = data
   } finally {
@@ -37,24 +87,32 @@ const form = reactive({
   name: '',
   department: '',
   position: '',
+  role: 'employee',
+  id_card: '',
   phone: '',
   email: '',
-  status: '在职',
   hire_date: '',
 })
 
-function openCreate() {
-  dialogMode.value = 'create'
-  editingNo.value = ''
+function resetForm() {
   Object.assign(form, {
     name: '',
     department: '',
     position: '',
+    role: 'employee',
+    id_card: '',
     phone: '',
     email: '',
-    status: '在职',
     hire_date: '',
   })
+  previewAccount.value = ''
+  idPreview.value = ''
+}
+
+function openCreate() {
+  dialogMode.value = 'create'
+  editingNo.value = ''
+  resetForm()
   dialogVisible.value = true
 }
 
@@ -65,11 +123,14 @@ function openEdit(row: Employee) {
     name: row.name,
     department: row.department || '',
     position: row.position || '',
+    role: row.role || 'employee',
+    id_card: row.id_card || '',
     phone: row.phone || '',
     email: row.email || '',
-    status: row.status || '在职',
     hire_date: row.hire_date || '',
   })
+  previewAccount.value = row.username || ''
+  idPreview.value = row.gender && row.birthday ? `${row.gender} · ${row.birthday}` : ''
   dialogVisible.value = true
 }
 
@@ -78,13 +139,23 @@ async function handleSave() {
     ElMessage.warning('请输入员工姓名')
     return
   }
+  const payload: Record<string, unknown> = {
+    name: form.name.trim(),
+    department: form.department || null,
+    position: form.position || null,
+    role: form.role,
+    id_card: form.id_card.trim() || null,
+    phone: form.phone || null,
+    email: form.email || null,
+    hire_date: form.hire_date || null,
+  }
   saving.value = true
   try {
     if (dialogMode.value === 'create') {
-      const { data } = await createEmployee({ ...form })
+      const { data } = await createEmployee(payload)
       ElMessage.success(`已新增员工 ${data.name}，登录账号「${data.username}」（初始密码 123456）`)
     } else {
-      await updateEmployee(editingNo.value, { ...form })
+      await updateEmployee(editingNo.value, payload)
       ElMessage.success('员工信息已更新')
     }
     dialogVisible.value = false
@@ -119,6 +190,17 @@ async function handleDelete(row: Employee) {
   }
 }
 
+// 身份证脱敏展示（如 440***********1234）
+function maskIdCard(v?: string | null) {
+  if (!v) return '—'
+  if (v.length !== 18) return v
+  return `${v.slice(0, 4)}***********${v.slice(-4)}`
+}
+
+function roleLabel(role?: string) {
+  return ROLES.find(r => r.value === role)?.label || role || '普通员工'
+}
+
 onMounted(load)
 </script>
 
@@ -136,10 +218,6 @@ onMounted(load)
           @keyup.enter="load"
           @clear="load"
         />
-        <el-select v-model="statusFilter" placeholder="全部状态" clearable class="st-select" @change="load">
-          <el-option label="在职" value="在职" />
-          <el-option label="离职" value="离职" />
-        </el-select>
         <el-button @click="load">查询</el-button>
       </div>
       <el-button type="primary" :icon="Plus" @click="openCreate">新增员工</el-button>
@@ -147,23 +225,36 @@ onMounted(load)
 
     <!-- 员工表格 -->
     <el-table :data="list" v-loading="loading" class="emp-table" border stripe>
-      <el-table-column prop="employee_no" label="工号" width="110" />
-      <el-table-column prop="name" label="姓名" width="120" />
-      <el-table-column prop="department" label="部门" min-width="120" />
-      <el-table-column prop="position" label="职位" min-width="120" />
-      <el-table-column prop="username" label="登录账号（姓名全拼）" min-width="180">
+      <el-table-column prop="employee_no" label="工号" width="100" />
+      <el-table-column prop="name" label="姓名" width="100" />
+      <el-table-column prop="department" label="部门" min-width="110" />
+      <el-table-column prop="position" label="职位" min-width="110" />
+      <el-table-column label="账号 / 角色" min-width="200">
         <template #default="{ row }">
-          <el-tag v-if="row.username" type="primary" effect="light">{{ row.username }}</el-tag>
+          <div class="acct-cell">
+            <el-tag v-if="row.username" type="primary" effect="light">{{ row.username }}</el-tag>
+            <span v-else class="muted">—</span>
+            <el-tag size="small" :type="row.role === 'employee' ? 'info' : 'warning'" effect="plain">
+              {{ roleLabel(row.role) }}
+            </el-tag>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="身份证号" min-width="180">
+        <template #default="{ row }">
+          <span class="muted">{{ maskIdCard(row.id_card) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="性别 / 生日" min-width="160">
+        <template #default="{ row }">
+          <span v-if="row.gender || row.birthday">
+            {{ [row.gender, row.birthday].filter(Boolean).join(' · ') }}
+          </span>
           <span v-else class="muted">—</span>
         </template>
       </el-table-column>
-      <el-table-column prop="phone" label="手机号" width="140" />
-      <el-table-column prop="hire_date" label="入职日期" width="130" />
-      <el-table-column prop="status" label="状态" width="90">
-        <template #default="{ row }">
-          <el-tag :type="row.status === '在职' ? 'success' : 'info'">{{ row.status }}</el-tag>
-        </template>
-      </el-table-column>
+      <el-table-column prop="phone" label="手机号" width="130" />
+      <el-table-column prop="hire_date" label="入职日期" width="120" />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button>
@@ -173,25 +264,47 @@ onMounted(load)
     </el-table>
 
     <div class="hint">
-      提示：新增员工时系统按「姓名全拼」自动创建登录账号（如 沈雷 → shenlei），初始密码统一为
-      <b>123456</b>，请通知员工首次登录后自行修改。
+      提示：新增员工时系统按「姓名全拼」自动创建登录账号（如：沈雷 → shenlei），初始密码统一为
+      <b>123456</b>，请通知员工首次登录后自行修改。工号 8 位数字自增（admin 固定 00000000）。
     </div>
 
     <!-- 新增 / 编辑弹窗 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogMode === 'create' ? '新增员工' : '编辑员工'"
-      width="520px"
+      width="560px"
     >
-      <el-form :model="form" label-width="90px">
+      <el-form :model="form" label-width="92px">
         <el-form-item label="姓名" required>
-          <el-input v-model="form.name" placeholder="如：沈雷" />
+          <el-input v-model="form.name" placeholder="如：沈雷" @input="onNameInput" />
+        </el-form-item>
+        <el-form-item label="登录账号">
+          <el-input :model-value="previewAccount" readonly placeholder="保存时按姓名全拼自动生成">
+            <template v-if="previewAccount" #suffix>
+              <span class="acct-preview">{{ previewAccount }}</span>
+            </template>
+          </el-input>
+          <div class="field-tip">姓名输入后自动带出（重名会追加数字后缀）</div>
         </el-form-item>
         <el-form-item label="部门">
-          <el-input v-model="form.department" placeholder="如：研发部" />
+          <el-select v-model="form.department" placeholder="选择部门" clearable filterable style="width:100%">
+            <el-option v-for="d in DEPARTMENTS" :key="d" :label="d" :value="d" />
+          </el-select>
         </el-form-item>
         <el-form-item label="职位">
-          <el-input v-model="form.position" placeholder="如：工程师" />
+          <el-input v-model="form.position" placeholder="如：工程师 / 市场专员（仅作展示，不含权限）" />
+        </el-form-item>
+        <el-form-item label="系统角色">
+          <el-select v-model="form.role" style="width:100%">
+            <el-option v-for="r in ROLES" :key="r.value" :label="r.label" :value="r.value" />
+          </el-select>
+          <div class="field-tip">总经理与系统管理员拥有同等权限；职位仅作人事展示，不绑定权限。</div>
+        </el-form-item>
+        <el-form-item label="身份证号">
+          <el-input v-model="form.id_card" placeholder="18 位身份证号" maxlength="18" @input="onIdCardInput" />
+          <div v-if="idPreview" class="field-tip" :class="{ 'tip-err': idPreview.includes('有误') }">
+            解析结果：{{ idPreview }}
+          </div>
         </el-form-item>
         <el-form-item label="手机号">
           <el-input v-model="form.phone" placeholder="11 位手机号" />
@@ -208,18 +321,6 @@ onMounted(load)
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-radio-group v-model="form.status">
-            <el-radio value="在职">在职</el-radio>
-            <el-radio value="离职">离职</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-alert
-          v-if="dialogMode === 'create'"
-          type="info"
-          :closable="false"
-          title="保存后将自动生成登录账号（姓名全拼），初始密码 123456。"
-        />
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -250,15 +351,30 @@ onMounted(load)
 .kw-input {
   width: 240px;
 }
-.st-select {
-  width: 130px;
-}
 .emp-table {
   border-radius: 10px;
   overflow: hidden;
 }
+.acct-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.acct-preview {
+  color: var(--el-color-primary);
+}
 .muted {
   color: var(--el-text-color-secondary);
+}
+.field-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+.tip-err {
+  color: var(--el-color-danger);
 }
 .hint {
   font-size: 12px;

@@ -1,8 +1,9 @@
 """人员管理 ORM 模型：员工档案 + 登录账号。
 
 设计要点：
-- Employee 存人事信息（员工编号 / 姓名 / 部门 / 职位 / 联系方式 / 状态）。
+- Employee 存人事信息（员工编号 / 姓名 / 部门 / 职位 / 身份证 / 性别 / 生日 / 联系方式）。
 - Account 存登录凭据（账号 = 员工姓名全拼，密码 PBKDF2 哈希，关联员工编号）。
+- 角色 role：admin（系统管理员）/ gm（总经理，与 admin 同级权限）/ employee（普通员工）。
 - 管理员 admin 固定绑定员工编号 00000000（见 db/database.py 种子）。
 """
 from datetime import date, datetime
@@ -13,6 +14,9 @@ from typing import Optional
 
 from app.db import Base
 
+# 公司部门白名单（一人公司组织架构）
+DEPARTMENTS = ["总经办", "综合办", "研发部", "市场部"]
+
 
 class Employee(Base):
     """员工档案：人员管理的核心锚点（采购申请人 / 差旅人 / 工资来源均关联此表）。"""
@@ -22,8 +26,11 @@ class Employee(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     employee_no: Mapped[str] = mapped_column(String(8), unique=True, index=True)  # 8 位员工编号，admin = 00000000
     name: Mapped[str] = mapped_column(String(50), nullable=False)  # 姓名
-    department: Mapped[Optional[str]] = mapped_column(String(50))  # 部门
-    position: Mapped[Optional[str]] = mapped_column(String(50))  # 职位
+    department: Mapped[Optional[str]] = mapped_column(String(50))  # 部门（见 DEPARTMENTS）
+    position: Mapped[Optional[str]] = mapped_column(String(50))  # 职位（自由文本，不含权限含义）
+    id_card: Mapped[Optional[str]] = mapped_column(String(18))  # 身份证号（18 位）
+    gender: Mapped[Optional[str]] = mapped_column(String(4))  # 男 / 女（由身份证号解析）
+    birthday: Mapped[Optional[date]] = mapped_column(Date)  # 出生日期（由身份证号解析）
     phone: Mapped[Optional[str]] = mapped_column(String(20))  # 手机号
     email: Mapped[Optional[str]] = mapped_column(String(100))  # 邮箱
     status: Mapped[str] = mapped_column(String(10), default="在职")  # 在职 / 离职
@@ -50,7 +57,7 @@ class Account(Base):
     employee_no: Mapped[str] = mapped_column(
         ForeignKey("employees.employee_no", ondelete="CASCADE"), index=True
     )
-    role: Mapped[str] = mapped_column(String(20), default="employee")  # admin / employee
+    role: Mapped[str] = mapped_column(String(20), default="employee")  # admin / gm / employee
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
 
     employee: Mapped["Employee"] = relationship("Employee", back_populates="account")

@@ -63,6 +63,7 @@ def init_db() -> None:
     _ensure_invoice_code_column(engine)
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
+    _ensure_employees_columns(engine)
     _seed_admin(engine)
     _seed_subjects(engine)
 
@@ -127,6 +128,24 @@ def _ensure_purchase_columns(engine) -> None:
             conn.execute(text("UPDATE purchase_requisitions SET is_rd_project = '否' WHERE is_rd_project IS NULL"))
         if "rd_project_code" not in cols:
             conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN rd_project_code VARCHAR(100)"))
+
+
+def _ensure_employees_columns(engine) -> None:
+    """为已存在的 employees 表补加身份证 / 性别 / 生日字段。
+
+    SQLite 的 create_all 只会建缺失的表、不会给已存在的表加列，故单独处理。
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("employees")]
+    with engine.begin() as conn:
+        if "id_card" not in cols:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN id_card VARCHAR(18)"))
+        if "gender" not in cols:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN gender VARCHAR(4)"))
+        if "birthday" not in cols:
+            conn.execute(text("ALTER TABLE employees ADD COLUMN birthday DATE"))
 
 
 def _seed_admin(engine) -> None:

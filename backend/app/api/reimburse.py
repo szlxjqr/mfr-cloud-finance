@@ -11,6 +11,7 @@ from app.models import invoice as im
 from app.models import reimburse as m
 from app.schemas import reimburse as s
 from app.utils.codegen import gen_bill_no
+from app.utils import approval
 from app.services import voucher_service  # 联动：审批通过 → 自动生成凭证
 
 router = APIRouter(prefix="/reimbursements", tags=["reimbursements"])
@@ -111,11 +112,20 @@ def delete_bill(bid: int, db: Session = Depends(get_db)):
 # ================= 状态流转 =================
 @router.post("/{bid}/submit", response_model=s.ReimbursementBillRead)
 def submit_bill(bid: int, db: Session = Depends(get_db)):
+    """提交报销单 → 一人公司自动审批通过（并联动生成凭证）。"""
     obj = _get_or_404(db, bid)
     if "submit" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许提交")
     obj.status = _STATUS_FLOW[obj.status]["submit"]
     obj.submit_date = date.today()
+    # 一人公司：提交即自动审批完成（总经理的审批由 admin、其他由总经理）
+    approver = approval.resolve_auto_approver(db, obj.applicant)
+    obj.status = _STATUS_FLOW.get("待审批", {}).get("approve", "已通过")
+    obj.approve_date = date.today()
+    obj.approver = approver
+    obj.approve_remark = "系统自动审批（一人公司）"
+    # 联动：报销单审批通过 → 自动生成记账凭证（幂等）
+    voucher_service.generate_from_reimbursement(db, obj, maker=approver)
     db.commit()
     db.refresh(obj)
     return obj
