@@ -117,6 +117,10 @@ function openCreate() {
 }
 
 function openEdit(row: Employee) {
+  if (row.employee_no === '00000000') {
+    ElMessage.warning('管理员账号不可编辑')
+    return
+  }
   dialogMode.value = 'edit'
   editingNo.value = row.employee_no
   Object.assign(form, {
@@ -257,8 +261,13 @@ onMounted(load)
       <el-table-column prop="hire_date" label="入职日期" width="120" />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          <template v-if="row.employee_no === '00000000'">
+            <span class="muted">—</span>
+          </template>
+          <template v-else>
+            <el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button>
+            <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+          </template>
         </template>
       </el-table-column>
     </el-table>

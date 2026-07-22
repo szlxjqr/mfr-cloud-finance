@@ -191,7 +191,9 @@ def create_employee(payload: s.EmployeeCreate, current_user: m.Account = Depends
 
 @router.put("/{employee_no}", response_model=s.EmployeeRead)
 def update_employee(employee_no: str, payload: s.EmployeeUpdate, current_user: m.Account = Depends(get_current_user), db: Session = Depends(get_db)):
-    """编辑员工档案（姓名 / 部门 / 职位 / 身份证等）。"""
+    """编辑员工档案（姓名 / 部门 / 职位 / 身份证等）。admin(00000000) 受保护。"""
+    if employee_no == "00000000":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="管理员账号不可编辑")
     emp = db.scalar(select(m.Employee).where(m.Employee.employee_no == employee_no))
     if not emp:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="员工不存在")
