@@ -59,11 +59,11 @@ def funds(db: Session) -> List[dict]:
 
 
 def revenue_trend(db: Session) -> List[dict]:
-    """主营业务收入（6001，贷）按月趋势。"""
+    """主营业务收入（5001，贷）按月趋势。"""
     rows = db.execute(
         select(vm.Voucher.period, func.sum(vm.VoucherEntry.amount))
         .join(vm.VoucherEntry, vm.VoucherEntry.voucher_id == vm.Voucher.id)
-        .where(vm.VoucherEntry.subject_code == "6001", vm.VoucherEntry.direction == "贷")
+        .where(vm.VoucherEntry.subject_code == "5001", vm.VoucherEntry.direction == "贷")
         .group_by(vm.Voucher.period)
         .order_by(vm.Voucher.period)
     ).all()

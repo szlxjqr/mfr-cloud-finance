@@ -220,11 +220,11 @@ const router = createRouter({
         { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: Placeholder, props: { title: '期末结转' }, meta: { title: '期末结转', group: '结账', module: 'accounting' } },
         { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账', module: 'accounting' } },
         // --- 报表 ---
-        { path: 'reports/balance-sheet', name: 'BalanceSheetReport', component: Placeholder, props: { title: '资产负债表' }, meta: { title: '资产负债表', group: '报表', module: 'accounting' } },
-        { path: 'reports/income-statement', name: 'IncomeStatement', component: Placeholder, props: { title: '利润表' }, meta: { title: '利润表', group: '报表', module: 'accounting' } },
-        { path: 'reports/income-statement-quarterly', name: 'IncomeStatementQuarterly', component: Placeholder, props: { title: '利润表季报' }, meta: { title: '利润表季报', group: '报表', module: 'accounting' } },
-        { path: 'reports/cash-flow', name: 'CashFlowStatement', component: Placeholder, props: { title: '现金流量表' }, meta: { title: '现金流量表', group: '报表', module: 'accounting' } },
-        { path: 'reports/cash-flow-quarterly', name: 'CashFlowStatementQuarterly', component: Placeholder, props: { title: '现金流量表季报' }, meta: { title: '现金流量表季报', group: '报表', module: 'accounting' } },
+        { path: 'reports/balance-sheet', name: 'BalanceSheetReport', component: () => import('@/views/reports/BalanceSheetReport.vue'), meta: { title: '资产负债表', group: '报表', module: 'accounting' } },
+        { path: 'reports/income-statement', name: 'IncomeStatement', component: () => import('@/views/reports/IncomeStatement.vue'), meta: { title: '利润表', group: '报表', module: 'accounting' } },
+        { path: 'reports/income-statement-quarterly', name: 'IncomeStatementQuarterly', component: () => import('@/views/reports/QuarterReport.vue'), meta: { title: '利润表季报', group: '报表', module: 'accounting' } },
+        { path: 'reports/cash-flow', name: 'CashFlowStatement', component: () => import('@/views/reports/CashFlowStatement.vue'), meta: { title: '现金流量表', group: '报表', module: 'accounting' } },
+        { path: 'reports/cash-flow-quarterly', name: 'CashFlowStatementQuarterly', component: () => import('@/views/reports/QuarterReport.vue'), meta: { title: '现金流量表季报', group: '报表', module: 'accounting' } },
         /* ====== 综合报表模块 ====== */
         {
           path: 'comprehensive',
