@@ -1,10 +1,14 @@
-/** 会计核算 API 客户端：科目 / 凭证 / 余额汇总。 */
+/** 会计核算 API 客户端：科目 / 凭证 / 余额汇总 / 账簿查询。 */
 import request from '@/utils/request'
 import type {
   AccountSubject,
   Voucher,
   SubjectBalance,
   VoucherGenerateResult,
+  GeneralLedgerOut,
+  SubsidiaryLedgerOut,
+  LedgerSummaryRow,
+  JournalOut,
 } from '@/types/ledger'
 
 /** 科目列表 */
@@ -42,4 +46,32 @@ export function getVoucher(id: number) {
 /** 一键从「已通过」业务单补生成凭证 */
 export function syncVouchers() {
   return request.post<VoucherGenerateResult>('/vouchers/sync')
+}
+
+/** 总账（某科目，按期间汇总） */
+export function getGeneralLedger(subjectCode: string, period?: string) {
+  return request.get<GeneralLedgerOut>('/ledger/general', {
+    params: { subject_code: subjectCode, ...(period ? { period } : {}) },
+  })
+}
+
+/** 明细账（某科目，逐笔分录） */
+export function getSubsidiaryLedger(subjectCode: string, period?: string) {
+  return request.get<SubsidiaryLedgerOut>('/ledger/subsidiary', {
+    params: { subject_code: subjectCode, ...(period ? { period } : {}) },
+  })
+}
+
+/** 科目汇总表（期间感知，含树信息） */
+export function getLedgerSummary(period?: string) {
+  return request.get<LedgerSummaryRow[]>('/ledger/summary', {
+    params: period ? { period } : {},
+  })
+}
+
+/** 序时账（全部凭证分录流水） */
+export function getJournal(period?: string) {
+  return request.get<JournalOut>('/ledger/journal', {
+    params: period ? { period } : {},
+  })
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { getJournal } from '@/api/ledger'
 
 /* ==================== 类型定义 ==================== */
 
@@ -26,58 +27,6 @@ const tableData = ref<ChronoEntry[]>([])
 
 /* ==================== Mock 数据 ==================== */
 
-function generateMockData(): ChronoEntry[] {
-  const entries: ChronoEntry[] = []
-  const accounts = [
-    { code:'1001', name:'库存现金' },
-    { code:'1002', name:'银行存款' },
-    { code:'1122', name:'应收账款' },
-    { code:'1403', name:'原材料' },
-    { code:'1405', name:'库存商品' },
-    { code:'2202', name:'应付账款' },
-    { code:'2221', name:'应交税费' },
-    { code:'6001', name:'主营业务收入' },
-    { code:'6401', name:'主营业务成本' },
-    { code:'6602', name:'管理费用' }
-  ]
-  const words = ['记','收','付','转']
-  const summaries = [
-    '采购原材料入库','支付供应商货款','收到客户货款','计提本月工资',
-    '报销差旅费','缴纳增值税','计提固定资产折旧','销售商品确认收入',
-    '支付水电费','结转销售成本','银行利息收入','归还短期借款',
-    '购买办公用品','支付房租','预收客户定金','支付广告费',
-    '收到投资款','结转本月损益'
-  ]
-
-  // 按日期排序的模拟数据
-  for (let i = 0; i < 60; i++) {
-    const day = Math.floor(Math.random() * 28) + 1
-    const date = `2026-05-${String(day).padStart(2,'0')}`
-    const word = words[Math.floor(Math.random() * words.length)]
-    const vNum = Math.floor(i / 2) + 1
-    const acc = accounts[Math.floor(Math.random() * accounts.length)]
-    const summary = summaries[Math.floor(Math.random() * summaries.length)]
-    const isDebit = Math.random() > 0.4
-    const amount = Math.floor(Math.random() * 500000) + 1000
-
-    entries.push({
-      id: `c-${i}`,
-      date,
-      voucherWord: word,
-      voucherNumber: vNum,
-      summary,
-      accountCode: acc.code,
-      accountName: acc.name,
-      quantity: showAuxItems.value ? (Math.random() > 0.7 ? Math.floor(Math.random()*500)+10 : null) : null,
-      foreignAmount: showAuxItems.value ? (Math.random() > 0.8 ? Math.floor(Math.random()*50000)+500 : null) : null,
-      debitAmount: isDebit ? amount : 0,
-      creditAmount: isDebit ? 0 : amount
-    })
-  }
-
-  entries.sort((a,b) => a.date.localeCompare(b.date) || a.voucherNumber - b.voucherNumber)
-  return entries
-}
 
 /* ==================== 计算属性 ==================== */
 
@@ -92,12 +41,36 @@ const totals = computed(() => {
 
 /* ==================== 方法 ==================== */
 
-function loadData() {
+/** 加载序时账（真实数据，全部凭证分录流水） */
+async function loadData() {
   loading.value = true
-  setTimeout(() => {
-    tableData.value = generateMockData()
+  try {
+    const res = await getJournal(period.value || undefined)
+    tableData.value = res.data.lines
+      .map((l, i) => {
+        const parts = l.voucher_no.split('-')
+        const word = parts[0]
+        const num = parseInt(parts[parts.length - 1], 10) || 0
+        return {
+          id: `c-${i}`,
+          date: l.date,
+          voucherWord: word,
+          voucherNumber: num,
+          summary: l.summary || '',
+          accountCode: l.subject_code,
+          accountName: l.subject_name,
+          quantity: null,
+          foreignAmount: null,
+          debitAmount: l.direction === '借' ? l.amount : 0,
+          creditAmount: l.direction === '贷' ? l.amount : 0,
+        }
+      })
+      .sort((a, b) =>
+        a.date < b.date ? -1 : a.date > b.date ? 1 : a.voucherNumber - b.voucherNumber
+      )
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 function fmt(v: number): string { if (!v) return ''; return v.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}) }

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { listSubjects, getLedgerSummary } from '@/api/ledger'
+import type { AccountSubject } from '@/types/ledger'
 
 const router = useRouter()
 
@@ -31,114 +33,6 @@ const expandedRowKeys = ref<string[]>([])
 
 /* ==================== Mock 数据 ==================== */
 
-const mockData: SummaryRow[] = [
-  // 资产类
-  {
-    id: 's1', accountCode: '1001', accountName: '库存现金', accountLevel: 1, parentCode: '',
-    periodDebit: 120000, periodCredit: 95000, cumDebit: 680000, cumCredit: 655000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's2', accountCode: '1002', accountName: '银行存款', accountLevel: 1, parentCode: '',
-    periodDebit: 3560000, periodCredit: 4120000, cumDebit: 18250000, cumCredit: 17530000,
-    hasChildren: true, children: [
-      {
-        id: 's2-1', accountCode: '1002-01', accountName: '基本户(工行)', accountLevel: 2, parentCode: '1002',
-        periodDebit: 2500000, periodCredit: 3000000, cumDebit: 12800000, cumCredit: 12100000,
-        hasChildren: false, children: []
-      },
-      {
-        id: 's2-2', accountCode: '1002-02', accountName: '一般户(建行)', accountLevel: 2, parentCode: '1002',
-        periodDebit: 1060000, periodCredit: 1120000, cumDebit: 5450000, cumCredit: 5430000,
-        hasChildren: false, children: []
-      }
-    ]
-  },
-  {
-    id: 's3', accountCode: '1122', accountName: '应收账款', accountLevel: 1, parentCode: '',
-    periodDebit: 1850000, periodCredit: 1620000, cumDebit: 8520000, cumCredit: 7330000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's4', accountCode: '1123', accountName: '预付账款', accountLevel: 1, parentCode: '',
-    periodDebit: 150000, periodCredit: 180000, cumDebit: 960000, cumCredit: 860000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's5', accountCode: '1403', accountName: '原材料', accountLevel: 1, parentCode: '',
-    periodDebit: 420000, periodCredit: 380000, cumDebit: 2850000, cumCredit: 2430000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's6', accountCode: '1405', accountName: '库存商品', accountLevel: 1, parentCode: '',
-    periodDebit: 860000, periodCredit: 920000, cumDebit: 5230000, cumCredit: 5040000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's7', accountCode: '1601', accountName: '固定资产', accountLevel: 1, parentCode: '',
-    periodDebit: 180000, periodCredit: 0, cumDebit: 580000, cumCredit: 0,
-    hasChildren: false, children: []
-  },
-  // 负债类
-  {
-    id: 's8', accountCode: '2001', accountName: '短期借款', accountLevel: 1, parentCode: '',
-    periodDebit: 500000, periodCredit: 0, cumDebit: 1500000, cumCredit: 1000000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's9', accountCode: '2202', accountName: '应付账款', accountLevel: 1, parentCode: '',
-    periodDebit: 650000, periodCredit: 920000, cumDebit: 3820000, cumCredit: 4500000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's10', accountCode: '2211', accountName: '应付职工薪酬', accountLevel: 1, parentCode: '',
-    periodDebit: 380000, periodCredit: 420000, cumDebit: 2280000, cumCredit: 2320000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's11', accountCode: '2221', accountName: '应交税费', accountLevel: 1, parentCode: '',
-    periodDebit: 132000, periodCredit: 168000, cumDebit: 780000, cumCredit: 972000,
-    hasChildren: false, children: []
-  },
-  // 权益类
-  {
-    id: 's12', accountCode: '4001', accountName: '实收资本', accountLevel: 1, parentCode: '',
-    periodDebit: 0, periodCredit: 0, cumDebit: 0, cumCredit: 0,
-    hasChildren: false, children: []
-  },
-  // 成本类
-  {
-    id: 's13', accountCode: '5001', accountName: '生产成本', accountLevel: 1, parentCode: '',
-    periodDebit: 480000, periodCredit: 350000, cumDebit: 2560000, cumCredit: 2210000,
-    hasChildren: false, children: []
-  },
-  // 损益类
-  {
-    id: 's14', accountCode: '6001', accountName: '主营业务收入', accountLevel: 1, parentCode: '',
-    periodDebit: 0, periodCredit: 2850000, cumDebit: 0, cumCredit: 16820000,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's15', accountCode: '6401', accountName: '主营业务成本', accountLevel: 1, parentCode: '',
-    periodDebit: 1680000, periodCredit: 0, cumDebit: 9850000, cumCredit: 0,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's16', accountCode: '6601', accountName: '销售费用', accountLevel: 1, parentCode: '',
-    periodDebit: 256000, periodCredit: 0, cumDebit: 1520000, cumCredit: 0,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's17', accountCode: '6602', accountName: '管理费用', accountLevel: 1, parentCode: '',
-    periodDebit: 382000, periodCredit: 0, cumDebit: 2230000, cumCredit: 0,
-    hasChildren: false, children: []
-  },
-  {
-    id: 's18', accountCode: '6603', accountName: '财务费用', accountLevel: 1, parentCode: '',
-    periodDebit: 18000, periodCredit: 5200, cumDebit: 96000, cumCredit: 32000,
-    hasChildren: false, children: []
-  }
-]
 
 /* ==================== 计算属性 ==================== */
 
@@ -181,12 +75,47 @@ const totals = computed(() => {
 
 /* ==================== 方法 ==================== */
 
-function loadData() {
+/** 加载科目汇总表（真实数据，期间感知） */
+async function loadData() {
   loading.value = true
-  setTimeout(() => {
-    tableData.value = mockData
+  try {
+    const [subsRes, balRes] = await Promise.all([
+      listSubjects(),
+      getLedgerSummary(period.value || undefined),
+    ])
+    const balMap = new Map(balRes.data.map(b => [b.code, b]))
+    const nodes: SummaryRow[] = (subsRes.data as AccountSubject[]).map(s => {
+      const b = balMap.get(s.code)
+      return {
+        id: s.code,
+        accountCode: s.code,
+        accountName: s.name,
+        accountLevel: s.level,
+        parentCode: s.parent_code || '',
+        periodDebit: b?.period_debit || 0,
+        periodCredit: b?.period_credit || 0,
+        cumDebit: b?.cum_debit || 0,
+        cumCredit: b?.cum_credit || 0,
+        hasChildren: false,
+        children: [],
+      }
+    })
+    // 构建科目树
+    const map = new Map(nodes.map(n => [n.accountCode, n]))
+    const roots: SummaryRow[] = []
+    map.forEach(n => {
+      const parent = n.parentCode ? map.get(n.parentCode) : undefined
+      if (parent) {
+        parent.children.push(n)
+        parent.hasChildren = true
+      } else {
+        roots.push(n)
+      }
+    })
+    tableData.value = roots
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 function toggleExpand(row: SummaryRow) {
