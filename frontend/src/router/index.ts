@@ -42,6 +42,15 @@ const router = createRouter({
           meta: { title: '仪表盘', icon: 'Odometer' },
         },
 
+        /* ====== 人员管理模块 ====== */
+        {
+          path: 'personnel',
+          name: 'PersonnelOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '人员管理', module: 'personnel' },
+        },
+        { path: 'employee/management', name: 'EmployeeManagement', component: Placeholder, props: { title: '员工管理' }, meta: { title: '员工管理', group: '人员信息', module: 'personnel' } },
+
         /* ====== 合同管理模块 ====== */
         {
           path: 'contract',
@@ -168,12 +177,12 @@ const router = createRouter({
         },
         { path: 'assets/fixed-asset', name: 'FixedAsset', component: Placeholder, props: { title: '固定资产管理' }, meta: { title: '固定资产管理', group: '固定资产' } },
 
-        /* ====== 账务管理模块（容器：收编总账/出纳/发票/结账/报表） ====== */
+        /* ====== 财务管理模块（容器：收编总账/出纳/发票/结账/报表） ====== */
         {
           path: 'accounting',
           name: 'AccountingOverview',
           component: () => import('@/layouts/components/MenuPanel.vue'),
-          meta: { title: '账务管理', module: 'accounting' },
+          meta: { title: '财务管理', module: 'accounting' },
         },
         // --- 总账 ---
         { path: 'general-ledger/voucher', name: 'Voucher', component: () => import('@/views/general-ledger/Voucher.vue'), meta: { title: '凭证录入', group: '总账', module: 'accounting' } },
@@ -210,15 +219,21 @@ const router = createRouter({
         { path: 'reports/income-statement-quarterly', name: 'IncomeStatementQuarterly', component: Placeholder, props: { title: '利润表季报' }, meta: { title: '利润表季报', group: '报表', module: 'accounting' } },
         { path: 'reports/cash-flow', name: 'CashFlowStatement', component: Placeholder, props: { title: '现金流量表' }, meta: { title: '现金流量表', group: '报表', module: 'accounting' } },
         { path: 'reports/cash-flow-quarterly', name: 'CashFlowStatementQuarterly', component: Placeholder, props: { title: '现金流量表季报' }, meta: { title: '现金流量表季报', group: '报表', module: 'accounting' } },
-        // --- 员工管理 ---
-        { path: 'employee/management', name: 'EmployeeManagement', component: Placeholder, props: { title: '员工管理' }, meta: { title: '员工管理', group: '员工管理', module: 'accounting' } },
+        /* ====== 综合报表模块 ====== */
+        {
+          path: 'comprehensive',
+          name: 'ComprehensiveOverview',
+          component: () => import('@/layouts/components/MenuPanel.vue'),
+          meta: { title: '综合报表', module: 'comprehensive' },
+        },
+        { path: 'comprehensive/dashboard', name: 'ComprehensiveDashboard', component: Placeholder, props: { title: '综合报表看板' }, meta: { title: '综合报表看板', group: '综合报表', module: 'comprehensive' } },
 
-        /* ====== 设置模块 ====== */
+        /* ====== 系统设置模块 ====== */
         {
           path: 'settings',
           name: 'SettingsOverview',
           component: () => import('@/layouts/components/MenuPanel.vue'),
-          meta: { title: '设置', module: 'settings' },
+          meta: { title: '系统设置', module: 'settings' },
         },
         { path: 'settings/account', name: 'SettingsAccount', component: SettingsAccount, meta: { title: '科目', group: '基础数据' } },
         { path: 'settings/opening', name: 'SettingsOpening', component: () => import('@/views/settings/Opening.vue'), meta: { title: '期初', group: '基础数据' } },
@@ -232,9 +247,6 @@ const router = createRouter({
         { path: 'settings/archive', name: 'SettingsArchive', component: Placeholder, props: { title: '归档管理' }, meta: { title: '归档管理', group: '基础设置' } },
         { path: 'settings/system', name: 'SettingsSystem', component: Placeholder, props: { title: '系统设置' }, meta: { title: '系统设置', group: '基础设置' } },
         { path: 'settings/audit-export', name: 'SettingsAuditExport', component: Placeholder, props: { title: '审计接口文件导出' }, meta: { title: '审计接口文件导出', group: '基础设置' } },
-
-        /* ====== 其他模块（一级菜单） ====== */
-        { path: 'guide', name: 'Guide', component: Placeholder, props: { title: '新手指引' }, meta: { title: '新手指引' } },
       ],
     },
 

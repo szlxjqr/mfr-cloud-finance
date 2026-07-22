@@ -31,6 +31,20 @@ export const menuItems: MenuItem[] = [
   { title: '首页', path: '/dashboard', icon: 'HomeFilled', module: 'dashboard' },
 
   {
+    title: '人员管理',
+    icon: 'User',
+    module: 'personnel',
+    groups: [
+      {
+        title: '人员信息',
+        icon: 'User',
+        color: '#409EFF',
+        children: [{ title: '员工管理', path: '/employee/management' }],
+      },
+    ],
+  },
+
+  {
     title: '合同管理',
     icon: 'DocumentCopy',
     module: 'contract',
@@ -72,38 +86,6 @@ export const menuItems: MenuItem[] = [
   },
 
   {
-    title: '税务管理',
-    icon: 'Money',
-    module: 'tax',
-    groups: [
-      {
-        title: '税务工作台',
-        icon: 'DataAnalysis',
-        color: '#67C23A',
-        children: [{ title: '工作台', path: '/tax/workbench' }],
-      },
-      {
-        title: '个税',
-        icon: 'User',
-        color: '#409EFF',
-        children: [{ title: '个税申报', path: '/tax/individual' }],
-      },
-      {
-        title: '印花税',
-        icon: 'Postcard',
-        color: '#E6A23C',
-        children: [{ title: '印花税', path: '/tax/stamp' }],
-      },
-      {
-        title: '发票税务汇总',
-        icon: 'Histogram',
-        color: '#909399',
-        children: [{ title: '税务汇总', path: '/tax/summary' }],
-      },
-    ],
-  },
-
-  {
     title: '采购管理',
     icon: 'ShoppingCart',
     module: 'purchase',
@@ -140,37 +122,8 @@ export const menuItems: MenuItem[] = [
   },
 
   {
-    title: '报销管理',
-    icon: 'Tickets',
-    module: 'reimburse',
-    groups: [
-      {
-        title: '报销单',
-        icon: 'Document',
-        color: '#67C23A',
-        children: [
-          { title: '报销单', path: '/reimburse/bill' },
-          { title: '我的报销', path: '/reimburse/mine' },
-        ],
-      },
-      {
-        title: '审批',
-        icon: 'Select',
-        color: '#409EFF',
-        children: [{ title: '待审批', path: '/reimburse/approve' }],
-      },
-      {
-        title: '报销查询',
-        icon: 'Search',
-        color: '#E6A23C',
-        children: [{ title: '报销查询', path: '/reimburse/query' }],
-      },
-    ],
-  },
-
-  {
     title: '工资管理',
-    icon: 'User',
+    icon: 'Money',
     module: 'payroll',
     groups: [
       {
@@ -198,21 +151,7 @@ export const menuItems: MenuItem[] = [
   },
 
   {
-    title: '资产管理',
-    icon: 'OfficeBuilding',
-    module: 'assets',
-    groups: [
-      {
-        title: '固定资产',
-        icon: 'OfficeBuilding',
-        color: '#13C2C2',
-        children: [{ title: '固定资产管理', path: '/assets/fixed-asset' }],
-      },
-    ],
-  },
-
-  {
-    title: '账务管理',
+    title: '财务管理',
     icon: 'Coin',
     module: 'accounting',
     groups: [
@@ -281,17 +220,57 @@ export const menuItems: MenuItem[] = [
           { title: '现金流量表季报', path: '/reports/cash-flow-quarterly' },
         ],
       },
+    ],
+  },
+
+  {
+    title: '税务管理',
+    icon: 'Money',
+    module: 'tax',
+    groups: [
       {
-        title: '员工管理',
+        title: '税务工作台',
+        icon: 'DataAnalysis',
+        color: '#67C23A',
+        children: [{ title: '工作台', path: '/tax/workbench' }],
+      },
+      {
+        title: '个税',
         icon: 'User',
         color: '#409EFF',
-        children: [{ title: '员工管理', path: '/employee/management' }],
+        children: [{ title: '个税申报', path: '/tax/individual' }],
+      },
+      {
+        title: '印花税',
+        icon: 'Postcard',
+        color: '#E6A23C',
+        children: [{ title: '印花税', path: '/tax/stamp' }],
+      },
+      {
+        title: '发票税务汇总',
+        icon: 'Histogram',
+        color: '#909399',
+        children: [{ title: '税务汇总', path: '/tax/summary' }],
       },
     ],
   },
 
   {
-    title: '设置',
+    title: '综合报表',
+    icon: 'TrendCharts',
+    module: 'comprehensive',
+    groups: [
+      {
+        title: '综合报表',
+        icon: 'DataAnalysis',
+        color: '#409EFF',
+        children: [{ title: '综合报表看板', path: '/comprehensive/dashboard' }],
+      },
+    ],
+  },
+
+  {
+    title: '系统设置',
     icon: 'Setting',
     module: 'settings',
     groups: [
@@ -323,6 +302,4 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-
-  { title: '新手指引', path: '/guide', icon: 'Notebook', module: 'guide' },
 ]
