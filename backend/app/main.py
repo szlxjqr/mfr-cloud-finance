@@ -17,6 +17,7 @@ from app.api import employees
 from app.api import subjects
 from app.api import vouchers
 from app.api import ledger
+from app.api import tax
 from app.db import init_db
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import employee as employee_model  # noqa: F401 注册员工/账号模型
@@ -68,6 +69,8 @@ app.include_router(subjects.router, prefix="/api")
 app.include_router(vouchers.router, prefix="/api")
 # 注册账簿查询路由（总账 / 明细账 / 科目汇总 / 序时账，均由凭证分录实时汇总）
 app.include_router(ledger.router, prefix="/api")
+# 注册税务取数路由（从凭证实时汇总进项/销项/应交增值税）
+app.include_router(tax.router, prefix="/api")
 
 
 @app.get("/health")
