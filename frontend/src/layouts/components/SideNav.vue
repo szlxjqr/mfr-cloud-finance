@@ -64,8 +64,9 @@ function isActive(item: typeof menuItems[number]): boolean {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #fff;
-  border-right: 1px solid var(--el-border-color-light);
+  /* 深色科技渐变底 */
+  background: linear-gradient(180deg, #0e1726 0%, #16233b 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
   transition: width 0.2s ease;
   overflow: hidden;
   user-select: none;
@@ -80,7 +81,7 @@ function isActive(item: typeof menuItems[number]): boolean {
   justify-content: center;
   gap: 10px;
   padding: 0 12px;
-  border-bottom: 1px solid var(--el-border-color-light);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .logo-img {
   width: 30px;
@@ -88,11 +89,14 @@ function isActive(item: typeof menuItems[number]): boolean {
   flex-shrink: 0;
   border-radius: 8px;
   object-fit: contain;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 3px;
 }
 .logo-text {
   font-size: 16px;
   font-weight: 700;
-  color: var(--el-text-color-primary);
+  color: #fff;
+  letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -105,10 +109,10 @@ function isActive(item: typeof menuItems[number]): boolean {
 .module-menu {
   list-style: none;
   margin: 0;
-  padding: 12px 10px;
+  padding: 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 /* 一级模块项 */
@@ -120,20 +124,20 @@ function isActive(item: typeof menuItems[number]): boolean {
   padding: 0 14px;
   border-radius: 10px;
   cursor: pointer;
-  color: var(--el-text-color-regular);
+  color: rgba(255, 255, 255, 0.68);
   transition: all 0.15s ease;
   position: relative;
 }
 .module-item:hover {
-  background: var(--el-fill-color-light);
-  color: var(--el-color-primary);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 .module-item:hover .module-icon {
-  color: var(--el-color-primary);
+  color: #fff;
 }
 
 .module-icon {
-  color: var(--el-text-color-secondary);
+  color: rgba(255, 255, 255, 0.6);
   flex-shrink: 0;
   transition: color 0.15s ease;
 }
@@ -154,19 +158,19 @@ function isActive(item: typeof menuItems[number]): boolean {
   flex-shrink: 0;
 }
 
-/* 选中态：蓝色圆角高亮 */
+/* 选中态：左侧品牌竖条 + 浅蓝底 + 光晕 */
 .module-item.active {
-  background: var(--el-color-primary);
+  background: rgba(47, 107, 255, 0.18);
   color: #fff;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  box-shadow: inset 3px 0 0 0 var(--brand), 0 4px 14px rgba(47, 107, 255, 0.28);
 }
 .module-item.active .module-icon {
-  color: #fff;
+  color: #9db8ff;
 }
 .module-item.active .module-badge {
   background: #fff;
-  color: var(--el-color-primary);
+  color: var(--brand-strong);
 }
 
 /* 折叠态：仅图标 */

@@ -67,7 +67,7 @@ function navigate(path: string) {
   padding: 24px;
   box-sizing: border-box;
   overflow-y: auto;
-  background: #f5f7fa;
+  background: var(--bg-app);
 }
 
 .panel-header {
@@ -95,14 +95,17 @@ function navigate(path: string) {
   flex: 1 1 300px;
   min-width: 240px;
   max-width: 420px;
-  background: #fff;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 .group-card:hover {
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-3px);
+  border-color: var(--el-color-primary-light-7);
+  box-shadow: 0 12px 30px rgba(47, 107, 255, 0.12);
 }
 
 .group-header {

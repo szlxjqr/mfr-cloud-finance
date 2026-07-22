@@ -164,10 +164,14 @@ function handleUserCommand(command: UserCommand) {
   user-select: none;
 }
 .brand-logo {
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 800;
-  color: var(--el-color-primary);
+  color: #fff;
   letter-spacing: 0.5px;
+  background: var(--brand-grad);
+  border-radius: 8px;
+  padding: 3px 10px;
+  box-shadow: 0 2px 8px rgba(47, 107, 255, 0.28);
 }
 .brand-name {
   font-size: 15px;
@@ -265,10 +269,10 @@ function handleUserCommand(command: UserCommand) {
   outline: none;
 }
 .user-avatar {
-  background: linear-gradient(135deg, #409eff, #2d7ff9);
+  background: var(--brand-grad);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 2px 6px rgba(64, 158, 255, 0.4);
+  box-shadow: 0 2px 6px rgba(47, 107, 255, 0.4);
 }
 .user-name {
   font-size: 14px;
