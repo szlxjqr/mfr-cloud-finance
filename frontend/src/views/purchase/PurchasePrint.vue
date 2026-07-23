@@ -217,11 +217,11 @@ function moneyToChinese(n: number): string {
 </script>
 
 <style scoped>
-/* ============ A4 打印样式 ============ */
+/* ============ 打印控制 ============ */
 @media print {
   @page {
     size: A4;
-    margin: 12mm 14mm;
+    margin: 8mm 12mm;
   }
   body {
     -webkit-print-color-adjust: exact;
@@ -232,15 +232,14 @@ function moneyToChinese(n: number): string {
     margin: 0;
     width: auto;
     min-height: auto;
+    box-shadow: none;
   }
+  /* 明细表自动重复表头 */
   .detail-table thead {
-    display: table-header-group; /* 跨页自动重复表头 */
+    display: table-header-group;
   }
-  .detail-table tr {
-    page-break-inside: avoid;    /* 行不被断开成两半 */
-  }
-  .section-header {
-    page-break-after: avoid;     /* 标题不孤零零留在页末 */
+  .detail-table tbody tr {
+    page-break-inside: avoid;
   }
 }
 
@@ -248,7 +247,7 @@ function moneyToChinese(n: number): string {
   width: 210mm;
   min-height: 297mm;
   margin: 0 auto;
-  padding: 14mm 16mm;
+  padding: 6mm 12mm;
   box-sizing: border-box;
   background: #fff;
   color: #000;
@@ -262,7 +261,6 @@ function moneyToChinese(n: number): string {
   border-bottom: 2px solid #000;
   padding-bottom: 8px;
   margin-bottom: 12px;
-  page-break-inside: avoid;     /* 标题区不被分页拆分 */
 }
 .company { font-size: 15pt; font-weight: bold; letter-spacing: 2px; }
 .doc-type { font-size: 17pt; font-weight: bold; margin-top: 3px; }
@@ -272,10 +270,6 @@ function moneyToChinese(n: number): string {
   font-weight: bold;
   margin: 12px 0 5px;
   font-size: 10pt;
-  page-break-after: avoid;      /* 标题不在页末孤行 */
-}
-.section-title + table {
-  page-break-before: auto;       /* 确保表格不被标题隔断 */
 }
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
@@ -288,13 +282,6 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   padding: 3px 5px;
   word-break: break-all;
   vertical-align: middle;
-}
-
-.info-table {
-  page-break-inside: avoid;     /* 基本信息/汇总表整体不被拆分 */
-}
-.sign-table {
-  page-break-inside: avoid;     /* 签章区域整体不被拆分 */
 }
 
 .label {
