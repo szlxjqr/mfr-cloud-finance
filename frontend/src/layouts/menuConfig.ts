@@ -39,48 +39,12 @@ export const menuItems: MenuItem[] = [
         title: '人员信息',
         icon: 'User',
         color: '#409EFF',
-        children: [{ title: '员工管理', path: '/employee/management' }],
-      },
-    ],
-  },
-
-  {
-    title: '合同管理',
-    icon: 'DocumentCopy',
-    module: 'contract',
-    groups: [
-      {
-        title: '人事合同',
-        icon: 'User',
-        color: '#67C23A',
         children: [
-          { title: '合同列表', path: '/contract/hr' },
-          { title: '合同模板', path: '/contract/hr-template' },
+          { title: '员工管理', path: '/employee/management' },
+          // 注：合同管理（2026-07-23）已隐藏主菜单，能力附着在员工详情抽屉里。
+          // 合同相关路由保留以便直接访问（销售/采购/模板/公司设置），
+          // 后续将逐步把销售/采购合同也附着到具体业务界面（客户/供应商等）。
         ],
-      },
-      {
-        title: '销售合同',
-        icon: 'Sell',
-        color: '#409EFF',
-        children: [
-          { title: '合同列表', path: '/contract/sales' },
-          { title: '合同模板', path: '/contract/sales-template' },
-        ],
-      },
-      {
-        title: '采购合同',
-        icon: 'ShoppingCart',
-        color: '#E6A23C',
-        children: [
-          { title: '合同列表', path: '/contract/purchase' },
-          { title: '合同模板', path: '/contract/purchase-template' },
-        ],
-      },
-      {
-        title: '往来单位',
-        icon: 'OfficeBuilding',
-        color: '#909399',
-        children: [{ title: '往来单位', path: '/contract/parties' }],
       },
     ],
   },
