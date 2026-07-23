@@ -64,24 +64,24 @@ function navigate(path: string) {
 <style scoped>
 .menu-panel {
   height: 100%;
-  padding: 24px;
+  padding: 28px 32px;
   box-sizing: border-box;
   overflow-y: auto;
   background: var(--bg-app);
 }
 
 .panel-header {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .panel-title {
   font-size: 22px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
-  margin: 0 0 6px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 4px;
 }
 .panel-sub {
   font-size: 14px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-muted);
 }
 
 .groups-grid {
@@ -92,43 +92,41 @@ function navigate(path: string) {
 }
 
 .group-card {
-  flex: 1 1 300px;
-  min-width: 240px;
-  max-width: 420px;
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 400px;
   background: var(--bg-surface);
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
   box-shadow: var(--shadow-card);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+  transition: box-shadow 0.2s ease;
 }
 .group-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--el-color-primary-light-7);
-  box-shadow: 0 12px 30px rgba(47, 107, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .group-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-soft);
 }
 .group-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 .group-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--el-text-color-primary);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
 }
 
 .group-items {
@@ -137,16 +135,16 @@ function navigate(path: string) {
   gap: 4px;
 }
 .group-item {
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
   font-size: 14px;
-  color: var(--el-text-color-regular);
+  color: var(--text-base);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
 }
 .group-item:hover {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 </style>

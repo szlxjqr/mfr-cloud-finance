@@ -64,8 +64,8 @@ function isActive(item: typeof menuItems[number]): boolean {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  /* 深色科技渐变底 */
-  background: linear-gradient(180deg, #0e1726 0%, #16233b 100%);
+  /* Ant Design 极简深色侧栏 */
+  background: #001529;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   transition: width 0.2s ease;
   overflow: hidden;
@@ -74,27 +74,27 @@ function isActive(item: typeof menuItems[number]): boolean {
 
 /* 品牌区 */
 .side-logo {
-  height: 56px;
+  height: 52px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 0 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .logo-img {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   object-fit: contain;
-  background: rgba(255, 255, 255, 0.08);
-  padding: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px;
 }
 .logo-text {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 600;
   color: #fff;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -120,24 +120,24 @@ function isActive(item: typeof menuItems[number]): boolean {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 46px;
+  height: 42px;
   padding: 0 14px;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.68);
+  color: rgba(255, 255, 255, 0.65);
   transition: all 0.15s ease;
   position: relative;
 }
 .module-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
 .module-item:hover .module-icon {
-  color: #fff;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .module-icon {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.55);
   flex-shrink: 0;
   transition: color 0.15s ease;
 }
@@ -151,26 +151,26 @@ function isActive(item: typeof menuItems[number]): boolean {
 .module-badge {
   font-size: 11px;
   color: #fff;
-  background: #ff9c4b;
+  background: var(--el-color-danger);
   border-radius: 10px;
-  padding: 2px 8px;
-  line-height: 1;
+  padding: 1px 7px;
+  line-height: 1.4;
   flex-shrink: 0;
 }
 
-/* 选中态：左侧品牌竖条 + 浅蓝底 + 光晕 */
+/* 选中态 */
 .module-item.active {
-  background: rgba(47, 107, 255, 0.18);
+  background: var(--el-color-primary);
   color: #fff;
-  font-weight: 600;
-  box-shadow: inset 3px 0 0 0 var(--brand), 0 4px 14px rgba(47, 107, 255, 0.28);
+  font-weight: 500;
+  box-shadow: none;
 }
 .module-item.active .module-icon {
-  color: #9db8ff;
+  color: #fff;
 }
 .module-item.active .module-badge {
   background: #fff;
-  color: var(--brand-strong);
+  color: var(--el-color-primary);
 }
 
 /* 折叠态：仅图标 */

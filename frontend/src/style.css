@@ -1,140 +1,187 @@
 /* ============================================================
-   MFR 智慧经营 · 全局设计系统  (Precision Tech)
-   - 统一覆盖 Element Plus 设计令牌（靛蓝科技主色 + 完整明暗色阶）
-   - 提供应用级中性色 / 阴影 / 字体 / 圆角
-   - 全局精修表格 / 卡片 / 按钮 / 滚动条
-
-   设计令牌命名规范（Element Plus 官方）：
-   - light-N 中 N 越大，颜色越浅（越接近白色）
-   - light-3 ≈ 70% 主色（用于聚焦边框/微弱强调）
-   - light-5 ≈ 50% 主色（中等）
-   - light-7 ≈ 30% 主色（用于标签/小徽章）
-   - light-8 ≈ 20% 主色（淡背景）
-   - light-9 ≈ 10% 主色（hover 背景/选中态底色，最浅）
-   - 公式：result = primary * (1 - w) + white * w，其中 w=0.3/0.5/0.7/0.8/0.9
+   MFR 智慧经营 · 全局设计系统 (Ant Design 极简风)
+   - 配色/阴影/字体/间距 遵循 Ant Design 4.x 设计语言
+   - 中性色阶、克制的主色使用、干净的卡片与表格
+   - 主色 #1667ff（Ant Design 5.x 官方蓝色变体）
    ============================================================ */
 
 :root {
-  /* ---- 品牌色 ---- */
-  --brand: #2f6bff;
-  --brand-strong: #1f50e6;
-  --accent: #00c2d7;                       /* 青色数据高亮 */
-  --brand-grad: linear-gradient(135deg, #2f6bff 0%, #00c2d7 160%);
+  /* ---- 品牌色（磨砂蓝，比 EP 默认更克制） ---- */
+  --brand: #1667ff;
+  --brand-strong: #0952d4;
+  --brand-grad: linear-gradient(135deg, #1667ff 0%, #40a9ff 120%);
+  --accent: #36b3c7;                      /* 青色点缀 */
 
-  /* ---- Element Plus 主色阶（已修正：light-N 越大越浅） ---- */
-  --el-color-primary: #2f6bff;
-  --el-color-primary-light-3: #6d97ff;   /* 70% 主色 - 聚焦边框/微妙强调 */
-  --el-color-primary-light-5: #97b5ff;   /* 50% 主色 - 中等 */
-  --el-color-primary-light-7: #c1d2ff;   /* 30% 主色 - 标签/小徽章 */
-  --el-color-primary-light-8: #d5e1ff;   /* 20% 主色 - 淡背景 */
-  --el-color-primary-light-9: #eaf0ff;   /* 10% 主色 - hover/选中态底色（最浅） */
-  --el-color-primary-dark-2: #2656cc;
+  /* ---- Element Plus 主色阶（极简淡化） ---- */
+  --el-color-primary: #1667ff;
+  --el-color-primary-light-3: #6ba4ff;   /* 聚焦环 */
+  --el-color-primary-light-5: #9ec1ff;   /* 中等 */
+  --el-color-primary-light-7: #cfdfff;   /* 标签 */
+  --el-color-primary-light-8: #e0ebff;   /* 淡背景 */
+  --el-color-primary-light-9: #f0f5ff;   /* hover 底色 */
+  --el-color-primary-dark-2: #0952d4;
 
-  /* ---- 语义色阶（已修正：light-N 越大越浅） ---- */
-  --el-color-success: #18a957;
-  --el-color-success-light-3: #5dc2a8;   /* 70% 主色 - 聚焦边框 */
-  --el-color-success-light-5: #8bd4ab;   /* 50% 主色 - 中等 */
-  --el-color-success-light-7: #b9e5cd;   /* 30% 主色 - 标签/小徽章 */
-  --el-color-success-light-8: #d0ede2;   /* 20% 主色 - 淡背景 */
-  --el-color-success-light-9: #e7f6ee;   /* 10% 主色 - hover/选中态底色 */
-  --el-color-success-dark-2: #138746;
+  /* ---- 语义色阶 ---- */
+  --el-color-success: #52c41a;
+  --el-color-success-light-3: #8cd85f;
+  --el-color-success-light-5: #ade688;
+  --el-color-success-light-7: #cdf0b5;
+  --el-color-success-light-8: #dff5d0;
+  --el-color-success-light-9: #edf9e0;
+  --el-color-success-dark-2: #389e0d;
 
-  --el-color-warning: #f5a623;
-  --el-color-warning-light-3: #f8c165;   /* 70% 主色 - 聚焦边框 */
-  --el-color-warning-light-5: #fad291;   /* 50% 主色 - 中等 */
-  --el-color-warning-light-7: #fce4bd;   /* 30% 主色 - 标签/小徽章 */
-  --el-color-warning-light-8: #fdedd3;   /* 20% 主色 - 淡背景 */
-  --el-color-warning-light-9: #fef6e9;   /* 10% 主色 - hover/选中态底色 */
-  --el-color-warning-dark-2: #c4851c;
+  --el-color-warning: #faad14;
+  --el-color-warning-light-3: #fbc75b;
+  --el-color-warning-light-5: #fcd987;
+  --el-color-warning-light-7: #fde7b2;
+  --el-color-warning-light-8: #fdefc9;
+  --el-color-warning-light-9: #fef6e0;
 
-  --el-color-danger: #f5455c;
-  --el-color-danger-light-3: #f87d8d;    /* 70% 主色 - 聚焦边框 */
-  --el-color-danger-light-5: #faa2ad;    /* 50% 主色 - 中等 */
-  --el-color-danger-light-7: #fcc7ce;    /* 30% 主色 - 标签/小徽章 */
-  --el-color-danger-light-8: #fdd9df;    /* 20% 主色 - 淡背景 */
-  --el-color-danger-light-9: #feecee;    /* 10% 主色 - hover/选中态底色 */
-  --el-color-danger-dark-2: #c4374a;
+  --el-color-danger: #ff4d4f;
+  --el-color-danger-light-3: #ff8789;
+  --el-color-danger-light-5: #ffa8a9;
+  --el-color-danger-light-7: #ffc8c9;
+  --el-color-danger-light-8: #ffd9da;
+  --el-color-danger-light-9: #ffeced;
+  --el-color-danger-dark-2: #cf1322;
 
-  --el-color-error: #f5455c;
-  --el-color-info: #6b7280;
-  --el-color-info-light-3: #d3d5d9;
-  --el-color-info-light-5: #b5b8c0;
-  --el-color-info-light-7: #979ca6;
-  --el-color-info-light-8: #898e99;
-  --el-color-info-light-9: #7a808d;
-  --el-color-info-dark-2: #565b66;
+  --el-color-error: #ff4d4f;
+  --el-color-info: #8c8c8c;
+  --el-color-info-light-3: #b5b5b5;
+  --el-color-info-light-5: #d9d9d9;
+  --el-color-info-light-7: #e8e8e8;
+  --el-color-info-light-8: #f0f0f0;
+  --el-color-info-light-9: #f5f5f5;
+  --el-color-info-dark-2: #595959;
 
-  --el-border-radius-base: 8px;
-  --el-border-radius-small: 6px;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
   --el-border-radius-round: 999px;
 
-  /* ---- 应用级中性色阶 ---- */
-  --bg-app: #f4f6fb;          /* 内容区底色（冷灰） */
-  --bg-surface: #ffffff;        /* 卡片 / 表面 */
-  --bg-subtle: #f7f9fc;        /* 浅底 / 表头 / 斑马纹 */
-  --border-soft: #e8edf5;       /* 分隔线 / 卡片描边 */
-  --border-soft-2: #eef2f8;
-  --text-strong: #0f1b2d;
-  --text-base: #344256;
-  --text-muted: #6b7280;
-  --text-faint: #9aa4b2;
+  /* ---- 中性色阶（Ant Design 极简灰） ---- */
+  --bg-app: #f0f2f5;          /* 页面底色 */
+  --bg-surface: #ffffff;        /* 卡片/表面 */
+  --bg-subtle: #fafafa;        /* 表头/斑马纹（极浅灰） */
+  --border-soft: #e8e8e8;       /* 分隔线/描边（中性灰） */
+  --border-soft-2: #f0f0f0;     /* 更淡描边 */
+  --text-strong: #262626;       /* 主标题（85% 黑） */
+  --text-base: #595959;         /* 正文（65% 黑） */
+  --text-muted: #8c8c8c;       /* 次信息（55% 黑） */
+  --text-faint: #bfbfbf;        /* 占位/禁用（45% 黑） */
 
   /* ---- 字体 ---- */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC',
-    'Microsoft YaHei', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'SF Mono', 'SFMono-Regular', ui-monospace,
+    'JetBrains Mono', 'Fira Code', Consolas, monospace;
 
-  /* ---- 阴影 ---- */
-  --shadow-card: 0 1px 2px rgba(15, 27, 45, .04), 0 8px 24px rgba(15, 27, 45, .06);
-  --shadow-pop: 0 6px 24px rgba(15, 27, 45, .12);
-  --shadow-brand: 0 6px 18px rgba(47, 107, 255, .28);
+  /* ---- 阴影（极为克制） ---- */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04),
+    0 1px 4px rgba(0, 0, 0, 0.02);
+  --shadow-pop: 0 3px 12px rgba(0, 0, 0, 0.08);
+  --shadow-brand: 0 2px 6px rgba(22, 103, 255, 0.16);
 
   /* ---- 基础排版 ---- */
   font-family: var(--font-sans);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: var(--text-base);
   color-scheme: light;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-synthesis: none;
 }
 
-* { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; height: 100%; }
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
 body {
   background: var(--bg-app);
   color: var(--text-base);
   font-family: var(--font-sans);
 }
-#app { width: 100%; min-height: 100vh; text-align: left; overflow: hidden; }
+#app {
+  width: 100%;
+  min-height: 100vh;
+  text-align: left;
+  overflow: hidden;
+}
 
-/* ---- 标题层级（内容区小标题） ---- */
-h1, h2, h3 { font-family: var(--font-sans); color: var(--text-strong); font-weight: 700; }
-h1 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 16px; }
-h2 { font-size: 20px; letter-spacing: -.01em; margin: 0 0 12px; }
-h3 { font-size: 16px; margin: 0 0 8px; }
-p { margin: 0; }
-a { color: var(--el-color-primary); text-decoration: none; }
+/* ---- 标题层级 ---- */
+h1,
+h2,
+h3 {
+  font-family: var(--font-sans);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+h1 {
+  font-size: 26px;
+  margin: 0 0 14px;
+}
+h2 {
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+h3 {
+  font-size: 15px;
+  margin: 0 0 6px;
+}
+p {
+  margin: 0;
+}
+a {
+  color: var(--el-color-primary);
+  text-decoration: none;
+}
 
 /* ============ Element Plus 组件精修 ============ */
 
-/* 按钮：更克制的圆角与字重，主按钮品牌投影 */
-.el-button { font-weight: 500; letter-spacing: .01em; transition: all .18s ease; }
-.el-button--primary { box-shadow: 0 2px 8px rgba(47, 107, 255, .22); }
-.el-button--primary:hover { box-shadow: 0 4px 14px rgba(47, 107, 255, .34); }
+/* ---- 按钮：克制、干净 ---- */
+.el-button {
+  font-weight: 500;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+}
+.el-button--primary {
+  box-shadow: none;
+}
+.el-button--primary:hover {
+  box-shadow: 0 2px 6px rgba(22, 103, 255, 0.18);
+}
+.el-button--small {
+  border-radius: 4px;
+}
 
-/* 输入框：聚焦品牌环 */
-.el-input__wrapper { border-radius: var(--el-border-radius-base); box-shadow: 0 0 0 1px var(--border-soft) inset; transition: box-shadow .18s ease; }
-.el-input__wrapper.is-focus { box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 3px rgba(47, 107, 255, .12) !important; }
-.el-textarea__inner { border-radius: var(--el-border-radius-base); transition: box-shadow .18s ease; }
-.el-textarea__inner:focus { box-shadow: 0 0 0 1px var(--el-color-primary) inset, 0 0 0 3px rgba(47, 107, 255, .12) !important; }
+/* ---- 输入框 ---- */
+.el-input__wrapper {
+  border-radius: 6px;
+  box-shadow: 0 0 0 1px var(--border-soft) inset;
+  transition: box-shadow 0.18s ease;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset,
+    0 0 0 3px rgba(22, 103, 255, 0.08) !important;
+}
+.el-textarea__inner {
+  border-radius: 6px;
+  transition: box-shadow 0.18s ease;
+}
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--el-color-primary) inset,
+    0 0 0 3px rgba(22, 103, 255, 0.08) !important;
+}
 
-/* 卡片：统一表面与阴影 */
+/* ---- 卡片：干净的白底 + 细描边 ---- */
 .el-card {
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: 8px;
   box-shadow: var(--shadow-card);
   overflow: hidden;
 }
@@ -142,39 +189,143 @@ a { color: var(--el-color-primary); text-decoration: none; }
   border-bottom: 1px solid var(--border-soft);
   font-weight: 600;
   color: var(--text-strong);
-  padding: 14px 18px;
+  padding: 12px 16px;
+}
+.el-card__body {
+  padding: 16px;
 }
 
-/* 表格：现代数据表观感 */
-.el-table { --el-table-border-color: var(--border-soft); --el-table-header-bg-color: var(--bg-subtle); font-size: 13.5px; }
-.el-table th.el-table__cell { background: var(--bg-subtle); color: var(--text-muted); font-weight: 600; }
-.el-table .el-table__row { transition: background .15s ease; }
-.el-table .el-table__row:hover > td.el-table__cell { background: #f2f6ff !important; }
-.el-table .cell { padding: 0 14px; line-height: 22px; }
-.el-table td.el-table__cell { padding: 11px 0; }
+/* ---- 表格：极简风格（无竖线、细横线） ---- */
+.el-table {
+  --el-table-border-color: var(--border-soft-2);
+  --el-table-header-bg-color: var(--bg-subtle);
+  font-size: 13.5px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-soft);
+}
+.el-table .el-table__row {
+  transition: background 0.12s ease;
+}
+.el-table .el-table__row:hover > td.el-table__cell {
+  background: var(--el-color-primary-light-9) !important;
+}
+.el-table td.el-table__cell {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft-2);
+}
+.el-table--border td.el-table__cell {
+  border-right: none;
+}
+.el-table__cell {
+  border-right: none !important;
+}
 
-/* 标签：去描边、字重 */
-.el-tag { font-weight: 600; border: none; }
+/* ---- 标签 ---- */
+.el-tag {
+  font-weight: 500;
+  border: 1px solid transparent;
+}
 
-/* 对话框：更利落的边角 */
-.el-dialog { border-radius: 14px; overflow: hidden; }
-.el-dialog__header { padding: 18px 22px; margin-right: 0; border-bottom: 1px solid var(--border-soft); }
-.el-dialog__title { font-weight: 700; color: var(--text-strong); }
-.el-dialog__body { padding: 22px; }
-.el-dialog__footer { padding: 14px 22px; border-top: 1px solid var(--border-soft); }
+/* ---- 对话框 ---- */
+.el-dialog {
+  border-radius: 10px;
+  overflow: hidden;
+}
+.el-dialog__header {
+  padding: 16px 20px;
+  margin-right: 0;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-subtle);
+}
+.el-dialog__title {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-strong);
+}
+.el-dialog__body {
+  padding: 20px;
+}
+.el-dialog__footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-subtle);
+}
 
-/* 分页：靠右留白 */
-.el-pagination { justify-content: flex-end; padding: 14px 0 0; }
+/* ---- 抽屉 ---- */
+.el-drawer {
+  border-radius: 10px 0 0 10px;
+}
+.el-drawer__header {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--text-strong);
+  padding: 16px 20px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border-soft);
+}
 
-/* ============ 全局滚动条 ============ */
-*::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: #d6deea; border-radius: 99px; border: 2px solid transparent; background-clip: padding-box; }
-*::-webkit-scrollbar-thumb:hover { background: #b9c4d8; background-clip: padding-box; }
-*::-webkit-scrollbar-track { background: transparent; }
+/* ---- 分页 ---- */
+.el-pagination {
+  justify-content: flex-end;
+  padding: 14px 0 0;
+}
 
-/* ============ 内容区页包裹（多数页面使用 .page / .toolbar） ============ */
-.page { padding: 18px; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; align-items: center; }
+/* ---- 消息 ---- */
+.el-message {
+  border-radius: 8px;
+}
+.el-message-box {
+  border-radius: 10px;
+}
 
-/* 区块小标题（如打印页 .section-title） */
-.section-title { font-size: 15px; font-weight: 700; color: var(--text-strong); margin: 0 0 10px; }
+/* ============ 全局滚动条（隐式极窄） ============ */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ============ 内容区通用 ============ */
+.page {
+  padding: 20px;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  align-items: center;
+}
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0 0 10px;
+}
+
+/* ---- 提示气泡：Ant Design 风格描述 ---- */
+.field-tip {
+  font-size: 12px;
+  color: var(--text-faint);
+  line-height: 1.5;
+  margin-top: 2px;
+}

@@ -153,32 +153,31 @@ function hideMenu() {
   border-radius: 2px;
 }
 
-/* 单个标签（程序坞药丸风格） */
+/* 单个标签（Ant Design 极简标签） */
 .qs-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 14px;
-  background: #f4f4f5;
-  color: #606266;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
   font-size: 13px;
   white-space: nowrap;
   cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.18s ease;
+  border: none;
+  transition: all 0.15s ease;
   user-select: none;
   flex-shrink: 0;
 }
 .qs-tab:hover {
-  background: #e9e9eb;
-  color: #303133;
+  background: var(--el-color-primary-light-9);
+  color: var(--text-strong);
 }
 .qs-tab.active {
   background: var(--el-color-primary-light-9);
   color: var(--el-color-primary);
-  border-color: var(--el-color-primary-light-5);
   font-weight: 600;
 }
 
