@@ -1,5 +1,5 @@
 <template>
-  <div class="page">
+  <div class="page" ref="cardRef">
     <el-card shadow="never">
       <div class="toolbar">
         <span class="title">利润表</span>
@@ -12,6 +12,9 @@
           style="width: 220px"
         />
         <span class="as-of">期间：{{ data?.period || '累计' }}</span>
+        <span class="spacer" />
+        <el-button type="primary" plain size="small" :icon="Download" :disabled="!data" @click="onExportExcel">导出Excel</el-button>
+        <el-button plain size="small" :disabled="!data" @click="onExportPdf">导出PDF</el-button>
       </div>
 
       <el-table :data="rows" border size="small" style="margin-top: 8px">
@@ -38,11 +41,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Download } from '@element-plus/icons-vue'
 import { getIncomeStatement } from '@/api/financial_statement'
 import type { IncomeStatementOut } from '@/types/financial_statement'
+import { exportXlsx, printReport } from '@/utils/exportReport'
 
 const period = ref<string>('')
 const data = ref<IncomeStatementOut | null>(null)
+const cardRef = ref<HTMLElement>()
 
 const fmt = (n?: number) =>
   (n ?? 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -70,6 +76,33 @@ async function load() {
   data.value = res.data
 }
 
+function xlsxRows(): (string | number | null)[][] {
+  const out: (string | number | null)[][] = []
+  out.push(['利润表', data.value?.period || '累计'])
+  out.push([])
+  out.push(['项目', '本期金额（元）', '本年累计（元）'])
+  for (const r of rows.value) {
+    out.push([
+      r.name,
+      typeof r.current === 'number' ? r.current : null,
+      typeof r.cumulative === 'number' ? r.cumulative : null,
+    ])
+  }
+  return out
+}
+
+async function onExportExcel() {
+  if (!data.value) return
+  await exportXlsx(`利润表_${data.value.period || '累计'}.xlsx`, [
+    { name: '利润表', rows: xlsxRows() },
+  ])
+}
+
+function onExportPdf() {
+  if (!data.value) return
+  printReport(`利润表（${data.value.period || '累计'}）`, cardRef.value)
+}
+
 onMounted(load)
 </script>
 
@@ -82,4 +115,5 @@ onMounted(load)
 .tot { font-weight: 600; background: #fafafa; }
 .neg { color: #f56c6c; }
 .hint { color: #909399; font-size: 12px; margin-top: 12px; }
+.spacer { flex: 1; }
 </style>
