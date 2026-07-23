@@ -3,6 +3,15 @@
    - 统一覆盖 Element Plus 设计令牌（靛蓝科技主色 + 完整明暗色阶）
    - 提供应用级中性色 / 阴影 / 字体 / 圆角
    - 全局精修表格 / 卡片 / 按钮 / 滚动条
+
+   设计令牌命名规范（Element Plus 官方）：
+   - light-N 中 N 越大，颜色越浅（越接近白色）
+   - light-3 ≈ 70% 主色（用于聚焦边框/微弱强调）
+   - light-5 ≈ 50% 主色（中等）
+   - light-7 ≈ 30% 主色（用于标签/小徽章）
+   - light-8 ≈ 20% 主色（淡背景）
+   - light-9 ≈ 10% 主色（hover 背景/选中态底色，最浅）
+   - 公式：result = primary * (1 - w) + white * w，其中 w=0.3/0.5/0.7/0.8/0.9
    ============================================================ */
 
 :root {
@@ -12,38 +21,38 @@
   --accent: #00c2d7;                       /* 青色数据高亮 */
   --brand-grad: linear-gradient(135deg, #2f6bff 0%, #00c2d7 160%);
 
-  /* ---- Element Plus 主色阶 ---- */
+  /* ---- Element Plus 主色阶（已修正：light-N 越大越浅） ---- */
   --el-color-primary: #2f6bff;
-  --el-color-primary-light-3: #c1d3ff;
-  --el-color-primary-light-5: #97b5ff;
-  --el-color-primary-light-7: #6d97ff;
-  --el-color-primary-light-8: #5989ff;
-  --el-color-primary-light-9: #447aff;
+  --el-color-primary-light-3: #6d97ff;   /* 70% 主色 - 聚焦边框/微妙强调 */
+  --el-color-primary-light-5: #97b5ff;   /* 50% 主色 - 中等 */
+  --el-color-primary-light-7: #c1d2ff;   /* 30% 主色 - 标签/小徽章 */
+  --el-color-primary-light-8: #d5e1ff;   /* 20% 主色 - 淡背景 */
+  --el-color-primary-light-9: #eaf0ff;   /* 10% 主色 - hover/选中态底色（最浅） */
   --el-color-primary-dark-2: #2656cc;
 
-  /* ---- 语义色阶 ---- */
+  /* ---- 语义色阶（已修正：light-N 越大越浅） ---- */
   --el-color-success: #18a957;
-  --el-color-success-light-3: #bae5cd;
-  --el-color-success-light-5: #8cd4ab;
-  --el-color-success-light-7: #5dc389;
-  --el-color-success-light-8: #46ba79;
-  --el-color-success-light-9: #2fb268;
+  --el-color-success-light-3: #5dc2a8;   /* 70% 主色 - 聚焦边框 */
+  --el-color-success-light-5: #8bd4ab;   /* 50% 主色 - 中等 */
+  --el-color-success-light-7: #b9e5cd;   /* 30% 主色 - 标签/小徽章 */
+  --el-color-success-light-8: #d0ede2;   /* 20% 主色 - 淡背景 */
+  --el-color-success-light-9: #e7f6ee;   /* 10% 主色 - hover/选中态底色 */
   --el-color-success-dark-2: #138746;
 
   --el-color-warning: #f5a623;
-  --el-color-warning-light-3: #fce4bd;
-  --el-color-warning-light-5: #fad291;
-  --el-color-warning-light-7: #f8c165;
-  --el-color-warning-light-8: #f7b84f;
-  --el-color-warning-light-9: #f6af39;
+  --el-color-warning-light-3: #f8c165;   /* 70% 主色 - 聚焦边框 */
+  --el-color-warning-light-5: #fad291;   /* 50% 主色 - 中等 */
+  --el-color-warning-light-7: #fce4bd;   /* 30% 主色 - 标签/小徽章 */
+  --el-color-warning-light-8: #fdedd3;   /* 20% 主色 - 淡背景 */
+  --el-color-warning-light-9: #fef6e9;   /* 10% 主色 - hover/选中态底色 */
   --el-color-warning-dark-2: #c4851c;
 
   --el-color-danger: #f5455c;
-  --el-color-danger-light-3: #fcc7ce;
-  --el-color-danger-light-5: #faa2ae;
-  --el-color-danger-light-7: #f87d8d;
-  --el-color-danger-light-8: #f76a7d;
-  --el-color-danger-light-9: #f6586c;
+  --el-color-danger-light-3: #f87d8d;    /* 70% 主色 - 聚焦边框 */
+  --el-color-danger-light-5: #faa2ad;    /* 50% 主色 - 中等 */
+  --el-color-danger-light-7: #fcc7ce;    /* 30% 主色 - 标签/小徽章 */
+  --el-color-danger-light-8: #fdd9df;    /* 20% 主色 - 淡背景 */
+  --el-color-danger-light-9: #feecee;    /* 10% 主色 - hover/选中态底色 */
   --el-color-danger-dark-2: #c4374a;
 
   --el-color-error: #f5455c;
