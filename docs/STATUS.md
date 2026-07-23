@@ -24,7 +24,7 @@
 | 项目根目录 | `/workspace/mfr-cloud-finance` |
 | **Git 仓库根** | `/workspace`（项目在子目录 `mfr-cloud-finance/`；完整前端依赖 `frontend/node_modules` 已随 git 提交，约 1.4 万文件） |
 | Git 远程 | `git@github.com:szlxjqr/mfr-cloud-finance.git`（SSH，公开仓库） |
-| 当前分支 | `main`（HEAD: `2821a26`） |
+| 当前分支 | `main`（HEAD 见 `git log`；2026-07-23 已含 报表/资产/工资/合同/打印 等模块） |
 | 预览地址 | `https://webview.e2b.bj9.sandbox.cloudstudio.club/?x-cs-sandbox-id=2a28c3ff07dc470ca7e399c5464b5f7f&x-cs-sandbox-port=8137` |
 | 预览服务 | `python3 -m http.server 8137 --bind 0.0.0.0`（服务 `frontend/dist`，Hash 路由刷新安全） |
 | SSH 配置 | `~/.ssh/config` → `github.com` 走 `ssh.github.com:443`（沙箱 22 端口被封） |
@@ -38,10 +38,10 @@
 
 ## 3. 当前进度
 
-### 页面进度：19 完整页 + 15 占位页
-- **完整业务页 (19)**：仪表盘(1) + 凭证管理(3) + 基础账簿(6) + 辅助账簿(6) + 科目管理(1) + **进项发票(1) + 报销单列表(1)**
-- **占位页 (15)**：报表(5) + 出纳(3) + 资产(1) + 工资(7) + 发票其余(4) + 结账(2) + 设置其余(11)
-- 视图目录：`dashboard / voucher(凭证) / general-ledger / auxiliary-ledger / settings / reports / cashier / payroll / invoice / closing / assets`
+### 页面进度（2026-07-23 校准）
+- **已落地真实功能（接后端/真实数据）**：仪表盘 / 凭证管理(3) / 基础账簿(6) / 辅助账簿(6) / 科目管理(1) / 进项发票(1) / 报销单列表(1) / **工资 SalaryList / 固定资产 FixedAsset / 人事合同+公司设置(融入员工详情抽屉) / 税务汇总 TaxSummary / 综合报表看板 / 财务报表(资产负债表·利润表·现金流量表·季报)** —— 共约 24+ 真实页
+- **仍占位 / 待接真实数据**：出纳(3) / 发票其余(4) / 结账(2) / 设置其余(11) / 税务子页(个税申报·印花税·工作台) / 工资子页(工资设置·个税报表·部门汇总·员工基本信息·工资分摊) / 销售·采购合同融入客户·供应商抽屉 / 报表导出
+- 视图目录：`dashboard / voucher / general-ledger / auxiliary-ledger / settings / reports / cashier / payroll / invoice / closing / assets`
 
 ### 发票报销模块进度（2026-07-21）
 | 功能 | 状态 | 说明 |
@@ -99,13 +99,23 @@ git clone git@github.com:szlxjqr/mfr-cloud-finance.git   # 或用 T 网盘（tdr
 
 ---
 
-## 6. 待办 / 下一步
+## 6. 待办 / 下一步（2026-07-23 校准）
 
-- [ ] 报表模块 5 页实现（资产负债表/利润表/利润表季报/现金流量表/现金流量表季报）
-- [ ] 出纳模块 3 页、资产模块 1 页、工资模块 7 页、发票模块 5 页、结账模块 2 页、设置其余 11 页
-- [ ] 凭证录入页会计科目选择器弹窗（当前占位）
-- [ ] 复式记账引擎后端化
-- [ ] 科目/凭证/账簿真实持久化（当前前端静态 + Mock）
+### 已完成（勿再列为待办）
+- [x] 报表模块 4 页（资产负债表/利润表/现金流量表/季报）—— 由 ledger/tax 实时派生
+- [x] 资产模块 1 页（固定资产，入账/折旧/处置自动凭证）
+- [x] 工资 SalaryList 真实页（审核通过自动生成工资凭证）
+- [x] 人事合同 + 公司设置（员工联动 + 深圳标准合同可打印，融入员工详情抽屉）
+- [x] 税务汇总 / 综合报表看板 / 财务报表引擎
+- [x] 设计系统切换为 Ant Design 极简风；采购单打印重写（window.print + @media print）
+
+### 待办（真实剩余）
+- [ ] 税务子页：个税申报 / 印花税 / 工作台 从占位接真实数据
+- [ ] 工资子页：工资设置(社保/公积金/个税试算) / 个税报表 / 部门工资汇总 / 员工基本信息 / 工资分摊
+- [ ] 销售合同 → 客户管理抽屉；采购合同 → 供应商/采购申请抽屉
+- [ ] 出纳模块 3 页、发票其余 4 页、结账模块 2 页、设置其余 11 页
+- [ ] 报表导出（Excel/PDF）
+- [ ] 凭证录入页会计科目选择器弹窗优化
 - [ ] 将 `accountData.ts` 科目数据迁移到后端 API
 
 ---
