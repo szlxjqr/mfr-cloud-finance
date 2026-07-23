@@ -217,6 +217,33 @@ function moneyToChinese(n: number): string {
 </script>
 
 <style scoped>
+/* ============ A4 打印样式 ============ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 14mm;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .purchase-form {
+    padding: 0;
+    margin: 0;
+    width: auto;
+    min-height: auto;
+  }
+  .detail-table thead {
+    display: table-header-group; /* 跨页自动重复表头 */
+  }
+  .detail-table tr {
+    page-break-inside: avoid;    /* 行不被断开成两半 */
+  }
+  .section-header {
+    page-break-after: avoid;     /* 标题不孤零零留在页末 */
+  }
+}
+
 .purchase-form {
   width: 210mm;
   min-height: 297mm;
@@ -235,12 +262,21 @@ function moneyToChinese(n: number): string {
   border-bottom: 2px solid #000;
   padding-bottom: 8px;
   margin-bottom: 12px;
+  page-break-inside: avoid;     /* 标题区不被分页拆分 */
 }
 .company { font-size: 15pt; font-weight: bold; letter-spacing: 2px; }
 .doc-type { font-size: 17pt; font-weight: bold; margin-top: 3px; }
 .unit { position: absolute; right: 0; top: 0; font-size: 9pt; color: #333; }
 
-.section-title { font-weight: bold; margin: 12px 0 5px; font-size: 10pt; }
+.section-title {
+  font-weight: bold;
+  margin: 12px 0 5px;
+  font-size: 10pt;
+  page-break-after: avoid;      /* 标题不在页末孤行 */
+}
+.section-title + table {
+  page-break-before: auto;       /* 确保表格不被标题隔断 */
+}
 
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
@@ -252,6 +288,13 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   padding: 3px 5px;
   word-break: break-all;
   vertical-align: middle;
+}
+
+.info-table {
+  page-break-inside: avoid;     /* 基本信息/汇总表整体不被拆分 */
+}
+.sign-table {
+  page-break-inside: avoid;     /* 签章区域整体不被拆分 */
 }
 
 .label {
