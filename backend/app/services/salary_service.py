@@ -206,3 +206,66 @@ def tax_report(db: Session, period: Optional[str] = None, employee_name: Optiona
     ]
     out.sort(key=lambda x: x["tax_total"], reverse=True)
     return out
+
+
+def salary_allocation(db: Session, period: Optional[str] = None, status: Optional[str] = None) -> dict:
+    """工资分摊：按 department 归集工资成本，并计算各部门占工资总额比例（分摊权重）。
+
+    口径（延续「业务单→派生数据」联动地基，全部由 salary_bills 实时统计）：
+    - 部门为空记为「未分配」。
+    - 人数按 员工姓名去重 统计（同一员工同月仅一人）。
+    - ratio = 部门应发 / 工资总额（分摊权重，0~1）。
+    - rd_ratio = 含「研发」的部门应发合计 / 工资总额（研发投入人力成本占比）。
+    返回：total_gross / total_headcount / avg_gross / rd_ratio / rows[]。
+    """
+    stmt = select(
+        func.coalesce(m.SalaryBill.department, "未分配").label("department"),
+        func.count(func.distinct(m.SalaryBill.employee_name)).label("headcount"),
+        func.coalesce(func.sum(m.SalaryBill.gross_pay), 0).label("gross_total"),
+        func.coalesce(func.sum(m.SalaryBill.social_personal), 0).label("social_total"),
+        func.coalesce(func.sum(m.SalaryBill.fund_personal), 0).label("fund_total"),
+        func.coalesce(func.sum(m.SalaryBill.tax_personal), 0).label("tax_total"),
+        func.coalesce(func.sum(m.SalaryBill.deduct_total), 0).label("deduct_total"),
+        func.coalesce(func.sum(m.SalaryBill.net_pay), 0).label("net_total"),
+    ).group_by(
+        func.coalesce(m.SalaryBill.department, "未分配")
+    )
+    if period:
+        stmt = stmt.where(m.SalaryBill.period == period)
+    if status:
+        stmt = stmt.where(m.SalaryBill.status == status)
+    stmt = stmt.order_by(func.coalesce(m.SalaryBill.department, "未分配"))
+    rows = db.execute(stmt).all()
+
+    total_gross = 0.0
+    total_head = 0
+    for r in rows:
+        total_gross += float(r.gross_total)
+        total_head += int(r.headcount)
+
+    rd_gross = 0.0
+    out: List[dict] = []
+    for r in rows:
+        g = float(r.gross_total)
+        if "研发" in r.department:
+            rd_gross += g
+        out.append(
+            {
+                "department": r.department,
+                "headcount": int(r.headcount),
+                "gross_total": round(g, 2),
+                "social_total": round(float(r.social_total), 2),
+                "fund_total": round(float(r.fund_total), 2),
+                "tax_total": round(float(r.tax_total), 2),
+                "deduct_total": round(float(r.deduct_total), 2),
+                "net_total": round(float(r.net_total), 2),
+                "ratio": round(g / total_gross, 4) if total_gross else 0.0,
+            }
+        )
+    return {
+        "total_gross": round(total_gross, 2),
+        "total_headcount": total_head,
+        "avg_gross": round(total_gross / total_head, 2) if total_head else 0.0,
+        "rd_ratio": round(rd_gross / total_gross, 4) if total_gross else 0.0,
+        "rows": out,
+    }

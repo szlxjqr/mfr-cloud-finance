@@ -1,5 +1,5 @@
 import http from '@/utils/request'
-import type { SalaryBill, SalarySetting } from '@/types/salary'
+import type { SalaryBill, SalarySetting, SalaryAllocation } from '@/types/salary'
 
 export const salaryApi = {
   list: (params?: { keyword?: string; status?: string; employee_name?: string; period?: string }) =>
@@ -40,4 +40,7 @@ export const salaryApi = {
   // 个税报表
   taxReport: (params?: { period?: string; employee_name?: string }) =>
     http.get<Record<string, unknown>[]>('/salaries/tax-report', { params }),
+  // 工资分摊（按部门归集 + 占比）
+  allocation: (params?: { period?: string; status?: string }) =>
+    http.get<SalaryAllocation>('/salaries/allocation', { params }),
 }

@@ -35,3 +35,24 @@ export interface SalarySetting {
   tax_method: '月度税率表' | '固定比例'
   tax_flat_rate: number // 固定比例模式税率 %
 }
+
+/** 工资分摊：按部门归集 + 占比 */
+export interface SalaryAllocationRow {
+  department: string
+  headcount: number
+  gross_total: number
+  social_total: number
+  fund_total: number
+  tax_total: number
+  deduct_total: number
+  net_total: number
+  ratio: number // 占工资总额比例 0~1
+}
+
+export interface SalaryAllocation {
+  total_gross: number
+  total_headcount: number
+  avg_gross: number
+  rd_ratio: number // 研发部应发占比（研发投入人力成本）
+  rows: SalaryAllocationRow[]
+}

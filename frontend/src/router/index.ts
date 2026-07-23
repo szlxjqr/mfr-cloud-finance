@@ -178,13 +178,13 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '工资管理', module: 'payroll' },
         },
-        { path: 'payroll/employee-info', name: 'PayrollEmployeeInfo', component: Placeholder, props: { title: '员工基本信息' }, meta: { title: '员工基本信息', group: '工资' } },
+        { path: 'payroll/employee-info', name: 'PayrollEmployeeInfo', component: () => import('@/views/payroll/PayrollEmployeeInfo.vue'), meta: { title: '员工基本信息', group: '工资' } },
         { path: 'payroll/salary-list', name: 'PayrollSalaryList', component: () => import('@/views/payroll/SalaryList.vue'), meta: { title: '工资列表', group: '工资' } },
         { path: 'payroll/dept-summary', name: 'PayrollDeptSummary', component: () => import('@/views/payroll/SalaryDeptSummary.vue'), meta: { title: '部门工资汇总表', group: '工资' } },
         { path: 'payroll/tax-report', name: 'PayrollTaxReport', component: () => import('@/views/payroll/SalaryTaxReport.vue'), meta: { title: '个税报表', group: '工资' } },
         { path: 'payroll/social-fund-setting', name: 'PayrollSocialFundSetting', component: () => import('@/views/payroll/SalarySetting.vue'), meta: { title: '社保及公积金设置', group: '工资设置' } },
         { path: 'payroll/calc-setting', name: 'PayrollCalcSetting', component: () => import('@/views/payroll/SalarySetting.vue'), meta: { title: '工资计算设置', group: '工资设置' } },
-        { path: 'payroll/allocation', name: 'PayrollAllocation', component: Placeholder, props: { title: '工资分摊' }, meta: { title: '工资分摊', group: '工资设置' } },
+        { path: 'payroll/allocation', name: 'PayrollAllocation', component: () => import('@/views/payroll/SalaryAllocation.vue'), meta: { title: '工资分摊', group: '工资设置' } },
 
         /* ====== 资产管理模块 ====== */
         {

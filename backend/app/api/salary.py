@@ -118,6 +118,16 @@ def list_bills(
     return db.scalars(stmt).all()
 
 
+@router.get("/allocation", response_model=dict)
+def salary_allocation(
+    period: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """工资分摊：按部门归集工资成本并计算分摊占比（研发部占比=研发投入人力成本）。"""
+    return svc.salary_allocation(db, period=period, status=status)
+
+
 @router.get("/next-salary-no", response_model=dict)
 def next_salary_no(db: Session = Depends(get_db)):
     """新建工资单前预占下一个单号（仅预览/预填）。"""
