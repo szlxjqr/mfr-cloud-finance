@@ -58,6 +58,7 @@ def init_db() -> None:
     from app.models import subject as _subject  # noqa: F401
     from app.models import voucher as _voucher  # noqa: F401
     from app.models import salary as _salary  # noqa: F401
+    from app.models import salary_setting as _salary_setting  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

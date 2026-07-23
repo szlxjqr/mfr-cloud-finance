@@ -90,6 +90,13 @@
         </el-row>
 
         <el-divider content-position="left">代扣（个人部分）</el-divider>
+        <el-row :gutter="12" style="margin-bottom: 8px">
+          <el-col :span="24" style="text-align: right">
+            <el-button size="small" @click="calcBySetting" :loading="calcLoading">
+              按设置自动计算（社保/公积金/个税）
+            </el-button>
+          </el-col>
+        </el-row>
         <el-row :gutter="12">
           <el-col :span="8"><el-form-item label="社保"><el-input-number v-model="form.social_personal" :min="0" :precision="2" :controls="false" style="width: 100%" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="公积金"><el-input-number v-model="form.fund_personal" :min="0" :precision="2" :controls="false" style="width: 100%" /></el-form-item></el-col>
@@ -234,6 +241,28 @@ const payRules = {
 
 const viewVisible = ref(false)
 const viewRow = ref<SalaryBill | null>(null)
+
+const calcLoading = ref(false)
+async function calcBySetting() {
+  calcLoading.value = true
+  try {
+    const res = await salaryApi.calcDeductions({
+      base_salary: toNum(form.base_salary),
+      performance: toNum(form.performance),
+      overtime: toNum(form.overtime),
+      bonus: toNum(form.bonus),
+    })
+    const d = res.data
+    form.social_personal = d.social_personal as number
+    form.fund_personal = d.fund_personal as number
+    form.tax_personal = d.tax_personal as number
+    ElMessage.success('已按当前工资设置计算代扣')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '计算失败，请先在「工资设置」配置比例')
+  } finally {
+    calcLoading.value = false
+  }
+}
 
 function emptyForm() {
   return {

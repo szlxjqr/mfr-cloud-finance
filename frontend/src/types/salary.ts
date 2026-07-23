@@ -27,3 +27,11 @@ export interface SalaryBill {
   pay_remark?: string | null
   remark?: string | null
 }
+
+export interface SalarySetting {
+  social_personal_rate: number // 社保个人比例 %
+  fund_personal_rate: number // 公积金个人比例 %
+  tax_threshold: number // 个税起征点
+  tax_method: '月度税率表' | '固定比例'
+  tax_flat_rate: number // 固定比例模式税率 %
+}

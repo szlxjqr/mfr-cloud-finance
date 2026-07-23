@@ -4,6 +4,7 @@ from app.services import ledger_service  # noqa: F401
 from app.services import tax_service  # noqa: F401
 from app.services import comprehensive_service  # noqa: F401
 from app.services import financial_statement_service  # noqa: F401
+from app.services import salary_service  # noqa: F401
 
 __all__ = [
     "voucher_service",
@@ -11,4 +12,5 @@ __all__ = [
     "tax_service",
     "comprehensive_service",
     "financial_statement_service",
+    "salary_service",
 ]

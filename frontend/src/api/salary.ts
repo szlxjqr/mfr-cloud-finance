@@ -1,5 +1,5 @@
 import http from '@/utils/request'
-import type { SalaryBill } from '@/types/salary'
+import type { SalaryBill, SalarySetting } from '@/types/salary'
 
 export const salaryApi = {
   list: (params?: { keyword?: string; status?: string; employee_name?: string; period?: string }) =>
@@ -17,4 +17,27 @@ export const salaryApi = {
     http.post<SalaryBill>(`/salaries/${id}/reject`, data),
   pay: (id: number, data?: { approver?: string; remark?: string }) =>
     http.post<SalaryBill>(`/salaries/${id}/pay`, data || {}),
+  // 工资设置（社保/公积金/个税口径）
+  getSetting: () => http.get<SalarySetting>('/salary-settings'),
+  saveSetting: (data: Partial<SalarySetting>) => http.put<SalarySetting>('/salary-settings', data),
+  // 按设置自动计算代扣（不落库，供回填）
+  calcDeductions: (data: {
+    base_salary?: number
+    performance?: number
+    overtime?: number
+    bonus?: number
+  }) => http.post<{
+    gross_pay: number
+    social_personal: number
+    fund_personal: number
+    tax_personal: number
+    deduct_total: number
+    net_pay: number
+  }>('/salary-settings/calc-deductions', data),
+  // 部门工资汇总表
+  deptSummary: (params?: { period?: string; status?: string }) =>
+    http.get<Record<string, unknown>[]>('/salaries/dept-summary', { params }),
+  // 个税报表
+  taxReport: (params?: { period?: string; employee_name?: string }) =>
+    http.get<Record<string, unknown>[]>('/salaries/tax-report', { params }),
 }

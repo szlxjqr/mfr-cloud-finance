@@ -19,6 +19,7 @@ from app.schemas import salary as s
 from app.utils.codegen import gen_salary_no
 from app.utils import approval
 from app.services import voucher_service  # 联动：审核通过 → 自动生成凭证
+from app.services import salary_service as svc  # 部门汇总 / 个税报表 / 设置计算
 
 router = APIRouter(prefix="/salaries", tags=["salaries"])
 
@@ -121,6 +122,26 @@ def list_bills(
 def next_salary_no(db: Session = Depends(get_db)):
     """新建工资单前预占下一个单号（仅预览/预填）。"""
     return {"salary_no": gen_salary_no(db)}
+
+
+@router.get("/dept-summary", response_model=list[dict])
+def dept_summary(
+    period: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """部门工资汇总表：按 (部门, 工资月份) 聚合应发/代扣/实发。"""
+    return svc.dept_summary(db, period=period, status=status)
+
+
+@router.get("/tax-report", response_model=list[dict])
+def tax_report(
+    period: Optional[str] = None,
+    employee_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """个税报表：按 (员工, 部门, 工资月份) 聚合个税与应发。"""
+    return svc.tax_report(db, period=period, employee_name=employee_name)
 
 
 @router.post("", response_model=s.SalaryBillRead, status_code=201)
