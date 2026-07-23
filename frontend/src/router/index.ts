@@ -79,6 +79,18 @@ const router = createRouter({
           meta: { title: '合同模板', group: '人事合同' },
         },
         {
+          path: 'contract/hr-print/:id',
+          name: 'HRContractPrint',
+          component: () => import('@/views/contract/HRContractPrint.vue'),
+          meta: { title: '打印劳动合同', hidden: true },
+        },
+        {
+          path: 'contract/company-settings',
+          name: 'CompanySettings',
+          component: () => import('@/views/contract/CompanySettings.vue'),
+          meta: { title: '公司设置', group: '人事合同' },
+        },
+        {
           path: 'contract/sales',
           name: 'SalesContractList',
           component: () => import('@/views/contract/ContractList.vue'),

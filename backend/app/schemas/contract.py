@@ -40,33 +40,87 @@ class PartyRead(PartyBase):
 
 # ---------------- 人事合同 ----------------
 class HRContractBase(BaseModel):
+    # 员工联动
+    employee_id: Optional[int] = None
+    employee_no: Optional[str] = None
     employee_name: str
     id_number: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    # 合同期限
     contract_type: str = "劳动合同"
-    party_a: Optional[str] = None
-    party_b: Optional[str] = None
+    contract_term: Optional[str] = None  # 有固定期限/无固定期限/以完成一定工作任务为期限
+    sign_date: Optional[date] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: str = "生效"
+    # 试用期
+    probation_months: Optional[int] = None
+    probation_start: Optional[date] = None
+    probation_end: Optional[date] = None
+    probation_salary: Optional[Decimal] = None
+    # 工作
+    work_content: Optional[str] = None
+    work_location: Optional[str] = None
+    work_hours_type: Optional[str] = None
+    # 报酬
     salary: Optional[Decimal] = None
+    pay_method: Optional[str] = None
+    pay_day: Optional[int] = None
+    # 保险福利
+    social_insurance: Optional[str] = None
+    benefits: Optional[str] = None
+    # 甲方乙方（甲方通常自动取系统设置，乙方自动从员工带出）
+    party_a: Optional[str] = None
+    party_b: Optional[str] = None
+    # 状态/审批
+    status: str = "草稿"  # 草稿/待审批/已生效/已到期/已终止
+    approver: Optional[str] = None
+    approve_date: Optional[date] = None
+    approve_remark: Optional[str] = None
+    # 模板
+    template_id: Optional[int] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
 
 
 class HRContractCreate(HRContractBase):
-    pass
+    # employee_name 在 _enrich_hr_data 中由 employee_id 自动带出，create 时允许省略
+    employee_name: Optional[str] = None
 
 
 class HRContractUpdate(BaseModel):
+    employee_id: Optional[int] = None
+    employee_no: Optional[str] = None
     employee_name: Optional[str] = None
     id_number: Optional[str] = None
+    department: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
     contract_type: Optional[str] = None
-    party_a: Optional[str] = None
-    party_b: Optional[str] = None
+    contract_term: Optional[str] = None
+    sign_date: Optional[date] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
-    status: Optional[str] = None
+    probation_months: Optional[int] = None
+    probation_start: Optional[date] = None
+    probation_end: Optional[date] = None
+    probation_salary: Optional[Decimal] = None
+    work_content: Optional[str] = None
+    work_location: Optional[str] = None
+    work_hours_type: Optional[str] = None
     salary: Optional[Decimal] = None
+    pay_method: Optional[str] = None
+    pay_day: Optional[int] = None
+    social_insurance: Optional[str] = None
+    benefits: Optional[str] = None
+    party_a: Optional[str] = None
+    party_b: Optional[str] = None
+    status: Optional[str] = None
+    approver: Optional[str] = None
+    approve_date: Optional[date] = None
+    approve_remark: Optional[str] = None
+    template_id: Optional[int] = None
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
 

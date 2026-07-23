@@ -1,4 +1,5 @@
 """模型统一出口，导入即注册到 Base.metadata（供 init_db 建表）。"""
+from app.models.company import CompanySettings
 from app.models.contract import (
     ContractTemplate,
     HRContract,
@@ -19,6 +20,7 @@ __all__ = [
     "SalesContract",
     "PurchaseContract",
     "ContractTemplate",
+    "CompanySettings",
     "Employee",
     "Account",
     "ReimbursementBill",

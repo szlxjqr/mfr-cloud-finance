@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api import company_settings
 from app.api import contracts
 from app.api import dashboard
 from app.api import invoice
@@ -24,6 +25,7 @@ from app.api import comprehensive
 from app.api import financial_statement
 from app.api import fixed_asset
 from app.db import init_db
+from app.models import company as company_model  # noqa: F401 注册公司设置模型
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import employee as employee_model  # noqa: F401 注册员工/账号模型
 from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
@@ -59,6 +61,8 @@ app.add_middleware(
 app.include_router(dashboard.router, prefix="/api")
 # 注册合同管理路由（往来单位 / 人事·销售·采购合同 / 合同模板）
 app.include_router(contracts.router, prefix="/api")
+# 注册公司设置路由（单例，id=1）
+app.include_router(company_settings.router, prefix="/api")
 # 注册报销管理路由（报销单 CRUD + 状态流转）
 app.include_router(reimburse.router, prefix="/api")
 # 注册采购管理路由（采购申请单 CRUD + 状态流转）

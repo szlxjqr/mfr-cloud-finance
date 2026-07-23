@@ -49,6 +49,7 @@ def init_db() -> None:
     对「已存在的旧库」额外处理：补加新列 / 唯一索引 / 计数器表。
     """
     # 导入模型以注册到 Base.metadata（create_all 才能建出对应表）
+    from app.models import company as _company  # noqa: F401 公司设置单例
     from app.models import contract  # noqa: F401
     from app.models import employee as _employee  # noqa: F401
     from app.models import invoice as _invoice  # noqa: F401
@@ -67,9 +68,12 @@ def init_db() -> None:
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
     _ensure_employees_columns(engine)
+    _ensure_hr_contract_columns(engine)
     _seed_admin(engine)
     _seed_subjects(engine)
     _ensure_accum_dep_subject(engine)
+    _seed_company_settings(engine)
+    _seed_hr_contract_template(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -279,6 +283,184 @@ def _ensure_accum_dep_subject(engine) -> None:
                 level=1,
                 is_leaf=False,
                 status="启用",
+            )
+        )
+        db.commit()
+
+
+def _ensure_hr_contract_columns(engine) -> None:
+    """为已存在的 hr_contracts 表补加劳动合同标准范本所需字段。
+
+    新建表由 ORM create_all 自动建好，此处仅处理老库的「加列」工作。
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "hr_contracts" not in inspector.get_table_names():
+        return
+    cols = [c["name"] for c in inspector.get_columns("hr_contracts")]
+    additions = [
+        ("employee_id", "INTEGER"),
+        ("employee_no", "VARCHAR(8)"),
+        ("department", "VARCHAR(50)"),
+        ("position", "VARCHAR(50)"),
+        ("phone", "VARCHAR(20)"),
+        ("contract_term", "VARCHAR(20)"),
+        ("sign_date", "DATE"),
+        ("probation_months", "INTEGER"),
+        ("probation_start", "DATE"),
+        ("probation_end", "DATE"),
+        ("probation_salary", "NUMERIC(18,2)"),
+        ("work_content", "VARCHAR(200)"),
+        ("work_location", "VARCHAR(200)"),
+        ("work_hours_type", "VARCHAR(30)"),
+        ("pay_method", "VARCHAR(20)"),
+        ("pay_day", "INTEGER"),
+        ("social_insurance", "VARCHAR(255)"),
+        ("benefits", "TEXT"),
+        ("approver", "VARCHAR(50)"),
+        ("approve_date", "DATE"),
+        ("approve_remark", "TEXT"),
+        ("template_id", "INTEGER"),
+    ]
+    with engine.begin() as conn:
+        for col_name, col_type in additions:
+            if col_name not in cols:
+                conn.execute(text(f"ALTER TABLE hr_contracts ADD COLUMN {col_name} {col_type}"))
+
+
+def _seed_company_settings(engine) -> None:
+    """种入公司设置默认值（首次启动或老库无公司设置时）。
+
+    仅在 company_settings 表为空时写入一条 id=1 的占位记录，
+    老板可在「公司设置」页 PUT 修改。
+    """
+    from sqlalchemy import select
+
+    from app.models import company as _models
+
+    with SessionLocal() as db:
+        exists = db.scalar(select(_models.CompanySettings).limit(1))
+        if exists:
+            return
+        db.add(
+            _models.CompanySettings(
+                id=1,
+                company_name="深圳市流形机器人科技有限公司",
+            )
+        )
+        db.commit()
+
+
+def _seed_hr_contract_template(engine) -> None:
+    """种入深圳市官方劳动合同标准范本（深圳市人力资源和社会保障局编制）。
+
+    当用户新签「劳动合同」且未指定 template_id 时，print 接口自动用此模板渲染。
+    仅在 ctype=hr 且 name 含「深圳市劳动合同」时跳过（避免重复）。
+    """
+    from sqlalchemy import select
+
+    from app.models import contract as _models
+
+    template_text = """深圳市劳动合同（适用全日制用工）
+（深圳市人力资源和社会保障局编制）
+
+甲方（用人单位）：____
+法定代表人（主要负责人）或委托代理人：____
+注册地址：____
+联系电话：____
+
+乙方（劳动者）：____
+身份证号码：____
+住址：____
+联系电话：____
+
+根据《中华人民共和国劳动法》、《中华人民共和国劳动合同法》及国家、省、市有关规定，甲乙双方遵循合法、公平、平等自愿、协商一致、诚实信用的原则，订立本劳动合同。
+
+一、合同期限
+（一）甲乙双方同意按以下第____种方式确定本合同期限：
+1.有固定期限：从____年____月____日起至____年____月____日止。
+2.无固定期限：从____年____月____日起至法定终止条件出现时止。
+3.以完成一定工作任务为期限：从____年____月____日起至____工作任务完成时止。
+（二）试用期：____个月，从____年____月____日起至____年____月____日止。
+（试用期最长不得超过6个月，且不得单独约定试用期。）
+
+二、工作内容和工作地点
+（一）乙方的工作岗位（工种）为____。
+（二）乙方的工作地点为____。
+（三）甲方因生产经营需要调整乙方工作岗位或工作地点的，应协商一致，并变更劳动合同。
+
+三、工作时间和休息休假
+（一）甲乙双方同意按以下第____种方式确定乙方的工作时间：
+1.标准工时制：每日工作不超过8小时，每周工作不超过40小时。
+2.综合计算工时工作制：经人力资源行政部门批准，以____（周/月/季/年）为周期综合计算工作时间。
+3.不定时工作制：经人力资源行政部门批准，实行不定时工作制。
+（二）甲方因生产（工作）需要，经与工会和乙方协商后可以延长工作时间。
+（三）乙方依法享有法定节假日、年休假、婚假、产假、丧假等假期。
+
+四、劳动报酬
+（一）乙方正常工作时间的工资按下列第____种形式执行，并不得低于深圳市最低工资标准：
+1.计时工资：乙方试用期工资为____元/月（日）；试用期满后，基本工资为____元/月（日）。
+2.计件工资：甲方应当科学合理确定劳动定额和计件单价，并予以公布。
+（二）甲方每月____日前发放工资。甲方至少每月以货币形式支付乙方工资，不得克扣或者无故拖欠。
+（三）甲方安排乙方延长工作时间的，应按《劳动法》第四十四条的规定支付加班工资。
+
+五、社会保险和福利待遇
+（一）甲乙双方按照国家和省、市有关规定，参加社会保险，缴纳社会保险费。
+（二）乙方患病或非因工负伤，甲方应按国家和省、市的有关规定给予医疗期和医疗期待遇。
+（三）乙方患职业病、因工负伤的，甲方按《职业病防治法》、《工伤保险条例》等有关法律法规的规定执行。
+（四）甲方为乙方提供以下福利待遇：____。
+
+六、劳动保护、劳动条件和职业危害防护
+（一）甲方按国家和省、市有关劳动保护规定，提供符合国家安全卫生标准的劳动作业场所和必要的劳动防护用品。
+（二）甲方按国家和省、市有关规定，做好女员工和未成年工的特殊劳动保护工作。
+（三）乙方从事接触职业病危害作业的，甲方应按国家有关规定组织职业健康检查。
+
+七、规章制度的告知与遵守
+甲方应依法建立和完善劳动规章制度，并将规章制度告知乙方。乙方应遵守甲方的劳动规章制度。
+
+八、劳动合同的变更
+甲乙双方协商一致，可以变更本合同约定的内容，并采用书面形式确定。
+
+九、劳动合同的解除、终止和经济补偿
+（一）甲乙双方解除、终止本合同，应当按照《劳动合同法》第三十六条至第四十五条、第四十六条、第四十七条的规定执行。
+（二）甲方应当在解除或者终止本合同时，为乙方出具解除或者终止劳动合同的证明，并在十五日内为乙方办理档案和社会保险关系转移手续。
+（三）乙方应当按照双方约定，办理工作交接。
+
+十、违约责任
+（一）甲方违法解除或终止本合同，应向乙方支付赔偿金。
+（二）乙方违反服务期约定的，应当按照约定向甲方支付违约金。违约金的数额不得超过甲方提供的培训费用。
+（三）乙方违反竞业限制约定的，应当按照约定向甲方支付违约金。
+
+十一、争议处理
+甲乙双方因履行本合同发生劳动争议，可以协商解决；不愿协商或者协商不成的，可以向劳动争议仲裁委员会申请仲裁。对仲裁裁决不服的，可以向人民法院提起诉讼。
+
+十二、其他
+（一）本合同未尽事宜，按国家和省、市有关法律法规规定执行。
+（二）本合同一式两份，甲乙双方各执一份，具有同等法律效力。
+
+甲方（盖章）：____________________
+法定代表人（主要负责人）或委托代理人（签名）：____________________
+签订日期：____年____月____日
+
+乙方（签名）：____________________
+签订日期：____年____月____日"""
+
+    with SessionLocal() as db:
+        exists = db.scalar(
+            select(_models.ContractTemplate).where(
+                _models.ContractTemplate.ctype == "hr",
+                _models.ContractTemplate.name == "深圳市劳动合同（适用全日制用工）",
+            )
+        )
+        if exists:
+            return
+        db.add(
+            _models.ContractTemplate(
+                name="深圳市劳动合同（适用全日制用工）",
+                ctype="hr",
+                content=template_text,
+                remark="深圳市人力资源和社会保障局编制，来源 szhr.com.cn 标准范本",
             )
         )
         db.commit()
