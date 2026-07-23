@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   QuestionFilled,
@@ -9,7 +9,8 @@ import {
   CircleCheckFilled,
   CircleCloseFilled,
 } from '@element-plus/icons-vue'
-import { accountData, type AccountItem } from './accountData'
+import { listSubjects } from '@/api/ledger'
+import type { AccountSubject } from '@/types/ledger'
 
 /** 单个科目的期初余额数据 */
 interface OpeningBalance {
@@ -42,14 +43,8 @@ interface OpeningRow {
   balance: OpeningBalance
 }
 
-/** 分类顺序（key 对应 accountData 顶层键，label 为界面显示） */
-const CATEGORY_ORDER: { key: keyof typeof accountData; label: string }[] = [
-  { key: 'asset', label: '资产' },
-  { key: 'liability', label: '负债' },
-  { key: 'equity', label: '权益' },
-  { key: 'cost', label: '成本' },
-  { key: 'pnl', label: '损益' },
-]
+/** 分类顺序（界面显示） */
+const CATEGORY_ORDER = ['资产', '负债', '权益', '成本', '损益'] as const
 
 /** 演示用：部分资产科目的期初本位币预填，便于直观预览 */
 const DEMO_SEED: Record<string, number> = {
@@ -59,44 +54,52 @@ const DEMO_SEED: Record<string, number> = {
   '1601': 120000,
 }
 
-/** 扁平化：递归展开含 children 的科目，并初始化余额 */
-function flatten(items: AccountItem[], out: OpeningRow[]): void {
-  for (const it of items) {
-    const isLeaf = !it.children || it.children.length === 0
-    const seeded = DEMO_SEED[it.id] ?? 0
-    out.push({
-      id: it.id,
-      code: it.code,
-      name: it.name,
-      category: it.category,
-      direction: it.direction,
-      foreignCurrency: it.foreignCurrency,
-      unit: it.unit,
-      isLeaf,
-      balance: {
-        beginQty: 0,
-        beginForeign: 0,
-        beginBase: seeded,
-        debitQty: 0,
-        debitForeign: 0,
-        debitBase: 0,
-        creditQty: 0,
-        creditForeign: 0,
-        creditBase: 0,
-        yearBeginQty: 0,
-        yearBeginForeign: 0,
-        yearBeginBase: 0,
-        rate: 0,
-      },
-    })
-    if (it.children) flatten(it.children, out)
+/** 后端科目 → 期初余额行 */
+function toRow(s: AccountSubject): OpeningRow {
+  const seeded = DEMO_SEED[s.code] ?? 0
+  return {
+    id: String(s.id),
+    code: s.code,
+    name: s.name,
+    category: s.category,
+    direction: s.direction as '借' | '贷',
+    foreignCurrency: undefined,
+    unit: undefined,
+    isLeaf: s.is_leaf,
+    balance: {
+      beginQty: 0,
+      beginForeign: 0,
+      beginBase: seeded,
+      debitQty: 0,
+      debitForeign: 0,
+      debitBase: 0,
+      creditQty: 0,
+      creditForeign: 0,
+      creditBase: 0,
+      yearBeginQty: 0,
+      yearBeginForeign: 0,
+      yearBeginBase: 0,
+      rate: 0,
+    },
   }
 }
 
 const allRows = reactive<OpeningRow[]>([])
-;(Object.keys(accountData) as (keyof typeof accountData)[]).forEach((k) =>
-  flatten(accountData[k], allRows),
-)
+const loading = ref(false)
+
+/** 拉取后端权威科目，初始化期初余额行（统一到后端单一数据源） */
+async function loadSubjects() {
+  loading.value = true
+  try {
+    const res = await listSubjects()
+    const rows = res.data.map(toRow)
+    allRows.splice(0, allRows.length, ...rows)
+  } catch (e) {
+    ElMessage.error('加载科目失败')
+  } finally {
+    loading.value = false
+  }
+}
 
 /** 当前选中的分类（中文 label） */
 const activeCategory = ref<string>('资产')
@@ -150,16 +153,16 @@ const trialLines = ref<TrialLine[]>([])
 const trialBalanced = ref(false)
 
 function openTrial() {
-  const lines: TrialLine[] = CATEGORY_ORDER.map((c) => {
+  const lines: TrialLine[] = CATEGORY_ORDER.map((label) => {
     let debit = 0
     let credit = 0
     for (const r of allRows) {
-      if (r.category !== c.label) continue
+      if (r.category !== label) continue
       const v = r.balance.beginBase
       if (r.direction === '借') debit += v
       else credit += v
     }
-    return { category: c.label, debit, credit }
+    return { category: label, debit, credit }
   })
   const totalDebit = lines.reduce((s, l) => s + l.debit, 0)
   const totalCredit = lines.reduce((s, l) => s + l.credit, 0)
@@ -255,6 +258,8 @@ function showHelp() {
 function showSetting() {
   ElMessage.info('列显示设置功能开发中')
 }
+
+onMounted(loadSubjects)
 </script>
 
 <template>
@@ -262,7 +267,7 @@ function showSetting() {
     <!-- 顶部操作栏 -->
     <div class="toolbar">
       <el-tabs v-model="activeCategory" class="cat-tabs">
-        <el-tab-pane v-for="c in CATEGORY_ORDER" :key="c.key" :label="c.label" :name="c.label" />
+        <el-tab-pane v-for="c in CATEGORY_ORDER" :key="c" :label="c" :name="c" />
       </el-tabs>
 
       <div class="toolbar-right">
@@ -317,6 +322,7 @@ function showSetting() {
     <div class="table-wrap">
       <el-table
         :data="filteredRows"
+        v-loading="loading"
         border
         stripe
         :max-height="'calc(100vh - 280px)'"

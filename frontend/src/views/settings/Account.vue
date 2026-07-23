@@ -16,6 +16,52 @@ const categoryLabel: Record<string, string> = {
   资产: '资产', 负债: '负债', 权益: '权益', 成本: '成本', 损益: '损益',
 }
 
+/* ====== 科目树（供新增弹窗的「上级科目」选择器） ====== */
+interface TreeNode {
+  value: string
+  label: string
+  children?: TreeNode[]
+}
+const subjectTree = computed<TreeNode[]>(() => {
+  const map = new Map<string, TreeNode>()
+  for (const s of subjects.value) {
+    map.set(s.code, { value: s.code, label: `${s.code} ${s.name}` })
+  }
+  const roots: TreeNode[] = []
+  for (const s of subjects.value) {
+    const node = map.get(s.code)!
+    if (s.parent_code && map.has(s.parent_code)) {
+      const p = map.get(s.parent_code)!
+      ;(p.children ||= []).push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+  return roots
+})
+
+/** 选中上级科目后，自动带出 类别 / 方向 / 层级 */
+function onPickParent(code: string | null) {
+  if (!code) {
+    form.value.level = 1
+    return
+  }
+  const p = subjects.value.find(s => s.code === code)
+  if (p) {
+    form.value.category = p.category
+    form.value.direction = p.direction
+    form.value.level = p.level + 1
+  }
+}
+
+/** 依据所选上级，给出推荐的新科目编码前缀 */
+const suggestedPrefix = computed(() => {
+  const pc = form.value.parent_code
+  if (!pc) return ''
+  const siblings = subjects.value.filter(s => s.parent_code === pc)
+  return siblings.length ? `${pc}.${String(siblings.length + 1).padStart(2, '0')}` : `${pc}.01`
+})
+
 const filtered = computed(() => {
   const kw = searchKey.value.trim().toLowerCase()
   if (!kw) return subjects.value
@@ -131,21 +177,34 @@ onMounted(loadData)
           <el-input v-model="form.name" placeholder="如 应收账款—客户A" />
         </el-form-item>
         <el-form-item label="类别">
-          <el-select v-model="form.category" style="width: 100%">
+          <el-select v-model="form.category" style="width: 100%" :disabled="!!form.parent_code">
             <el-option v-for="(v, k) in categoryLabel" :key="k" :label="v" :value="k" />
           </el-select>
         </el-form-item>
         <el-form-item label="方向">
-          <el-radio-group v-model="form.direction">
+          <el-radio-group v-model="form.direction" :disabled="!!form.parent_code">
             <el-radio value="借">借</el-radio>
             <el-radio value="贷">贷</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="层级">
-          <el-input-number v-model="form.level" :min="1" :max="3" />
+          <el-input-number v-model="form.level" :min="1" :max="3" :disabled="!!form.parent_code" />
         </el-form-item>
-        <el-form-item label="上级编码">
-          <el-input v-model="form.parent_code" placeholder="可选，如 1122" />
+        <el-form-item label="上级科目">
+          <el-tree-select
+            v-model="form.parent_code"
+            :data="subjectTree"
+            node-key="value"
+            :props="{ label: 'label' }"
+            placeholder="可选，留空为一级科目"
+            clearable
+            check-strictly
+            style="width: 100%"
+            @change="onPickParent"
+          />
+          <div v-if="suggestedPrefix" class="prefix-tip">
+            推荐新编码前缀：<code>{{ suggestedPrefix }}</code>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -176,4 +235,17 @@ onMounted(loadData)
 }
 .dir-tag.借 { color: #409eff; background: rgba(64, 158, 255, .1); }
 .dir-tag.贷 { color: #e6a23c; background: rgba(230, 162, 60, .12); }
+.prefix-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.6;
+}
+.prefix-tip code {
+  background: #f5f7fa;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: Consolas, monospace;
+  color: #409eff;
+}
 </style>
