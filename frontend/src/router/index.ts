@@ -23,6 +23,9 @@ const Placeholder = {
   props: { title: { type: String, default: '开发中' } },
 }
 
+/** 诚实「功能待启用」页：用于尚无真实数据模型/后端支撑的子页面 */
+const FeatureDisabled = () => import('@/views/common/FeatureDisabled.vue')
+
 /** 科目管理页面 */
 const SettingsAccount = () => import('@/views/settings/Account.vue')
 
@@ -219,18 +222,18 @@ const router = createRouter({
         { path: 'general-ledger/project-detail', name: 'ProjectDetailLedger', component: () => import('@/views/general-ledger/ProjectDetailLedger.vue'), meta: { title: '核算项目明细账', group: '总账', module: 'accounting' } },
         { path: 'general-ledger/project-balance', name: 'ProjectBalanceSheet', component: () => import('@/views/general-ledger/ProjectBalanceSheet.vue'), meta: { title: '核算项目余额表', group: '总账', module: 'accounting' } },
         // --- 出纳 ---
-        { path: 'cashier/diary', name: 'CashierDiary', component: Placeholder, props: { title: '日记账' }, meta: { title: '日记账', group: '出纳', module: 'accounting' } },
-        { path: 'cashier/biz-type', name: 'CashierBizType', component: Placeholder, props: { title: '业务类型' }, meta: { title: '业务类型', group: '出纳', module: 'accounting' } },
-        { path: 'cashier/check-general', name: 'CashierCheckGeneral', component: Placeholder, props: { title: '核对总账' }, meta: { title: '核对总账', group: '出纳', module: 'accounting' } },
+        { path: 'cashier/diary', name: 'CashierDiary', component: () => import('@/views/cashier/CashierDiary.vue'), meta: { title: '日记账', group: '出纳', module: 'accounting' } },
+        { path: 'cashier/biz-type', name: 'CashierBizType', component: FeatureDisabled, props: { title: '业务类型', reason: '出纳业务类型（收/付/转类别配置）尚未建模，需新增基础数据表后启用。' }, meta: { title: '业务类型', group: '出纳', module: 'accounting' } },
+        { path: 'cashier/check-general', name: 'CashierCheckGeneral', component: () => import('@/views/cashier/CashierCheckGeneral.vue'), meta: { title: '核对总账', group: '出纳', module: 'accounting' } },
         // --- 发票 ---
         { path: 'invoice/input', name: 'InvoiceInput', component: () => import('@/views/invoice/InvoiceInput.vue'), meta: { title: '进项发票', group: '发票', module: 'accounting' } },
-        { path: 'invoice/output', name: 'InvoiceOutput', component: Placeholder, props: { title: '销项发票' }, meta: { title: '销项发票', group: '发票', module: 'accounting' } },
-        { path: 'invoice/expense', name: 'InvoiceExpense', component: Placeholder, props: { title: '费用发票' }, meta: { title: '费用发票', group: '发票', module: 'accounting' } },
-        { path: 'invoice/title', name: 'InvoiceTitle', component: Placeholder, props: { title: '发票抬头' }, meta: { title: '发票抬头', group: '发票', module: 'accounting' } },
-        { path: 'invoice/setting', name: 'InvoiceSetting', component: Placeholder, props: { title: '发票设置' }, meta: { title: '发票设置', group: '发票', module: 'accounting' } },
+        { path: 'invoice/output', name: 'InvoiceOutput', component: FeatureDisabled, props: { title: '销项发票', reason: '销项发票需对接税控开票/销售开票数据源，当前仅建模进项发票，暂无销项数据可展示。' }, meta: { title: '销项发票', group: '发票', module: 'accounting' } },
+        { path: 'invoice/expense', name: 'InvoiceExpense', component: () => import('@/views/invoice/InvoiceExpense.vue'), meta: { title: '费用发票', group: '发票', module: 'accounting' } },
+        { path: 'invoice/title', name: 'InvoiceTitle', component: FeatureDisabled, props: { title: '发票抬头', reason: '发票抬头（购方/销方开票资料）尚未单独建表，需新增抬头管理后启用。' }, meta: { title: '发票抬头', group: '发票', module: 'accounting' } },
+        { path: 'invoice/setting', name: 'InvoiceSetting', component: FeatureDisabled, props: { title: '发票设置', reason: '发票参数（发票池/税控盘配置）尚未建模，待基础设置完善后启用。' }, meta: { title: '发票设置', group: '发票', module: 'accounting' } },
         // --- 结账 ---
-        { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: Placeholder, props: { title: '期末结转' }, meta: { title: '期末结转', group: '结账', module: 'accounting' } },
-        { path: 'closing/close', name: 'ClosingClose', component: Placeholder, props: { title: '结账' }, meta: { title: '结账', group: '结账', module: 'accounting' } },
+        { path: 'closing/carry-forward', name: 'ClosingCarryForward', component: () => import('@/views/closing/ClosingCarryForward.vue'), meta: { title: '期末结转', group: '结账', module: 'accounting' } },
+        { path: 'closing/close', name: 'ClosingClose', component: FeatureDisabled, props: { title: '结账', reason: '结账（期间锁定/反结账）需新增结账状态表与期间控制以避免误改已结账数据，暂未启用。' }, meta: { title: '结账', group: '结账', module: 'accounting' } },
         // --- 报表 ---
         { path: 'reports/balance-sheet', name: 'BalanceSheetReport', component: () => import('@/views/reports/BalanceSheetReport.vue'), meta: { title: '资产负债表', group: '报表', module: 'accounting' } },
         { path: 'reports/income-statement', name: 'IncomeStatement', component: () => import('@/views/reports/IncomeStatement.vue'), meta: { title: '利润表', group: '报表', module: 'accounting' } },
@@ -259,12 +262,12 @@ const router = createRouter({
         { path: 'settings/currency', name: 'SettingsCurrency', component: () => import('@/views/settings/Currency.vue'), meta: { title: '币别', group: '基础数据' } },
         { path: 'settings/summary', name: 'SettingsSummary', component: () => import('@/views/settings/Summary.vue'), meta: { title: '凭证摘要', group: '基础数据' } },
         { path: 'settings/voucher-word', name: 'SettingsVoucherWord', component: () => import('@/views/settings/VoucherWord.vue'), meta: { title: '凭证字', group: '基础数据' } },
-        { path: 'settings/voucher-template', name: 'SettingsVoucherTemplate', component: Placeholder, props: { title: '凭证模板' }, meta: { title: '凭证模板', group: '基础设置' } },
-        { path: 'settings/voucher-config', name: 'SettingsVoucherConfig', component: Placeholder, props: { title: '凭证配置' }, meta: { title: '凭证配置', group: '基础设置' } },
-        { path: 'settings/diary-template', name: 'SettingsDiaryTemplate', component: Placeholder, props: { title: '日记账模板' }, meta: { title: '日记账模板', group: '基础设置' } },
-        { path: 'settings/archive', name: 'SettingsArchive', component: Placeholder, props: { title: '归档管理' }, meta: { title: '归档管理', group: '基础设置' } },
-        { path: 'settings/system', name: 'SettingsSystem', component: Placeholder, props: { title: '系统设置' }, meta: { title: '系统设置', group: '基础设置' } },
-        { path: 'settings/audit-export', name: 'SettingsAuditExport', component: Placeholder, props: { title: '审计接口文件导出' }, meta: { title: '审计接口文件导出', group: '基础设置' } },
+        { path: 'settings/voucher-template', name: 'SettingsVoucherTemplate', component: FeatureDisabled, props: { title: '凭证模板', reason: '凭证模板（常用分录模板）尚未建模，需新增模板表后启用。' }, meta: { title: '凭证模板', group: '基础设置' } },
+        { path: 'settings/voucher-config', name: 'SettingsVoucherConfig', component: FeatureDisabled, props: { title: '凭证配置', reason: '凭证字号/打印格式等配置尚未建模，待基础设置完善后启用。' }, meta: { title: '凭证配置', group: '基础设置' } },
+        { path: 'settings/diary-template', name: 'SettingsDiaryTemplate', component: FeatureDisabled, props: { title: '日记账模板', reason: '日记账模板配置尚未建模，待出纳模块完善后启用。' }, meta: { title: '日记账模板', group: '基础设置' } },
+        { path: 'settings/archive', name: 'SettingsArchive', component: FeatureDisabled, props: { title: '归档管理', reason: '凭证/账簿归档（PDF 打包/年度归档）功能尚未开发，待档案管理模块启用。' }, meta: { title: '归档管理', group: '基础设置' } },
+        { path: 'settings/system', name: 'SettingsSystem', component: FeatureDisabled, props: { title: '系统设置', reason: '系统级参数（公司信息已在「公司设置」维护）其余系统配置尚未建模，暂未开放。' }, meta: { title: '系统设置', group: '基础设置' } },
+        { path: 'settings/audit-export', name: 'SettingsAuditExport', component: FeatureDisabled, props: { title: '审计接口文件导出', reason: '审计接口标准文件（XML/JSON 审计包）导出尚未开发，待合规模块启用。' }, meta: { title: '审计接口文件导出', group: '基础设置' } },
       ],
     },
 
