@@ -46,6 +46,7 @@ def list_reqs(
     keyword: Optional[str] = None,
     status: Optional[str] = None,
     applicant: Optional[str] = None,
+    supplier: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     stmt = select(m.PurchaseRequisition)
@@ -61,6 +62,8 @@ def list_reqs(
         stmt = stmt.where(m.PurchaseRequisition.status == status)
     if applicant:
         stmt = stmt.where(m.PurchaseRequisition.applicant == applicant)
+    if supplier:
+        stmt = stmt.where(m.PurchaseRequisition.supplier == supplier)
     return db.scalars(stmt).all()
 
 

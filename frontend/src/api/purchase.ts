@@ -2,7 +2,7 @@ import http from '@/utils/request'
 import type { PurchaseReq } from '@/types/purchase'
 
 export const purchaseApi = {
-  list: (params?: { keyword?: string; status?: string; applicant?: string }) =>
+  list: (params?: { keyword?: string; status?: string; applicant?: string; supplier?: string }) =>
     http.get<PurchaseReq[]>('/purchases', { params }),
   get: (id: number) => http.get<PurchaseReq>(`/purchases/${id}`),
   nextReqNo: () => http.get<{ req_no: string }>('/purchases/next-req-no'),
