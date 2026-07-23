@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Edit, Delete, View, OfficeBuilding, Plus as PlusIcon } from '@element-plus/icons-vue'
+import { Plus, Search, Edit, Delete, View, Plus as PlusIcon } from '@element-plus/icons-vue'
 import type { Employee } from '@/types/employee'
 import type { HRContract, HRContractStatus } from '@/types/contract'
 import {
@@ -340,10 +340,6 @@ function fmt(v: any): string {
   return '¥' + toNum(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function goCompanySettings() {
-  router.push({ name: 'CompanySettings' })
-}
-
 onMounted(load)
 </script>
 
@@ -364,7 +360,6 @@ onMounted(load)
         <el-button @click="load">查询</el-button>
       </div>
       <div class="toolbar-right">
-        <el-button :icon="OfficeBuilding" @click="goCompanySettings">公司设置</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreate">新增员工</el-button>
       </div>
     </div>

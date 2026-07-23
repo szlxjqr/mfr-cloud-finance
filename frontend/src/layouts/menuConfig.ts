@@ -256,6 +256,7 @@ export const menuItems: MenuItem[] = [
         icon: 'Setting',
         color: '#E6A23C',
         children: [
+          { title: '公司设置', path: '/contract/company-settings' },
           { title: '凭证模板', path: '/settings/voucher-template' },
           { title: '凭证配置', path: '/settings/voucher-config' },
           { title: '日记账模板', path: '/settings/diary-template' },
