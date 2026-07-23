@@ -95,14 +95,16 @@
                 <el-input-number v-model="row.quantity" :min="1" :controls="false" size="small" style="width: 100%" />
               </template>
             </el-table-column>
-            <el-table-column label="单价(元)" width="120">
+            <el-table-column label="预算金额(元)" width="140" align="right">
               <template #default="{ row }">
-                <el-input-number v-model="row.unit_price" :min="0" :precision="2" :controls="false" size="small" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="金额(元)" width="120" align="right">
-              <template #default="{ row }">
-                <span class="amt">{{ itemAmount(row) }}</span>
+                <el-input-number
+                  v-model="row.amount"
+                  :min="0"
+                  :precision="2"
+                  :controls="false"
+                  size="small"
+                  style="width: 100%"
+                />
               </template>
             </el-table-column>
             <el-table-column label="建议供应商" min-width="120">
@@ -192,7 +194,6 @@ function emptyItem(): PurchaseItem {
     item_name: '',
     spec: '',
     quantity: 1,
-    unit_price: null,
     amount: null,
     supplier: '',
     remark: '',
@@ -261,14 +262,9 @@ function totalQty(row: PurchaseReq): number {
   }
   return Number(row.quantity) || 0
 }
-function itemAmount(it: PurchaseItem): string {
-  const q = Number(it.quantity) || 0
-  const p = Number(it.unit_price) || 0
-  return '¥' + (q * p).toFixed(2)
-}
-// 明细合计（数量 × 单价）
+// 明细合计：所有明细的「预算金额」之和（手填，不再自动算 数量×单价）
 const itemsTotal = computed(() =>
-  (form.items || []).reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unit_price) || 0), 0)
+  (form.items || []).reduce((s, it) => s + (Number(it.amount) || 0), 0)
 )
 
 function addItem() {
@@ -323,8 +319,7 @@ function buildPayload(): Record<string, unknown> {
     item_name: it.item_name,
     spec: it.spec || null,
     quantity: Number(it.quantity) || 1,
-    unit_price: it.unit_price != null ? Number(it.unit_price) : null,
-    amount: (Number(it.quantity) || 0) * (Number(it.unit_price) || 0),
+    amount: it.amount != null ? Number(it.amount) : null,
     supplier: it.supplier || null,
     remark: it.remark || null,
   }))
