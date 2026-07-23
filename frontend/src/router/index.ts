@@ -132,9 +132,9 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '税务管理', module: 'tax' },
         },
-        { path: 'tax/workbench', name: 'TaxWorkbench', component: Placeholder, props: { title: '税务工作台' }, meta: { title: '工作台', group: '税务工作台' } },
-        { path: 'tax/individual', name: 'TaxIndividual', component: Placeholder, props: { title: '个税申报' }, meta: { title: '个税申报', group: '个税' } },
-        { path: 'tax/stamp', name: 'TaxStamp', component: Placeholder, props: { title: '印花税' }, meta: { title: '印花税', group: '印花税' } },
+        { path: 'tax/workbench', name: 'TaxWorkbench', component: () => import('@/views/tax/TaxWorkbench.vue'), meta: { title: '工作台', group: '税务工作台' } },
+        { path: 'tax/individual', name: 'TaxIndividual', component: () => import('@/views/tax/TaxIndividual.vue'), meta: { title: '个税申报', group: '个税' } },
+        { path: 'tax/stamp', name: 'TaxStamp', component: () => import('@/views/tax/TaxStamp.vue'), meta: { title: '印花税', group: '印花税' } },
         { path: 'tax/summary', name: 'TaxSummary', component: () => import('@/views/tax/TaxSummary.vue'), meta: { title: '税务汇总', group: '发票税务汇总' } },
 
         /* ====== 采购管理模块 ====== */

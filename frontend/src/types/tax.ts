@@ -33,3 +33,65 @@ export interface TaxSummaryDetail {
   details: TaxInputDetail[]
   monthly: TaxMonthlyRow[]
 }
+
+/** 个税申报明细行（按员工 × 期间聚合） */
+export interface IndividualTaxRow {
+  employee_name: string
+  employee_no: string | null
+  department: string | null
+  period: string
+  gross_pay: number // 应发合计
+  social_personal: number // 社保(个人)
+  fund_personal: number // 公积金(个人)
+  tax_personal: number // 个人所得税
+}
+
+/** 个税申报：按员工 × 期间聚合的工资个税 */
+export interface IndividualTax {
+  period: string | null
+  rows: IndividualTaxRow[]
+  total_tax: number // 应申报个税合计
+  total_gross: number // 应发合计
+  headcount: number // 申报人数
+}
+
+/** 印花税明细行（买卖合同） */
+export interface StampTaxRow {
+  contract_no: string | null
+  party: string | null
+  type: string // 销售合同 / 采购合同
+  sign_date: string
+  amount: number // 合同金额
+  rate: number // 印花税率
+  tax: number // 应纳税额
+}
+
+/** 印花税：销售 + 采购合同按 0.03% 计征 */
+export interface StampTax {
+  year: string | null
+  rows: StampTaxRow[]
+  total_amount: number
+  total_tax: number
+  contract_count: number
+}
+
+/** 税务工作台概览 */
+export interface TaxWorkbench {
+  period: string | null
+  vat: {
+    input_tax: number
+    output_tax: number
+    vat_payable: number
+    carryforward: boolean
+  }
+  individual: {
+    total_tax: number
+    total_gross: number
+    headcount: number
+  }
+  stamp: {
+    total_tax: number
+    total_amount: number
+    contract_count: number
+  }
+}

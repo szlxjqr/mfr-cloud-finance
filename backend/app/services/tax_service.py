@@ -13,9 +13,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import voucher as vm
+from app.models import salary as sm
+from app.models import contract as cm
 
 INPUT_TAX_CODE = "2221.01.01"  # 应交税费—应交增值税—进项税额
 OUTPUT_TAX_CODE = "2221.01.02"  # 应交税费—应交增值税—销项税额
+
+STAMP_RATE = 0.0003  # 买卖合同印花税税率 0.03%（2022-07-01 起，购销合同并入「买卖合同」）
 
 
 def _sum(db: Session, subject_code: str, direction: str, period: Optional[str] = None) -> float:
@@ -145,3 +149,181 @@ def monthly_trend(db: Session, year: Optional[str] = None) -> List[dict]:
             }
         )
     return out
+
+
+# ---------------------------------------------------------------------------
+# 个税申报 / 印花税 / 税务工作台 取数
+# ---------------------------------------------------------------------------
+
+def _party_name(db: Session, party_id: Optional[int]) -> Optional[str]:
+    """往来单位名称（合同对方）。"""
+    if not party_id:
+        return None
+    p = db.get(cm.Parties, party_id)
+    return p.name if p else None
+
+
+def individual_tax(db: Session, period: Optional[str] = None) -> dict:
+    """个税申报：按员工 × 期间聚合工资单的个人所得税。
+
+    数据来源：salary_bills（仅统计 已通过/已发放 的工资单，草稿/待审批不计）。
+    每个员工每月一行，含应发/社保个人/公积金个人/个税。
+    """
+    stmt = (
+        select(
+            sm.SalaryBill.employee_name,
+            sm.SalaryBill.employee_no,
+            sm.SalaryBill.department,
+            sm.SalaryBill.period,
+            func.coalesce(func.sum(sm.SalaryBill.gross_pay), 0.0),
+            func.coalesce(func.sum(sm.SalaryBill.social_personal), 0.0),
+            func.coalesce(func.sum(sm.SalaryBill.fund_personal), 0.0),
+            func.coalesce(func.sum(sm.SalaryBill.tax_personal), 0.0),
+            func.count(sm.SalaryBill.id),
+        )
+        .where(sm.SalaryBill.status.in_(["已通过", "已发放"]))
+    )
+    if period:
+        stmt = stmt.where(sm.SalaryBill.period == period)
+    stmt = stmt.group_by(
+        sm.SalaryBill.employee_name,
+        sm.SalaryBill.employee_no,
+        sm.SalaryBill.department,
+        sm.SalaryBill.period,
+    ).order_by(sm.SalaryBill.period, sm.SalaryBill.employee_name)
+    rows = db.execute(stmt).all()
+
+    out: List[dict] = []
+    total_tax = 0.0
+    total_gross = 0.0
+    for r in rows:
+        gross = float(r[4] or 0)
+        tax = float(r[7] or 0)
+        total_tax += tax
+        total_gross += gross
+        out.append(
+            {
+                "employee_name": r[0],
+                "employee_no": r[1],
+                "department": r[2],
+                "period": r[3],
+                "gross_pay": round(gross, 2),
+                "social_personal": round(float(r[5] or 0), 2),
+                "fund_personal": round(float(r[6] or 0), 2),
+                "tax_personal": round(tax, 2),
+            }
+        )
+    return {
+        "period": period,
+        "rows": out,
+        "total_tax": round(total_tax, 2),
+        "total_gross": round(total_gross, 2),
+        "headcount": len(out),
+    }
+
+
+def stamp_tax(db: Session, year: Optional[str] = None) -> dict:
+    """印花税：买卖合同（销售合同 + 采购合同）按金额 0.03% 计征。
+
+    - 劳动合同（HRContract）依法免征印花税，已排除。
+    - 仅统计 执行中/已完成 的合同。
+    - 资金账簿（实收资本/资本公积）印花税暂未纳入，后续可扩展。
+    """
+    rows: List[dict] = []
+    total_amount = 0.0
+    total_tax = 0.0
+
+    # 销售合同
+    sales = (
+        db.execute(
+            select(cm.SalesContract).where(
+                cm.SalesContract.status.in_(["执行中", "已完成"])
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for c in sales:
+        amt = float(c.amount or 0)
+        tax = round(amt * STAMP_RATE, 2)
+        total_amount += amt
+        total_tax += tax
+        rows.append(
+            {
+                "contract_no": c.contract_no or f"XS{c.id}",
+                "party": _party_name(db, c.customer_id),
+                "type": "销售合同",
+                "sign_date": c.sign_date.isoformat() if c.sign_date else "",
+                "amount": round(amt, 2),
+                "rate": STAMP_RATE,
+                "tax": tax,
+            }
+        )
+
+    # 采购合同
+    purchases = (
+        db.execute(
+            select(cm.PurchaseContract).where(
+                cm.PurchaseContract.status.in_(["执行中", "已完成"])
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for c in purchases:
+        amt = float(c.amount or 0)
+        tax = round(amt * STAMP_RATE, 2)
+        total_amount += amt
+        total_tax += tax
+        rows.append(
+            {
+                "contract_no": c.contract_no or f"CG{c.id}",
+                "party": _party_name(db, c.supplier_id),
+                "type": "采购合同",
+                "sign_date": c.sign_date.isoformat() if c.sign_date else "",
+                "amount": round(amt, 2),
+                "rate": STAMP_RATE,
+                "tax": tax,
+            }
+        )
+
+    # 按签约日期排序（空日期排末尾）
+    rows.sort(key=lambda x: x["sign_date"] or "9999")
+
+    # 年度过滤（仅前端想看某年时）
+    if year:
+        rows = [r for r in rows if r["sign_date"][:4] == year]
+
+    return {
+        "year": year,
+        "rows": rows,
+        "total_amount": round(total_amount, 2),
+        "total_tax": round(total_tax, 2),
+        "contract_count": len(rows),
+    }
+
+
+def tax_workbench(db: Session, period: Optional[str] = None) -> dict:
+    """税务工作台：聚合增值税 + 个税 + 印花税 的当期/累计概览。"""
+    vat = tax_summary(db, period)
+    ind = individual_tax(db, period)
+    stamp = stamp_tax(db)  # 印花税按全部有效合同累计
+    return {
+        "period": period,
+        "vat": {
+            "input_tax": vat["input_tax"],
+            "output_tax": vat["output_tax"],
+            "vat_payable": vat["vat_payable"],
+            "carryforward": vat["carryforward"],
+        },
+        "individual": {
+            "total_tax": ind["total_tax"],
+            "total_gross": ind["total_gross"],
+            "headcount": ind["headcount"],
+        },
+        "stamp": {
+            "total_tax": stamp["total_tax"],
+            "total_amount": stamp["total_amount"],
+            "contract_count": stamp["contract_count"],
+        },
+    }
