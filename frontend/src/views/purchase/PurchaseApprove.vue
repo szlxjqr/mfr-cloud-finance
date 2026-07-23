@@ -116,61 +116,7 @@ async function openDetail(row: PurchaseReq) {
 }
 
 function printPurchase() {
-  const form = document.querySelector('.detail-dialog .purchase-form') as HTMLElement | null
-  if (!form) {
-    window.print()
-    return
-  }
-  const win = window.open('', '_blank')
-  if (!win) {
-    window.print()
-    return
-  }
-  const styleTexts = Array.from(document.querySelectorAll('style'))
-    .map((s) => s.textContent || '')
-    .filter(Boolean)
-  const linkHrefs = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(
-    (l) => (l as HTMLLinkElement).href
-  )
-  const printCss = `
-    @page { size: A4; margin: 12mm; }
-    html, body { margin:0; padding:0; background:#fff; }
-    .purchase-form {
-      width: auto !important;
-      min-height: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none !important;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
-    .form-title { break-inside: avoid; page-break-inside: avoid; }
-    .detail-table thead { display: table-header-group; }
-    .detail-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
-    .sign-table { break-inside: avoid; page-break-inside: avoid; }
-  `
-  win.document.open()
-  win.document.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">')
-  win.document.write('<title>采购申请单</title>')
-  linkHrefs.forEach((h) => win.document.write(`<link rel="stylesheet" href="${h}">`))
-  styleTexts.forEach((css) => win.document.write(`<style>${css}</style>`))
-  win.document.write(`<style>${printCss}</style>`)
-  win.document.write('</head><body>')
-  win.document.write(form.outerHTML)
-  win.document.write('</body></html>')
-  win.document.close()
-  let printed = false
-  const triggerPrint = () => {
-    if (printed) return
-    printed = true
-    win.focus()
-    win.print()
-  }
-  if (win.document.readyState === 'complete') setTimeout(triggerPrint, 300)
-  else {
-    win.onload = triggerPrint
-    setTimeout(triggerPrint, 600)
-  }
+  window.print()
 }
 
 function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {

@@ -329,3 +329,56 @@ a {
   line-height: 1.5;
   margin-top: 2px;
 }
+
+/* ============ 打印（全局） ============ */
+@media print {
+  /* 隐藏所有与打印无关的界面元素 */
+  body * {
+    display: none !important;
+  }
+  /* 只显示采购申请单和它的所有子元素 */
+  .detail-dialog .purchase-form,
+  .detail-dialog .purchase-form * {
+    display: revert !important;
+  }
+  .detail-dialog {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .detail-dialog .purchase-form {
+    width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .purchase-form .form-title {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .detail-table thead {
+    display: table-header-group !important;
+  }
+  .detail-table tbody tr,
+  .sign-table {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .el-overlay, .v-overlay, .el-dialog__wrapper,
+  .top-bar, .side-aside, .quick-switch, .el-header,
+  aside, header, .qs-scroll, .qs-actions {
+    display: none !important;
+  }
+  .el-dialog__footer {
+    display: none !important;
+  }
+}
