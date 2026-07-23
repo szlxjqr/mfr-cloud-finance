@@ -154,8 +154,10 @@ function printPurchase() {
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
-    .form-title, .section-title { break-after: avoid; page-break-after: avoid; }
-    .info-table, .sign-table, .detail-table { break-inside: avoid; page-break-inside: avoid; }
+    .form-title { break-inside: avoid; page-break-inside: avoid; }
+    .detail-table thead { display: table-header-group; }
+    .detail-table tbody tr { break-inside: avoid; page-break-inside: avoid; }
+    .sign-table { break-inside: avoid; page-break-inside: avoid; }
   `
   win.document.open()
   win.document.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">')
