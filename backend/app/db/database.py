@@ -59,6 +59,7 @@ def init_db() -> None:
     from app.models import voucher as _voucher  # noqa: F401
     from app.models import salary as _salary  # noqa: F401
     from app.models import salary_setting as _salary_setting  # noqa: F401
+    from app.models import fixed_asset as _fixed_asset  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
@@ -68,6 +69,7 @@ def init_db() -> None:
     _ensure_employees_columns(engine)
     _seed_admin(engine)
     _seed_subjects(engine)
+    _ensure_accum_dep_subject(engine)
 
 
 def _ensure_invoice_code_column(engine) -> None:
@@ -198,6 +200,7 @@ _SUBJECT_SEED: list[dict] = [
     {"code": "1403", "name": "原材料", "category": "资产", "direction": "借"},
     {"code": "1405", "name": "库存商品", "category": "资产", "direction": "借"},
     {"code": "1601", "name": "固定资产", "category": "资产", "direction": "借"},
+    {"code": "1602", "name": "累计折旧", "category": "资产", "direction": "贷", "is_leaf": False},
     # ── 负债类（贷）──
     {"code": "2202", "name": "应付账款", "category": "负债", "direction": "贷"},
     {"code": "2211", "name": "应付职工薪酬", "category": "负债", "direction": "贷"},
@@ -248,4 +251,34 @@ def _seed_subjects(engine) -> None:
                     status=item.get("status", "启用"),
                 )
             )
+        db.commit()
+
+
+def _ensure_accum_dep_subject(engine) -> None:
+    """为已存在（科目表非空）的库补加「1602 累计折旧」。
+
+    _seed_subjects 仅在科目表完全为空时写入，故老库（已有一套科目）
+    不会自动获得 1602。新增固定资产折旧联动依赖该科目，故单独补种。
+    """
+    from sqlalchemy import select
+
+    from app.models import subject as _models
+
+    with SessionLocal() as db:
+        exists = db.scalar(
+            select(_models.AccountSubject).where(_models.AccountSubject.code == "1602")
+        )
+        if exists:
+            return
+        db.add(
+            _models.AccountSubject(
+                code="1602",
+                name="累计折旧",
+                category="资产",
+                direction="贷",
+                level=1,
+                is_leaf=False,
+                status="启用",
+            )
+        )
         db.commit()

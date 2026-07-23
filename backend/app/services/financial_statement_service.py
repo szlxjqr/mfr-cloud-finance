@@ -113,6 +113,13 @@ def balance_sheet(db: Session, period: Optional[str] = None) -> dict:
     liab_cur = _balance_items(subs, _BALANCE_LIAB_CURRENT)
     equity = _balance_items(subs, _BALANCE_EQUITY)
 
+    # 固定资产净值 = 固定资产(1601) − 累计折旧(1602)（1602 为贷方备抵）
+    _accum_dep = _code_balance(subs, "1602")
+    for it in assets_non["items"]:
+        if it["code"] == "1601":
+            it["amount"] = round(it["amount"] - _accum_dep, 2)
+    assets_non["total"] = round(sum(it["amount"] for it in assets_non["items"]), 2)
+
     total_assets = round(assets_cur["total"] + assets_non["total"], 2)
     total_liab = liab_cur["total"]
 

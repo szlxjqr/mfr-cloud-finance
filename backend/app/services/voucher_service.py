@@ -17,13 +17,14 @@ from typing import List, Optional, Tuple
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models import fixed_asset as fam
 from app.models import invoice as im
 from app.models import purchase as pm
 from app.models import reimburse as rm
 from app.models import salary as slm
 from app.models import subject as sm
 from app.models import voucher as vm
-from app.utils.codegen import gen_voucher_no
+from app.utils.codegen import gen_asset_no, gen_voucher_no
 
 
 # ── 业务 → 科目映射（集中维护，便于审阅/调整）──
@@ -35,6 +36,9 @@ SUB_OTHER_PAY = "2241"        # 其他应付款
 SUB_AP = "2202"               # 应付账款
 SUB_WAGE = "5602"            # 管理费用—工资（计提/发放工资费用）
 SUB_PAYROLL_PAY = "2211"     # 应付职工薪酬
+SUB_FIXED_ASSET = "1601"      # 固定资产
+SUB_ACCUM_DEP = "1602"        # 累计折旧（固定资产备抵，贷方余额）
+SUB_BANK = "1002"             # 银行存款
 
 
 def _subject_name(db: Session, code: str) -> str:
@@ -191,6 +195,97 @@ def generate_from_salary(db: Session, bill: "slm.SalaryBill", maker: str) -> Opt
         db, "工资单", bill.salary_no, v_date, maker, summary, entries,
         attach_count=1,
     )
+
+
+# ==================== 固定资产 → 凭证 ====================
+def generate_from_asset_purchase(
+    db: Session,
+    asset: "fam.FixedAsset",
+    maker: str,
+    pay_subject: str = SUB_BANK,
+    v_date: Optional[date] = None,
+) -> Optional[vm.Voucher]:
+    """固定资产入账 → 自动凭证（购置）。
+
+    规则：借 固定资产(1601) 原值 + 贷 银行存款(1002) [赊购则贷 应付账款(2202)]，金额=原值。
+    幂等：source_type='固定资产', source_no=asset_no 已存在则跳过。
+    """
+    if _exists(db, "固定资产", asset.asset_no):
+        return None
+    d = v_date or asset.acquisition_date or date.today()
+    amount = asset.original_value or Decimal("0")
+    pay_name = _subject_name(db, pay_subject)
+    summary = f"固定资产入账 {asset.asset_no} {asset.name}"
+    entries = [
+        (SUB_FIXED_ASSET, "借", summary, amount),
+        (pay_subject, "贷", summary, amount),
+    ]
+    voc = _make_voucher(
+        db, "固定资产", asset.asset_no, d, maker, summary, entries, attach_count=1,
+    )
+    asset.record_voucher_no = voc.voucher_no
+    db.add(asset)
+    return voc
+
+
+def generate_depreciation_voucher(
+    db: Session,
+    period: str,
+    maker: str,
+    lines: List[Tuple[str, Decimal]],  # (折旧费用科目 code, 该科目当月折旧合计)
+    total_amount: Decimal,
+    v_date: Optional[date] = None,
+) -> Optional[vm.Voucher]:
+    """计提折旧汇总凭证：所有在用资产当月折旧合并成一张凭证。
+
+    规则：借 折旧费用科目(按资产类别分摊：管理费用5602 / 研发支出4301…) + 贷 累计折旧(1602) 总额。
+    幂等：source_type='固定资产折旧', source_no='ZCDEP|{period}' 已存在则跳过（同月重计提不再重复）。
+    """
+    if _exists(db, "固定资产折旧", f"ZCDEP|{period}"):
+        return None
+    y, m = period.split("-")
+    d = v_date or date(int(y), int(m), 28)
+    summary = f"计提固定资产折旧 {period}"
+    entries: List[Tuple[str, str, str, Decimal]] = []
+    for code, amt in lines:
+        if amt and amt > 0:
+            entries.append((code, "借", summary, amt))
+    entries.append((SUB_ACCUM_DEP, "贷", summary, total_amount))
+    return _make_voucher(
+        db, "固定资产折旧", f"ZCDEP|{period}", d, maker, summary, entries, attach_count=1,
+    )
+
+
+def generate_disposal_voucher(
+    db: Session,
+    asset: "fam.FixedAsset",
+    maker: str,
+    v_date: Optional[date] = None,
+) -> Optional[vm.Voucher]:
+    """固定资产处置 → 自动凭证（报废/清理，按账面净值转费用）。
+
+    规则：借 累计折旧(1602) 累计额 + 借 管理费用(5602) 账面净值(原值−累计) + 贷 固定资产(1601) 原值。
+    处置净损失计入管理费用（小企业简化处理，不留「固定资产清理」挂账）。
+    幂等：source_type='固定资产处置', source_no=asset_no 已存在则跳过。
+    """
+    if _exists(db, "固定资产处置", asset.asset_no):
+        return None
+    d = v_date or date.today()
+    accum = asset.accum_dep or Decimal("0")
+    original = asset.original_value or Decimal("0")
+    net = (original - accum).quantize(Decimal("0.01"))
+    summary = f"固定资产处置 {asset.asset_no} {asset.name}"
+    entries = [
+        (SUB_ACCUM_DEP, "借", summary, accum),
+        (SUB_MANAGE, "借", summary, net),
+        (SUB_FIXED_ASSET, "贷", summary, original),
+    ]
+    voc = _make_voucher(
+        db, "固定资产处置", asset.asset_no, d, maker, summary, entries, attach_count=1,
+    )
+    asset.dispose_voucher_no = voc.voucher_no
+    db.add(asset)
+    return voc
 
 
 # ==================== 批量补生成（回填历史已通过单据）====================

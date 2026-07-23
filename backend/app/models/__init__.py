@@ -7,6 +7,7 @@ from app.models.contract import (
     SalesContract,
 )
 from app.models.employee import Account, Employee
+from app.models.fixed_asset import DepRecord, FixedAsset
 from app.models.invoice import Invoice, InvoiceDetail
 from app.models.reimburse import ReimbursementBill
 from app.models.subject import AccountSubject
@@ -26,4 +27,6 @@ __all__ = [
     "AccountSubject",
     "Voucher",
     "VoucherEntry",
+    "FixedAsset",
+    "DepRecord",
 ]

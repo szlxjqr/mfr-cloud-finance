@@ -181,7 +181,7 @@ const router = createRouter({
           component: () => import('@/layouts/components/MenuPanel.vue'),
           meta: { title: '资产管理', module: 'assets' },
         },
-        { path: 'assets/fixed-asset', name: 'FixedAsset', component: Placeholder, props: { title: '固定资产管理' }, meta: { title: '固定资产管理', group: '固定资产' } },
+        { path: 'assets/fixed-asset', name: 'FixedAsset', component: () => import('@/views/assets/FixedAsset.vue'), meta: { title: '固定资产管理', group: '固定资产' } },
 
         /* ====== 财务管理模块（容器：收编总账/出纳/发票/结账/报表） ====== */
         {

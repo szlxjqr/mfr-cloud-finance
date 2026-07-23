@@ -158,6 +158,15 @@ def gen_salary_no(db: Session, year: Optional[int] = None) -> str:
     return f"GZ{y}{seq:04d}"
 
 
+def gen_asset_no(db: Session, year: Optional[int] = None) -> str:
+    """生成固定资产单号：ZC + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"AST|{y}"
+    seed = _seed_from_req_no(db, "fixed_assets", "ZC", y, col="asset_no")
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"ZC{y}{seq:04d}"
+
 def gen_voucher_no(db: Session, year: Optional[int] = None, month: Optional[int] = None) -> "tuple[str, int]":
     """生成记账凭证号：记-YYYY-MM-NNNN（返回 (凭证号, 序号)）。
 
