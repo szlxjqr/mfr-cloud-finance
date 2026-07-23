@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.models import invoice as im
 from app.models import purchase as pm
 from app.models import reimburse as rm
+from app.models import salary as slm
 from app.models import subject as sm
 from app.models import voucher as vm
 from app.utils.codegen import gen_voucher_no
@@ -32,6 +33,8 @@ SUB_RAWMAT = "1403"          # 原材料
 SUB_INPUT_TAX = "2221.01.01"  # 应交税费—应交增值税—进项税额
 SUB_OTHER_PAY = "2241"        # 其他应付款
 SUB_AP = "2202"               # 应付账款
+SUB_WAGE = "5602"            # 管理费用—工资（计提/发放工资费用）
+SUB_PAYROLL_PAY = "2211"     # 应付职工薪酬
 
 
 def _subject_name(db: Session, code: str) -> str:
@@ -166,6 +169,30 @@ def generate_from_purchase(db: Session, req: "pm.PurchaseRequisition", maker: st
     )
 
 
+# ==================== 工资单 → 凭证 ====================
+def generate_from_salary(db: Session, bill: "slm.SalaryBill", maker: str) -> Optional[vm.Voucher]:
+    """工资单审核通过 → 自动凭证（计提工资）。
+
+    规则：借 管理费用-工资(5602) + 贷 应付职工薪酬(2211)，金额=应发工资。
+    与「报销审批→凭证」「采购审批→凭证」同源，体现「业务单→账务」联动地基。
+    幂等：source_type='工资单', source_no=salary_no 已存在则跳过。
+    """
+    if _exists(db, "工资单", bill.salary_no):
+        return None
+
+    v_date = bill.approve_date or date.today()
+    gross = bill.gross_pay or Decimal("0")
+    summary = f"计提工资 {bill.salary_no} {bill.employee_name}({bill.period})"
+    entries = [
+        (SUB_WAGE, "借", summary, gross),
+        (SUB_PAYROLL_PAY, "贷", summary, gross),
+    ]
+    return _make_voucher(
+        db, "工资单", bill.salary_no, v_date, maker, summary, entries,
+        attach_count=1,
+    )
+
+
 # ==================== 批量补生成（回填历史已通过单据）====================
 def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
     """扫描所有「已通过」的报销单/采购申请，对尚未生成凭证的补生成。
@@ -196,6 +223,17 @@ def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
         if v:
             generated += 1
             logs.append(f"采购申请 {r.req_no} → {v.voucher_no}")
+        else:
+            skipped += 1
+
+    sbills = db.scalars(
+        select(slm.SalaryBill).where(slm.SalaryBill.status == "已通过")
+    ).all()
+    for b in sbills:
+        v = generate_from_salary(db, b, maker)
+        if v:
+            generated += 1
+            logs.append(f"工资单 {b.salary_no} → {v.voucher_no}")
         else:
             skipped += 1
 

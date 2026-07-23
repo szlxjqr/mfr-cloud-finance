@@ -12,6 +12,7 @@ from app.api import invoice
 from app.api import reimburse
 from app.api import purchase
 from app.api import travel
+from app.api import salary
 from app.api import auth
 from app.api import employees
 from app.api import subjects
@@ -60,6 +61,8 @@ app.include_router(reimburse.router, prefix="/api")
 app.include_router(purchase.router, prefix="/api")
 # 注册差旅管理路由（差旅申请单 CRUD + 状态流转）
 app.include_router(travel.router, prefix="/api")
+# 注册工资管理路由（工资单 CRUD + 状态流转 + 联动凭证）
+app.include_router(salary.router, prefix="/api")
 # 注册发票管理路由（进项发票 CRUD + 关联报销单 + 归档 + 凭证草稿）
 app.include_router(invoice.router, prefix="/api")
 # 注册登录鉴权路由（登录 / 当前用户）

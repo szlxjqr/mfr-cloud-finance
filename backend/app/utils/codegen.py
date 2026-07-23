@@ -113,12 +113,15 @@ def gen_bill_no(db: Session, year: Optional[int] = None) -> str:
     return f"BXGL{y}{seq:04d}"
 
 
-def _seed_from_req_no(db: Session, table: str, prefix: str, year: int) -> int:
-    """从已有 {prefix}{year} 单号里取末尾 4 位最大序号作为 seed（防碰撞）。"""
+def _seed_from_req_no(db: Session, table: str, prefix: str, year: int, col: str = "req_no") -> int:
+    """从已有 {prefix}{year} 单号里取末尾 4 位最大序号作为 seed（防碰撞）。
+
+    col 为单号所在列名（采购/差旅用 req_no，工资用 salary_no）。
+    """
     mx = db.execute(
         text(
-            "SELECT COALESCE(MAX(CAST(SUBSTR(req_no, -4) AS INTEGER)), 0) "
-            f"FROM {table} WHERE req_no LIKE :p"
+            f"SELECT COALESCE(MAX(CAST(SUBSTR({col}, -4) AS INTEGER)), 0) "
+            f"FROM {table} WHERE {col} LIKE :p"
         ),
         {"p": f"{prefix}{year}%"},
     ).fetchone()[0]
@@ -143,6 +146,16 @@ def gen_travel_no(db: Session, year: Optional[int] = None) -> str:
     _ensure_counter(db, key, seed=seed)
     seq = _alloc_seq(db, key)
     return f"CL{y}{seq:04d}"
+
+
+def gen_salary_no(db: Session, year: Optional[int] = None) -> str:
+    """生成工资单号：GZ + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"SAL|{y}"
+    seed = _seed_from_req_no(db, "salary_bills", "GZ", y, col="salary_no")
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"GZ{y}{seq:04d}"
 
 
 def gen_voucher_no(db: Session, year: Optional[int] = None, month: Optional[int] = None) -> "tuple[str, int]":

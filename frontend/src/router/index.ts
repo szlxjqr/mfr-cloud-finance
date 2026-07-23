@@ -167,7 +167,7 @@ const router = createRouter({
           meta: { title: '工资管理', module: 'payroll' },
         },
         { path: 'payroll/employee-info', name: 'PayrollEmployeeInfo', component: Placeholder, props: { title: '员工基本信息' }, meta: { title: '员工基本信息', group: '工资' } },
-        { path: 'payroll/salary-list', name: 'PayrollSalaryList', component: Placeholder, props: { title: '工资列表' }, meta: { title: '工资列表', group: '工资' } },
+        { path: 'payroll/salary-list', name: 'PayrollSalaryList', component: () => import('@/views/payroll/SalaryList.vue'), meta: { title: '工资列表', group: '工资' } },
         { path: 'payroll/dept-summary', name: 'PayrollDeptSummary', component: Placeholder, props: { title: '部门工资汇总表' }, meta: { title: '部门工资汇总表', group: '工资' } },
         { path: 'payroll/tax-report', name: 'PayrollTaxReport', component: Placeholder, props: { title: '个税报表' }, meta: { title: '个税报表', group: '工资' } },
         { path: 'payroll/social-fund-setting', name: 'PayrollSocialFundSetting', component: Placeholder, props: { title: '社保及公积金设置' }, meta: { title: '社保及公积金设置', group: '工资设置' } },
