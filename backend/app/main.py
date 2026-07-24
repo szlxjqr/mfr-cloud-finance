@@ -3,8 +3,9 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api.auth import get_current_user
 
 from app.api import company_settings
 from app.api import contracts
@@ -57,41 +58,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 鉴权依赖：除登录/当前用户(auth)与静态资源(前端)外，所有业务/财务/报表路由均需登录态。
+# 既堵住「除 vouchers/employees 外全部匿名」的缺口（C1），也顺带覆盖 subjects/reset 等危险操作（C3）。
+_AUTH_DEP = [Depends(get_current_user)]
+
 # 注册仪表盘路由
-app.include_router(dashboard.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册合同管理路由（往来单位 / 人事·销售·采购合同 / 合同模板）
-app.include_router(contracts.router, prefix="/api")
+app.include_router(contracts.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册公司设置路由（单例，id=1）
-app.include_router(company_settings.router, prefix="/api")
+app.include_router(company_settings.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册报销管理路由（报销单 CRUD + 状态流转）
-app.include_router(reimburse.router, prefix="/api")
+app.include_router(reimburse.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册采购管理路由（采购申请单 CRUD + 状态流转）
-app.include_router(purchase.router, prefix="/api")
+app.include_router(purchase.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册差旅管理路由（差旅申请单 CRUD + 状态流转）
-app.include_router(travel.router, prefix="/api")
+app.include_router(travel.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册工资管理路由（工资单 CRUD + 状态流转 + 联动凭证 + 部门汇总/个税报表）
-app.include_router(salary.router, prefix="/api")
+app.include_router(salary.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册工资设置路由（社保/公积金/个税口径 + 自动计算代扣）
-app.include_router(salary_settings.router, prefix="/api")
+app.include_router(salary_settings.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册发票管理路由（进项发票 CRUD + 关联报销单 + 归档 + 凭证草稿）
-app.include_router(invoice.router, prefix="/api")
-# 注册登录鉴权路由（登录 / 当前用户）
+app.include_router(invoice.router, prefix="/api", dependencies=_AUTH_DEP)
+# 注册登录鉴权路由（登录 / 当前用户）—— 必须保持开放，否则无法登录
 app.include_router(auth.router, prefix="/api")
 # 注册人员管理路由（员工档案 CRUD + 自动建账号）
-app.include_router(employees.router, prefix="/api")
+app.include_router(employees.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册会计核算路由（科目 / 凭证 / 余额汇总 / 一键联动）
-app.include_router(subjects.router, prefix="/api")
-app.include_router(vouchers.router, prefix="/api")
+app.include_router(subjects.router, prefix="/api", dependencies=_AUTH_DEP)
+app.include_router(vouchers.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册账簿查询路由（总账 / 明细账 / 科目汇总 / 序时账，均由凭证分录实时汇总）
-app.include_router(ledger.router, prefix="/api")
+app.include_router(ledger.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册税务取数路由（从凭证实时汇总进项/销项/应交增值税）
-app.include_router(tax.router, prefix="/api")
+app.include_router(tax.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册综合报表路由（跨模块实时聚合看板）
-app.include_router(comprehensive.router, prefix="/api")
+app.include_router(comprehensive.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册财务报表路由（资产负债表 / 利润表 / 现金流量表 / 季报，均由凭证实时派生）
-app.include_router(financial_statement.router, prefix="/api")
+app.include_router(financial_statement.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册固定资产路由（资产卡片 CRUD + 入账 / 计提折旧 / 处置 联动凭证）
-app.include_router(fixed_asset.router, prefix="/api")
+app.include_router(fixed_asset.router, prefix="/api", dependencies=_AUTH_DEP)
 
 
 @app.get("/health")

@@ -201,16 +201,28 @@ def income_statement(db: Session, period: Optional[str] = None) -> dict:
     }
 
 
-def _classify(category: Optional[str]) -> str:
-    """按对方科目类别归类现金流量活动。"""
-    if category in ("损益",):
+# 流动资产（应收/预付/存货等）对应的现金收支属经营活动；
+# 长期资产（固定资产等）购建属投资活动。
+_CASH_FLOW_OPERATING_ASSET_CODES = {"1122", "1123", "1403", "1405"}
+
+
+def _classify(category: Optional[str], code: Optional[str] = None) -> str:
+    """按对方科目类别归类现金流量活动。
+
+    - 损益 / 负债（应付、应交税费等）→ 经营
+    - 权益（实收资本等）→ 筹资
+    - 资产：流动资产（应收/预付/存货）→ 经营；长期资产（固定资产等）→ 投资
+    - 成本（研发支出等长期资产）→ 投资
+    """
+    if category in ("损益", "负债"):
         return "operating"
     if category in ("权益",):
         return "financing"
     if category == "资产":
-        # 固定资产等长期资产购建属投资活动；其余流动资产属经营
+        # 固定资产等长期资产购建属投资活动；流动资产（应收/预付/存货）属经营
+        return "investing" if code not in _CASH_FLOW_OPERATING_ASSET_CODES else "operating"
+    if category == "成本":
         return "investing"
-    # 负债（应付/税费等）归经营
     return "operating"
 
 
@@ -266,7 +278,7 @@ def cash_flow_statement(db: Session, period: Optional[str] = None) -> dict:
             if code in _CASH_CODES:
                 continue  # 现金方本身，跳过
             has_data = True
-            act = _classify(category)
+            act = _classify(category, code)
             sign = cash_sign * float(amount)
             buckets[act][name] = round(buckets[act].get(name, 0.0) + sign, 2)
 

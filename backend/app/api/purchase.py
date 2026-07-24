@@ -28,8 +28,9 @@ router = APIRouter(prefix="/purchases", tags=["purchases"])
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
-    "已通过": {},
+    "已通过": {"pay": "已支付"},
     "已驳回": {"submit": "待审批"},  # 重新提交
+    "已支付": {},  # 终态
 }
 
 
@@ -167,6 +168,21 @@ def reject_req(rid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{rid}/pay", response_model=s.PurchaseReqRead)
+def pay_req(rid: int, db: Session = Depends(get_db)):
+    """采购付款：结算应付账款 → 自动生成付款凭证（借应付账款 / 贷银行存款）。"""
+    obj = _get_or_404(db, rid)
+    if "pay" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许付款")
+    obj.status = _STATUS_FLOW[obj.status]["pay"]
+    obj.pay_date = date.today()
+    # 联动：采购付款 → 自动生成付款凭证（借应付账款 / 贷银行存款，幂等）
+    voucher_service.generate_purchase_payment(db, obj, maker=obj.approver or "system")
     db.commit()
     db.refresh(obj)
     return obj

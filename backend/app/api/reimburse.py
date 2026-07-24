@@ -171,6 +171,9 @@ def pay_bill(bid: int, db: Session = Depends(get_db)):
     if "pay" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许支付")
     obj.status = _STATUS_FLOW[obj.status]["pay"]
+    obj.pay_date = date.today()
+    # 联动：支付报销款 → 自动生成付款凭证（借其他应付款 / 贷银行存款，幂等）
+    voucher_service.generate_reimbursement_payment(db, obj, maker=obj.approver or "system")
     db.commit()
     db.refresh(obj)
     return obj

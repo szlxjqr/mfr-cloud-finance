@@ -12,9 +12,42 @@ import json
 import os
 import secrets
 import time
+from pathlib import Path
 
-# 签名密钥：生产环境务必通过环境变量 AUTH_SECRET 覆盖。
-_AUTH_SECRET = os.getenv("AUTH_SECRET", "mfr-cloud-finance-default-secret-change-me")
+# 签名密钥解析顺序（优先级从高到低）：
+#   1) 环境变量 AUTH_SECRET（部署时可显式指定，最安全）；
+#   2) 本地持久化文件 backend/.auth_secret（单机自用：首次运行自动生成随机密钥并落盘）；
+#   3) 兜底：内存随机值（仅本次进程有效，重启即失效，正常不应触发）。
+# 单机自用场景下，密钥落盘后随本机保存，避免每次重启导致旧 Token 集体失效。
+_BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+_AUTH_SECRET_FILE = _BACKEND_DIR / ".auth_secret"
+
+
+def _load_auth_secret() -> str:
+    env_secret = os.getenv("AUTH_SECRET")
+    if env_secret:
+        return env_secret
+    try:
+        if _AUTH_SECRET_FILE.exists():
+            loaded = _AUTH_SECRET_FILE.read_text(encoding="utf-8").strip()
+            if loaded:
+                return loaded
+    except Exception:
+        pass
+    # 首次运行：生成 32 字节随机密钥并落盘（仅本机可读写）
+    new_secret = secrets.token_hex(32)
+    try:
+        _AUTH_SECRET_FILE.write_text(new_secret, encoding="utf-8")
+        try:
+            _AUTH_SECRET_FILE.chmod(0o600)
+        except Exception:
+            pass
+    except Exception:
+        return new_secret  # 写盘失败才退回内存值
+    return new_secret
+
+
+_AUTH_SECRET = _load_auth_secret()
 _PBKDF2_ITER = 100_000
 
 

@@ -197,6 +197,90 @@ def generate_from_salary(db: Session, bill: "slm.SalaryBill", maker: str) -> Opt
     )
 
 
+# ==================== 支付环节 → 联动付款凭证 ====================
+# 关键缺失修复（H1）：此前「支付/发放」动作只改状态、不生成凭证，导致
+# 应付/其他应付长期挂账、银行存款从不减少、现金流量表看不到经营流出。
+# 以下三个生成器与审批凭证同源、幂等（同 source_type/source_no 仅一张）。
+def generate_reimbursement_payment(db: Session, bill: "rm.ReimbursementBill", maker: str) -> Optional[vm.Voucher]:
+    """报销款支付 → 自动凭证（结算其他应付款）。
+
+    规则：借 其他应付款(2241) = 报销应付额 + 贷 银行存款(1002) = 同额。
+    报销应付额与审批凭证贷方口径一致：有发票取价税合计，否则取报销金额。
+    幂等：source_type='报销支付', source_no=bill_no 已存在则跳过。
+    """
+    if _exists(db, "报销支付", bill.bill_no):
+        return None
+    v_date = date.today()
+    invs = db.scalars(
+        select(im.Invoice).where(im.Invoice.reimbursement_bill_id == bill.id)
+    ).all()
+    sum_total = Decimal("0")
+    for inv in invs:
+        for d in inv.details:
+            sum_total += d.total or Decimal("0")
+    pay_amount = sum_total if sum_total > 0 else (bill.amount or Decimal("0"))
+    if pay_amount <= 0:
+        return None
+    summary = f"支付报销款 {bill.bill_no}（{bill.bill_type}）"
+    entries = [
+        (SUB_OTHER_PAY, "借", summary, pay_amount),
+        (SUB_BANK, "贷", summary, pay_amount),
+    ]
+    return _make_voucher(
+        db, "报销支付", bill.bill_no, v_date, maker, summary, entries, attach_count=1,
+    )
+
+
+def generate_salary_payment(db: Session, bill: "slm.SalaryBill", maker: str) -> Optional[vm.Voucher]:
+    """工资发放 → 自动凭证（结算应付职工薪酬）。
+
+    规则：借 应付职工薪酬(2211) = 应发 + 贷 银行存款(1002) = 实发(应发−代扣) + 贷 其他应付款(2241) = 代扣(社保/公积金/个税)。
+    代扣进入其他应付款，待后续缴纳社保/个税时再清账；银行存款按实发减少。
+    幂等：source_type='工资支付', source_no=salary_no 已存在则跳过。
+    """
+    if _exists(db, "工资支付", bill.salary_no):
+        return None
+    v_date = date.today()
+    gross = bill.gross_pay or Decimal("0")
+    deduct = bill.deduct_total or Decimal("0")
+    net = (gross - deduct).quantize(Decimal("0.01"))
+    if gross <= 0:
+        return None
+    summary = f"发放工资 {bill.salary_no} {bill.employee_name}({bill.period})"
+    entries = [
+        (SUB_PAYROLL_PAY, "借", summary, gross),
+        (SUB_BANK, "贷", summary, net),
+    ]
+    if deduct > 0:
+        entries.append((SUB_OTHER_PAY, "贷", summary, deduct))
+    return _make_voucher(
+        db, "工资支付", bill.salary_no, v_date, maker, summary, entries, attach_count=1,
+    )
+
+
+def generate_purchase_payment(db: Session, req: "pm.PurchaseRequisition", maker: str) -> Optional[vm.Voucher]:
+    """采购付款 → 自动凭证（结算应付账款）。
+
+    规则：借 应付账款(2202) = 应付额 + 贷 银行存款(1002) = 同额。
+    幂等：source_type='采购支付', source_no=req_no 已存在则跳过。
+    """
+    if _exists(db, "采购支付", req.req_no):
+        return None
+    v_date = date.today()
+    amount = req.expected_amount or Decimal("0")
+    if amount <= 0:
+        return None
+    supplier = (req.supplier or "").strip()
+    summary = f"支付采购款 {req.req_no}" + (f"·供应商{supplier}" if supplier else "")
+    entries = [
+        (SUB_AP, "借", summary, amount),
+        (SUB_BANK, "贷", summary, amount),
+    ]
+    return _make_voucher(
+        db, "采购支付", req.req_no, v_date, maker, summary, entries, attach_count=1,
+    )
+
+
 # ==================== 固定资产 → 凭证 ====================
 def generate_from_asset_purchase(
     db: Session,

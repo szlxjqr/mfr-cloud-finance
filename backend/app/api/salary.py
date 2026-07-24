@@ -262,6 +262,8 @@ def pay_bill(bid: int, body: Optional[s.ApprovalBody] = None, db: Session = Depe
     if body and body.approver and body.approver.strip():
         obj.payee = body.approver.strip()
         obj.pay_remark = body.remark.strip() if body.remark else None
+    # 联动：发放工资 → 自动生成付款凭证（借应付职工薪酬 / 贷银行存款，代扣转其他应付款，幂等）
+    voucher_service.generate_salary_payment(db, obj, maker=obj.payee or obj.approver or "system")
     db.commit()
     db.refresh(obj)
     return obj
