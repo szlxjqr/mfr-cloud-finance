@@ -34,7 +34,7 @@
       <el-table-column prop="reason" label="事由" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="submit_date" label="提交日期" width="110" />
@@ -465,21 +465,6 @@ interface InvoiceSummary {
   invoice_count: number
 }
 const summaryMap = ref<Record<number, InvoiceSummary>>({})
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '待审批':
-      return 'warning'
-    case '已通过':
-      return 'success'
-    case '已驳回':
-      return 'danger'
-    case '已支付':
-      return 'primary'
-    default:
-      return 'info'
-  }
-}
 
 interface RowAction {
   action: 'submit' | 'approve' | 'reject' | 'pay'

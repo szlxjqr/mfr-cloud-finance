@@ -38,7 +38,7 @@
       <el-table-column prop="reason" label="事由" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="submit_date" label="提交日期" width="110" />
@@ -99,17 +99,6 @@ const detailTitle = computed(() =>
 )
 
 const statusOptions = ['待审批', '已通过', '已驳回', '已支付']
-
-function statusTag(status: string) {
-  const map: Record<string, string> = {
-    草稿: 'info',
-    待审批: 'warning',
-    已通过: 'success',
-    已驳回: 'danger',
-    已支付: 'primary',
-  }
-  return map[status] || 'info'
-}
 
 function invoiceTotal(bill: ReimbursementBill): number {
   return (bill.invoices || []).reduce((sum, inv) => {

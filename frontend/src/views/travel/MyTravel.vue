@@ -23,7 +23,7 @@
       <el-table-column prop="reason" label="事由" min-width="140" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
@@ -46,7 +46,7 @@
         <el-descriptions-item label="出差结束">{{ detail.travel_end || '-' }}</el-descriptions-item>
         <el-descriptions-item label="差旅预算">{{ detail.expected_amount != null ? '¥' + Number(detail.expected_amount).toFixed(2) : '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="statusTag(detail.status)" size="small">{{ detail.status }}</el-tag>
+          <StatusTag :status="detail.status" />
         </el-descriptions-item>
         <el-descriptions-item label="事由" :span="2">{{ detail.reason || '-' }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ detail.remark || '-' }}</el-descriptions-item>
@@ -91,15 +91,6 @@ const detail = reactive<TravelReq>({
   status: '草稿',
   remark: '',
 })
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '待审批': return 'warning'
-    case '已通过': return 'success'
-    case '已驳回': return 'danger'
-    default: return 'info'
-  }
-}
 
 async function load() {
   loading.value = true

@@ -24,7 +24,7 @@
       <el-table-column prop="phone" label="手机号" width="140" />
       <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === '在职' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column label="角色" width="100" align="center">

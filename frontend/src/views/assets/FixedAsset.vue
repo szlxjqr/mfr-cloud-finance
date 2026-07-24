@@ -56,7 +56,7 @@
       </el-table-column>
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column label="入账凭证" prop="record_voucher_no" width="160" />
@@ -204,7 +204,7 @@
       <el-descriptions v-if="viewRow" :column="2" border>
         <el-descriptions-item label="资产编号">{{ viewRow.asset_no }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="statusTag(viewRow.status)" size="small">{{ viewRow.status }}</el-tag>
+          <StatusTag :status="viewRow.status" />
         </el-descriptions-item>
         <el-descriptions-item label="资产名称">{{ viewRow.name }}</el-descriptions-item>
         <el-descriptions-item label="类别">{{ viewRow.category || '-' }}</el-descriptions-item>
@@ -278,15 +278,6 @@ function toNum(v: any): number {
 
 function fmt(v: any): string {
   return '¥' + toNum(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '在用': return 'success'
-    case '闲置': return 'warning'
-    case '已处置': return 'info'
-    default: return 'primary'
-  }
 }
 
 // 客户端折旧预览（与服务端公式一致）

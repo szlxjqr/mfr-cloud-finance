@@ -160,8 +160,7 @@ onMounted(loadData)
         </el-table-column>
         <el-table-column prop="status" label="状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.status === '启用'" size="small" type="success" effect="light">{{ row.status }}</el-tag>
-            <el-tag v-else size="small" type="info" effect="light">{{ row.status }}</el-tag>
+            <StatusTag :status="row.status" />
           </template>
         </el-table-column>
       </el-table>

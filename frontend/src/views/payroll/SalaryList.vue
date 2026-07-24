@@ -29,7 +29,7 @@
       </el-table-column>
       <el-table-column label="状态" width="100" align="center">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审核日期" width="110" />
@@ -174,7 +174,7 @@
       <el-descriptions v-if="viewRow" :column="2" border>
         <el-descriptions-item label="单号">{{ viewRow.salary_no }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="statusTag(viewRow.status)" size="small">{{ viewRow.status }}</el-tag>
+          <StatusTag :status="viewRow.status" />
         </el-descriptions-item>
         <el-descriptions-item label="员工">{{ viewRow.employee_name }}</el-descriptions-item>
         <el-descriptions-item label="工号">{{ viewRow.employee_no || '-' }}</el-descriptions-item>
@@ -297,16 +297,6 @@ const derived = computed(() => {
 
 function fmt(v: any): string {
   return '¥' + toNum(v).toFixed(2)
-}
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '待审批': return 'warning'
-    case '已通过': return 'success'
-    case '已驳回': return 'danger'
-    case '已发放': return 'primary'
-    default: return 'info'
-  }
 }
 
 interface RowAction {

@@ -25,7 +25,7 @@
       <el-table-column prop="reason" label="事由" min-width="140" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
@@ -89,15 +89,6 @@ const detail = reactive<PurchaseReq>({
   remark: '',
   items: [],
 })
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '待审批': return 'warning'
-    case '已通过': return 'success'
-    case '已驳回': return 'danger'
-    default: return 'info'
-  }
-}
 
 function itemSummary(row: PurchaseReq): string {
   const items = row.items && row.items.length ? row.items : null

@@ -25,7 +25,7 @@
       <el-table-column prop="reason" label="事由" min-width="140" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="160" fixed="right">
@@ -90,15 +90,6 @@ const approveForm = ref({ approver: '', remark: '' })
 const approveFormRef = ref<any>(null)
 const approveRules = {
   approver: [{ required: true, message: '请输入审批人', trigger: 'blur' }],
-}
-
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '待审批': return 'warning'
-    case '已通过': return 'success'
-    case '已驳回': return 'danger'
-    default: return 'info'
-  }
 }
 
 interface RowAction {

@@ -30,7 +30,7 @@
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="statusTag(row.status)" size="small">{{ row.status }}</el-tag>
+            <StatusTag :status="row.status" />
           </template>
         </el-table-column>
       </template>
@@ -412,16 +412,6 @@ function expireTag(row: any) {
   const d = daysLeft(row)
   if (d === null) return 'info'
   return d < 0 ? 'danger' : d <= 30 ? 'warning' : 'success'
-}
-function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '已生效': return 'success'
-    case '已到期': return 'warning'
-    case '已终止': return 'info'
-    case '待审批': return 'warning'
-    case '草稿': return 'info'
-    default: return 'primary'
-  }
 }
 function rowClass({ row }: any) {
   const d = daysLeft(row)

@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Edit, Delete, View, Plus as PlusIcon } from '@element-plus/icons-vue'
 import type { Employee } from '@/types/employee'
-import type { HRContract, HRContractStatus } from '@/types/contract'
+import type { HRContract } from '@/types/contract'
 import {
   listEmployees,
   previewUsername,
@@ -296,17 +296,6 @@ async function deleteContract(c: HRContract) {
   }
 }
 
-function statusTagType(status: HRContractStatus): '' | 'success' | 'warning' | 'danger' | 'info' | 'primary' {
-  switch (status) {
-    case '已生效': return 'success'
-    case '已到期': return 'warning'
-    case '已终止': return 'info'
-    case '待审批': return 'warning'
-    case '草稿': return 'info'
-    default: return 'primary'
-  }
-}
-
 function daysLeft(row: HRContract): number | null {
   if (!row.end_date) return null
   return Math.ceil((new Date(row.end_date).getTime() - Date.now()) / 86400000)
@@ -545,7 +534,7 @@ onMounted(load)
             </el-table-column>
             <el-table-column label="状态" width="90" align="center">
               <template #default="{ row }">
-                <el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag>
+                <StatusTag :status="row.status" />
               </template>
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
