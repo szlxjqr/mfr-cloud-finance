@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { listVouchers, syncVouchers } from '@/api/ledger'
+import { auditVoucher, postVoucher } from '@/api/voucher'
 import type { Voucher } from '@/types/ledger'
 
 const router = useRouter()
@@ -150,15 +151,74 @@ async function handleSync() {
   }
 }
 
-/** 审核 */
-async function handleAudit(action: 'audit' | 'unaudit' | 'batch') {
-  if (selectedCount.value === 0 && action !== 'batch') {
+/** 单行审核：未审核 → 已审核 */
+async function handleRowAudit(row: VoucherItem) {
+  try {
+    await auditVoucher(Number(row.id))
+    ElMessage.success(`凭证 ${row.word}字${String(row.number).padStart(3, '0')}号 已审核`)
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '审核失败')
+  }
+}
+
+/** 单行记账：已审核 → 已记账 */
+async function handleRowPost(row: VoucherItem) {
+  try {
+    await postVoucher(Number(row.id))
+    ElMessage.success(`凭证 ${row.word}字${String(row.number).padStart(3, '0')}号 已记账`)
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '记账失败（请先审核）')
+  }
+}
+
+/** 批量审核选中的凭证（已审核/已记账幂等跳过） */
+async function batchAudit() {
+  if (selectedCount.value === 0) {
     ElMessage.warning('请先选择凭证')
     return
   }
-  const actionText = action === 'audit' ? '审核' : action === 'unaudit' ? '反审核' : '批量审核'
-  await ElMessageBox.confirm(`确定对 ${selectedCount.value} 张凭证执行${actionText}操作？`, '确认', { type: 'warning' })
-  ElMessage.success(`${actionText}成功`)
+  try {
+    await ElMessageBox.confirm(`确定审核选中的 ${selectedCount.value} 张凭证？`, '批量审核', { type: 'warning' })
+  } catch {
+    return
+  }
+  let ok = 0
+  for (const id of selectedIds.value) {
+    try {
+      await auditVoucher(Number(id))
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '审核失败') + '：#' + id)
+    }
+  }
+  if (ok) ElMessage.success(`已审核 ${ok} 张`)
+  await loadData()
+}
+
+/** 批量记账选中的凭证（仅已审核生效，未审核会被后端拦截） */
+async function batchPost() {
+  if (selectedCount.value === 0) {
+    ElMessage.warning('请先选择凭证')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定记选中 ${selectedCount.value} 张凭证的账？`, '批量记账', { type: 'warning' })
+  } catch {
+    return
+  }
+  let ok = 0
+  for (const id of selectedIds.value) {
+    try {
+      await postVoucher(Number(id))
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '记账失败') + '：#' + id)
+    }
+  }
+  if (ok) ElMessage.success(`已记账 ${ok} 张`)
+  await loadData()
 }
 
 /** 打印 */
@@ -285,18 +345,12 @@ onMounted(() => {
     <div class="batch-bar">
       <span class="select-count">已选中 <strong>{{ selectedCount }}</strong> 条</span>
 
-      <el-dropdown trigger="click" @command="(cmd: string) => handleAudit(cmd as any)">
-        <el-button text size="small">
-          审核<AppIcon class="el-icon--right" name="ArrowDown" />
-        </el-button>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="audit">审核通过</el-dropdown-item>
-            <el-dropdown-item command="unaudit">反审核</el-dropdown-item>
-            <el-dropdown-item command="batch">批量审核</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <el-button text size="small" @click="batchAudit">
+        <AppIcon style="margin-right:2px" name="Select" />审核
+      </el-button>
+      <el-button text size="small" @click="batchPost">
+        <AppIcon style="margin-right:2px" name="Stamp" />记账
+      </el-button>
 
       <el-dropdown trigger="click" @command="(cmd: string) => handlePrint(cmd as any)">
         <el-button text size="small">
@@ -436,6 +490,25 @@ onMounted(() => {
               </p>
               <p class="amount-total credit-total">{{ row.totalCredit.toLocaleString('zh-CN', { minimumFractionDigits: 2 }) }}</p>
             </div>
+          </template>
+        </el-table-column>
+
+        <!-- 操作列：状态感知的审核 / 记账 -->
+        <el-table-column label="操作" width="130" fixed="right">
+          <template #default="{ row }: { row: VoucherItem }">
+            <el-button
+              v-if="row.status === 'draft'"
+              size="small"
+              type="primary"
+              @click="handleRowAudit(row)"
+            >审核</el-button>
+            <el-button
+              v-else-if="row.status === 'audited'"
+              size="small"
+              type="success"
+              @click="handleRowPost(row)"
+            >记账</el-button>
+            <el-tag v-else size="small" type="info" effect="plain">已记账</el-tag>
           </template>
         </el-table-column>
 
