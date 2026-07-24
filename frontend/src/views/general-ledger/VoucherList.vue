@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { listVouchers, syncVouchers } from '@/api/ledger'
-import { auditVoucher, postVoucher } from '@/api/voucher'
+import { auditVoucher, postVoucher, unpostVoucher, unauditVoucher } from '@/api/voucher'
 import type { Voucher } from '@/types/ledger'
 
 const router = useRouter()
@@ -173,6 +173,28 @@ async function handleRowPost(row: VoucherItem) {
   }
 }
 
+/** 单行反记账：已记账 → 已审核（释放记账锁定，仍在账簿） */
+async function handleRowUnpost(row: VoucherItem) {
+  try {
+    await unpostVoucher(Number(row.id))
+    ElMessage.success(`凭证 ${row.word}字${String(row.number).padStart(3, '0')}号 已反记账`)
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '反记账失败')
+  }
+}
+
+/** 单行反审核：已审核 → 未审核（拉出账簿） */
+async function handleRowUnaudit(row: VoucherItem) {
+  try {
+    await unauditVoucher(Number(row.id))
+    ElMessage.success(`凭证 ${row.word}字${String(row.number).padStart(3, '0')}号 已反审核（移出账簿）`)
+    await loadData()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '反审核失败（已记账请先反记账）')
+  }
+}
+
 /** 批量审核选中的凭证（已审核/已记账幂等跳过） */
 async function batchAudit() {
   if (selectedCount.value === 0) {
@@ -218,6 +240,54 @@ async function batchPost() {
     }
   }
   if (ok) ElMessage.success(`已记账 ${ok} 张`)
+  await loadData()
+}
+
+/** 批量反记账选中的凭证（仅已记账生效） */
+async function batchUnpost() {
+  if (selectedCount.value === 0) {
+    ElMessage.warning('请先选择凭证')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定反记账选中的 ${selectedCount.value} 张凭证？`, '批量反记账', { type: 'warning' })
+  } catch {
+    return
+  }
+  let ok = 0
+  for (const id of selectedIds.value) {
+    try {
+      await unpostVoucher(Number(id))
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '反记账失败') + '：#' + id)
+    }
+  }
+  if (ok) ElMessage.success(`已反记账 ${ok} 张`)
+  await loadData()
+}
+
+/** 批量反审核选中的凭证（已记账须先反记账） */
+async function batchUnaudit() {
+  if (selectedCount.value === 0) {
+    ElMessage.warning('请先选择凭证')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定反审核选中的 ${selectedCount.value} 张凭证？`, '批量反审核', { type: 'warning' })
+  } catch {
+    return
+  }
+  let ok = 0
+  for (const id of selectedIds.value) {
+    try {
+      await unauditVoucher(Number(id))
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '反审核失败') + '：#' + id)
+    }
+  }
+  if (ok) ElMessage.success(`已反审核 ${ok} 张（移出账簿）`)
   await loadData()
 }
 
@@ -350,6 +420,12 @@ onMounted(() => {
       </el-button>
       <el-button text size="small" @click="batchPost">
         <AppIcon style="margin-right:2px" name="Stamp" />记账
+      </el-button>
+      <el-button text size="small" @click="batchUnpost">
+        <AppIcon style="margin-right:2px" name="Back" />反记账
+      </el-button>
+      <el-button text size="small" @click="batchUnaudit">
+        <AppIcon style="margin-right:2px" name="RefreshLeft" />反审核
       </el-button>
 
       <el-dropdown trigger="click" @command="(cmd: string) => handlePrint(cmd as any)">
@@ -493,8 +569,8 @@ onMounted(() => {
           </template>
         </el-table-column>
 
-        <!-- 操作列：状态感知的审核 / 记账 -->
-        <el-table-column label="操作" width="130" fixed="right">
+        <!-- 操作列：状态感知的审核 / 记账 / 反向 -->
+        <el-table-column label="操作" width="170" fixed="right">
           <template #default="{ row }: { row: VoucherItem }">
             <el-button
               v-if="row.status === 'draft'"
@@ -502,13 +578,17 @@ onMounted(() => {
               type="primary"
               @click="handleRowAudit(row)"
             >审核</el-button>
+            <template v-else-if="row.status === 'audited'">
+              <el-button size="small" type="success" @click="handleRowPost(row)">记账</el-button>
+              <el-button size="small" plain @click="handleRowUnaudit(row)">反审核</el-button>
+            </template>
             <el-button
-              v-else-if="row.status === 'audited'"
+              v-else
               size="small"
-              type="success"
-              @click="handleRowPost(row)"
-            >记账</el-button>
-            <el-tag v-else size="small" type="info" effect="plain">已记账</el-tag>
+              type="warning"
+              plain
+              @click="handleRowUnpost(row)"
+            >反记账</el-button>
           </template>
         </el-table-column>
 

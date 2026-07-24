@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models import voucher as vm
 from app.models import subject as sm
 from app.services import ledger_service
+from app.services.ledger_service import _BOOKED_STATUSES
 
 # ── 资产负债表项目映射（小企业会计准则简化）──
 _BALANCE_ASSETS_CURRENT = ("流动资产", [
@@ -237,6 +238,7 @@ def cash_flow_statement(db: Session, period: Optional[str] = None) -> dict:
         )
         .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
         .where(vm.VoucherEntry.subject_code.in_(_CASH_CODES))
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
     )
     if period:
         q = q.where(vm.Voucher.period == period)
@@ -255,6 +257,7 @@ def cash_flow_statement(db: Session, period: Optional[str] = None) -> dict:
         )
         .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
         .join(sm.AccountSubject, sm.AccountSubject.code == vm.VoucherEntry.subject_code)
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
         .where(vm.VoucherEntry.voucher_id.in_(cash_voucher_ids) if cash_voucher_ids else False)
     ).all() if cash_voucher_ids else []
 

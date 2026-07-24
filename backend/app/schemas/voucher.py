@@ -13,6 +13,24 @@ class VoucherEntryRead(BaseModel):
     amount: float
 
 
+class VoucherEntryCreate(BaseModel):
+    """手工凭证分录（写入用）。"""
+    subject_code: str
+    summary: Optional[str] = None
+    direction: str                     # 借/贷
+    amount: float
+
+
+class VoucherCreate(BaseModel):
+    """手工录入凭证（开放手工凭证入口，独立 source_type='手工' 不污染业务联动）。"""
+    voucher_date: str                     # YYYY-MM-DD
+    voucher_word: str = "记"             # 记/收/付/转
+    attach_count: int = 0
+    maker: Optional[str] = None
+    summary: Optional[str] = None
+    entries: List[VoucherEntryCreate]
+
+
 class VoucherRead(BaseModel):
     id: int
     voucher_no: str

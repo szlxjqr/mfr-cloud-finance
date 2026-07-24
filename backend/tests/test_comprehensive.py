@@ -8,14 +8,20 @@ from decimal import Decimal
 
 from app.models import reimburse as rm
 from app.services import comprehensive_service as cs
+from app.services import voucher_service as vs
 
 
 def test_overview_funds_reflect_voucher(db, make_voucher):
-    """插一张借银行存款(1002)/贷其他应付(2241) 的凭证，期初资金看板应反映。"""
-    make_voucher(
+    """插一张借银行存款(1002)/贷其他应付(2241) 的凭证，期初资金看板应反映。
+
+    账簿只汇总「已审核/已记账」凭证，故先审核+记账。
+    """
+    v = make_voucher(
         db, "2026-05",
         [("1002", "银行存款", "借", 1000), ("2241", "其他应付款", "贷", 1000)],
     )
+    vs.audit_voucher(db, v.id)
+    vs.post_voucher(db, v.id)
     ov = cs.overview(db)
     assert ov["period"] is None
     funds = {f["code"]: f["amount"] for f in ov["funds"]}

@@ -11,18 +11,27 @@ from sqlalchemy.orm import Session
 from app.models import subject as sm
 from app.models import voucher as vm
 
+# ── 入账状态：只有「已审核 / 已记账」的凭证才进入账簿与三大报表；
+# 「未审核」草稿（含新手工录入未审凭证）不计入，审核后自动入账。
+# 这样凭证状态机（审核 / 记账 / 反审核 / 反记账）才真正生效：
+# 反审核把凭证拉回未审核即移出账簿，反记账则仅释放记账锁定（仍在账簿）。
+_BOOKED_STATUSES = ("已审核", "已记账")
+
 # ── L4 修复：全表聚合结果缓存（避免报表/总账每次重算）──
-# 失效键 = (凭证分录总行数, 最大 id)。本系统写路径只有「新增凭证」
-# （审批/支付均追加新凭证），不存在原地改已存分录金额，故行数/最大 id
-# 任一变化即代表账套已变，旧缓存自动失效，不会出现脏数据。
-# 作用：balance_sheet / income_statement / cash_flow 之外，quarter_report 按月
-# 循环不再反复整表 GROUP BY；general_ledger 按科目逐查也复用同一次聚合。
+# 失效键 = (已入账凭证分录行数, 已入账分录最大 id)。
+# 写路径有「新增凭证」「反审核把凭证移出账簿」两类会改变聚合结果的操作：
+# - 新增已入账凭证 → 行数/最大 id 变化 → 失效（正确）
+# - 反审核（已审核→未审核）→ 该凭证分录不再计入 → 行数减少 → 失效（正确）
+# - 记账/反记账（已审核↔已记账）→ 都在 _BOOKED 内，行数不变 → 缓存有效（正确）
+# 故版本键须只统计 _BOOKED 状态的分录，否则反审核不会触发失效、出现脏数据。
 _agg_cache: dict = {}
 
 
 def _agg_version(db: Session) -> tuple:
     row = db.execute(
         select(func.count(vm.VoucherEntry.id), func.max(vm.VoucherEntry.id))
+        .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
     ).first()
     return (row[0] or 0, row[1] or 0)
 
@@ -76,6 +85,7 @@ def _aggregate(db: Session) -> Dict[str, dict]:
             func.sum(vm.VoucherEntry.amount),
         )
         .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
         .group_by(
             vm.VoucherEntry.subject_code,
             vm.Voucher.period,
@@ -177,6 +187,7 @@ def subsidiary_ledger(
         )
         .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
         .where(vm.VoucherEntry.subject_code == subject_code)
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
         .order_by(vm.Voucher.voucher_date, vm.Voucher.voucher_no, vm.VoucherEntry.seq)
     )
     all_rows = db.execute(stmt).all()
@@ -247,6 +258,7 @@ def journal(db: Session, period: Optional[str] = None) -> dict:
             vm.VoucherEntry.amount,
         )
         .join(vm.Voucher, vm.Voucher.id == vm.VoucherEntry.voucher_id)
+        .where(vm.Voucher.status.in_(_BOOKED_STATUSES))
         .order_by(vm.Voucher.voucher_date, vm.Voucher.voucher_no, vm.VoucherEntry.seq)
     )
     if period:

@@ -404,6 +404,109 @@ def post_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
     return v
 
 
+# ==================== 手工录入凭证（独立 source_type，不污染业务联动）====================
+def create_manual_voucher(
+    db: Session,
+    payload: "object",  # app.schemas.voucher.VoucherCreate
+    maker: str,
+) -> Optional[vm.Voucher]:
+    """开放手工凭证录入：独立 source_type='手工'、source_no=None，与业务单联动凭证
+    共用 Voucher/VoucherEntry 表但通过来源区分，绝不破坏业务单的
+    source_type/source_no 幂等链路（业务驱动仍是主入口）。
+
+    - 借贷平衡在前端校验，这里做兜底（不平直接抛 ValueError → API 400）。
+    - 状态默认 '未审核'（草稿），不进账簿/报表，审核后才入账。
+    """
+    from datetime import datetime as _dt
+
+    from app.utils.codegen import gen_voucher_no
+
+    entries_in = list(payload.entries or [])
+    if len(entries_in) < 2:
+        raise ValueError("凭证至少需 2 条分录")
+    total_debit = Decimal("0")
+    total_credit = Decimal("0")
+    norm_entries: List[Tuple[str, str, str, Decimal]] = []
+    for e in entries_in:
+        direction = (e.direction or "").strip()
+        if direction not in ("借", "贷"):
+            raise ValueError(f"分录方向非法：{direction}")
+        amt = Decimal(str(e.amount or 0)).quantize(Decimal("0.01"))
+        if amt <= 0:
+            raise ValueError("分录金额必须为正数")
+        if direction == "借":
+            total_debit += amt
+        else:
+            total_credit += amt
+        norm_entries.append((e.subject_code, direction, e.summary or "", amt))
+    if abs(total_debit - total_credit) > Decimal("0.005"):
+        raise ValueError(
+            f"借贷不平衡：借方 {total_debit} / 贷方 {total_credit}"
+        )
+
+    v_date = _dt.strptime(payload.voucher_date, "%Y-%m-%d").date()
+    voucher_no, seq = gen_voucher_no(db, year=v_date.year, month=v_date.month)
+    voc = vm.Voucher(
+        voucher_no=voucher_no,
+        seq=seq,
+        voucher_date=v_date,
+        period=_period_of(v_date),
+        voucher_word=payload.voucher_word or "记",
+        attach_count=payload.attach_count or 0,
+        maker=maker,
+        status="未审核",
+        source_type="手工",
+        source_no=None,
+        summary=payload.summary or norm_entries[0][2] or "手工凭证",
+    )
+    db.add(voc)
+    db.flush()
+    for i, (code, direction, line_summary, amount) in enumerate(norm_entries, start=1):
+        db.add(
+            vm.VoucherEntry(
+                voucher_id=voc.id,
+                seq=i,
+                subject_code=code,
+                subject_name=_subject_name(db, code),
+                summary=line_summary,
+                direction=direction,
+                amount=amount,
+            )
+        )
+    db.commit()
+    db.refresh(voc)
+    return voc
+
+
+# ==================== 凭证记账状态机（审核 / 记账 / 反向）====================
+def unaudit_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
+    """反审核：已审核 → 未审核；已记账须先反记账；未审核幂等返回当前态；不存在返回 None。"""
+    v = db.get(vm.Voucher, vid)
+    if not v:
+        return None
+    if v.status == "已记账":
+        raise ValueError("已记账凭证请先反记账")
+    if v.status == "未审核":
+        return v
+    v.status = "未审核"
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def unpost_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
+    """反记账：已记账 → 已审核（释放记账锁定，仍在账簿中）；未记账/未审核不可反记账；不存在返回 None。"""
+    v = db.get(vm.Voucher, vid)
+    if not v:
+        return None
+    if v.status != "已记账":
+        raise ValueError("仅「已记账」凭证可反记账")
+    v.status = "已审核"
+    db.commit()
+    db.refresh(v)
+    return v
+
+
 # ==================== 批量补生成（回填历史已通过单据）====================
 def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
     """扫描所有「已通过」的报销单/采购申请，对尚未生成凭证的补生成。

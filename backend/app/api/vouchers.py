@@ -1,5 +1,5 @@
-"""记账凭证 API：凭证列表 / 详情 / 一键从已通过业务单补生成。"""
-from typing import Optional
+"""记账凭证 API：凭证列表 / 详情 / 手工录入 / 一键补生成 / 状态机（审核·记账·反向）。"""
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -62,6 +62,27 @@ def get_voucher(vid: int, db: Session = Depends(get_db)):
     return _to_read(v)
 
 
+@router.post("", response_model=s.VoucherRead, status_code=201)
+def create_voucher(
+    payload: s.VoucherCreate,
+    db: Session = Depends(get_db),
+    current_user: object = Depends(get_current_user),
+):
+    """手工录入凭证：独立 source_type='手工'，借贷平衡 + 至少 2 条分录。
+
+    默认状态 '未审核'（草稿，不进账簿/报表）；借贷不平或服务端校验失败返 400。
+    """
+    try:
+        v = voucher_service.create_manual_voucher(
+            db, payload, getattr(current_user, "username", "手工")
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not v:
+        raise HTTPException(status_code=400, detail="凭证创建失败")
+    return _to_read(v)
+
+
 @router.delete("/{vid}")
 def delete_voucher(
     vid: int,
@@ -99,6 +120,38 @@ def post_voucher(
     """记账：已审核 → 已记账；未审核不可直接记账（先审核）；已记账 幂等。"""
     try:
         v = voucher_service.post_voucher(db, vid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not v:
+        raise HTTPException(status_code=404, detail="凭证不存在")
+    return _to_read(v)
+
+
+@router.post("/{vid}/unpost", response_model=s.VoucherRead)
+def unpost_voucher(
+    vid: int,
+    db: Session = Depends(get_db),
+    current_user: object = Depends(get_current_user),
+):
+    """反记账：已记账 → 已审核（释放记账锁定，仍在账簿中）；未记账不可反记账。"""
+    try:
+        v = voucher_service.unpost_voucher(db, vid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not v:
+        raise HTTPException(status_code=404, detail="凭证不存在")
+    return _to_read(v)
+
+
+@router.post("/{vid}/unaudit", response_model=s.VoucherRead)
+def unaudit_voucher(
+    vid: int,
+    db: Session = Depends(get_db),
+    current_user: object = Depends(get_current_user),
+):
+    """反审核：已审核 → 未审核（拉出账簿）；已记账须先反记账。"""
+    try:
+        v = voucher_service.unaudit_voucher(db, vid)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not v:
