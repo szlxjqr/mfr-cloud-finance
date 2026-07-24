@@ -16,6 +16,9 @@ dist-ssr
 public/cmaps/
 public/standard_fonts/
 
+# 发票解析离线回归测试现场编译产物（由 tests/invoice_accuracy.mjs 生成）
+.invoice-test-build/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
