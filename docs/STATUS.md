@@ -23,7 +23,7 @@
 |---|---|
 | 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
 | Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
-| 当前分支 | `main`（HEAD: `abcbd50` feat: 凭证状态机前端入口 + OCR 兜底验证） |
+| 当前分支 | `main`（HEAD: `dd65822` feat 凭证状态机反向+手工录入 / fix 构建转绿 / gitignore 工具产物） |
 | 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
 | 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
@@ -158,7 +158,8 @@ git push origin main
 - [x] 设计系统 B 方案：设计令牌(design-tokens.css) + 6 核心组件(EmptyState/DataLoader/BatchActionBar/StatusTag/AppIcon/KpiTile) 全量铺开（StatusTag/DataLoader/AppIcon 已铺；暖色浅底全局落地）。2026-07-24 完成。
 - [x] 凭证状态机前端入口：voucher.ts + VoucherList 审核/记账按钮（接后端 audit/post）。2026-07-24 完成。
 - [x] 发票箱去重(P1) + OCR 兜底验证。2026-07-24 完成。
-- [ ] 待专家评估后定（代码类）：① tesseract 离线化（wasm/字库本地化，免首次联网）；② 凭证反审核/反记账逆向（需后端补端点，当前仅单向 审核→记账）；③ Voucher.vue 录入页仍「功能待启用」占位（老板拍板暂不开手工凭证，维持"业务驱动账务"灵魂）。
+- [x] 凭证反审核/反记账逆向 + 手工凭证录入：已落地（commit `458682f`）。独立 `source_type='手工'`/`source_no=None` 不污染业务单幂等链路，维持"业务驱动账务"灵魂；状态机 audit/post/unaudit/unpost 全带守卫。`Voucher.vue` 由占位改为可用手工录入表单（原"暂不开手工凭证"拍板已改为开放独立手工入口）。
+- [ ] tesseract 离线化（wasm/字库本地化，免首次联网）：WIP 已就（worker+wasm 核心 22MB 置 `frontend/public/tesseract/`、字库由 `npm run setup:ocr` 拉取并 gitignore），**待老板定 A(引擎入库)/B(全 gitignore+拉取)**；相关文件（public/tesseract/、scripts/fetch-tesseract-lang.mjs、invoiceParser.ts 离线路径、.gitignore/package.json OCR 行）暂留工作区未提交。
 
 ---
 
@@ -306,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-24（深夜，补全设计文档与 STATUS 收口）
-- **Git HEAD**：`abcbd50`（main；已 push 到 GitHub 远程）
+- **最后更新**：2026-07-25（凭证状态机+手工录入落地、前端构建转绿）
+- **Git HEAD**：`dd65822`（main；已 push 到 GitHub 远程）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -353,3 +354,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 35. 凭证状态机前端入口 + OCR 兜底验证：voucher.ts + VoucherList 删除 stub handleAudit 换成真调用（单行/批量 审核/记账，状态感知按钮）；OCR 管线此前已实现并接进 InvoiceInbox 上传流，本次验证 vite build 可打包（提交 abcbd50）。
   - 36. 设计文档集（AICoding）：高层架构设计/系统设计/部署设计/安全设计/UserStory 五份核心文档（共 ~1975 行，提交 7f17772）；UI Designer 全面审计 + 设计系统草案（提交 86cd29f）；发票识别 PRD + 架构文档。
   - 37. STATUS.md 本次收口：HEAD 69fb574→abcbd50，补 B 方案/组件全量/暖色浅底/凭证状态机/OCR/测试补全 等进度与决策；设计文档集（5 架构 + 生命周期 18 篇 + PRD + UI 审计）均已落地，**设计工作收口**。代码类下一步（OCR 离线化/反审核/手工凭证）待老板找其他专家评估后定。
+  - 38. 2026-07-25 收尾：① 提交凭证状态机反向+手工录入（commit `458682f`，12 文件，对应 §6 ②③ 原待评估项已落地）；② 本会话修复前端构建 19 处 TS 错误（commit `36caae8`）——含 InvoiceInbox.vue(225) `res?.duplicated` 真运行时 bug（前端拦截器返回整个 response 不解包 `.data`，且 types/invoice.ts 的 InvoiceInbox 缺 duplicated 字段 → 改为 `res.data?.duplicated` + 补类型），另删 18 处死代码未用导入；`npm run build` 已转绿（0 错误，vite 1.09s）。③ chore gitignore 工具目录(.workbuddy/)与产物目录(deliverables/)（commit `dd65822`）。④ 发票识别(tesseract)离线化 WIP 已就，待老板定「引擎入库 A / 全 gitignore+拉取 B」（§6 ① 仍待定）。HEAD abcbd50→dd65822。
