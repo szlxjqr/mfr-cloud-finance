@@ -29,9 +29,15 @@
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
-      <el-table-column label="操作" width="90" fixed="right">
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">查看</el-button>
+          <el-button
+            v-if="row.status === '已通过'"
+            link
+            type="primary"
+            @click="payReq(row)"
+          >付款</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -51,6 +57,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
 import type { PurchaseReq } from '@/types/purchase'
 import PurchasePrint from './PurchasePrint.vue'
@@ -127,6 +134,25 @@ function openDetail(row: PurchaseReq) {
 
 function printPurchase() {
   window.print()
+}
+
+async function payReq(row: PurchaseReq) {
+  try {
+    await ElMessageBox.confirm(
+      `确认对采购单「${row.req_no || ('#' + row.id)}」执行付款？系统将自动生成付款凭证。`,
+      '付款确认',
+      { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await purchaseApi.pay(row.id)
+    ElMessage.success('付款成功，已生成付款凭证')
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '付款失败')
+  }
 }
 
 onMounted(load)

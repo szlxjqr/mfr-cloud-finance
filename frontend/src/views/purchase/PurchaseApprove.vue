@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
 import type { PurchaseReq } from '@/types/purchase'
 import PurchasePrint from './PurchasePrint.vue'
@@ -129,9 +129,9 @@ function statusTag(status: string): '' | 'success' | 'warning' | 'danger' | 'inf
 }
 
 interface RowAction {
-  action: 'approve' | 'reject'
+  action: 'approve' | 'reject' | 'pay'
   label: string
-  type: 'success' | 'danger'
+  type: 'success' | 'danger' | 'primary'
 }
 function rowActions(row: PurchaseReq): RowAction[] {
   if (row.status === '待审批') {
@@ -139,6 +139,9 @@ function rowActions(row: PurchaseReq): RowAction[] {
       { action: 'approve', label: '通过', type: 'success' },
       { action: 'reject', label: '驳回', type: 'danger' },
     ]
+  }
+  if (row.status === '已通过') {
+    return [{ action: 'pay', label: '付款', type: 'primary' }]
   }
   return []
 }
@@ -156,11 +159,35 @@ async function load() {
   }
 }
 
-function runAction(action: RowAction['action'], row: PurchaseReq) {
+async function runAction(action: RowAction['action'], row: PurchaseReq) {
+  if (action === 'pay') {
+    await payReq(row)
+    return
+  }
   approveAction.value = action
   approveRow.value = row
   approveForm.value = { approver: '', remark: '' }
   approveDialogVisible.value = true
+}
+
+async function payReq(row: PurchaseReq) {
+  try {
+    await ElMessageBox.confirm(
+      `确认对采购单「${row.req_no || ('#' + row.id)}」执行付款？系统将自动生成付款凭证（借：应付账款，贷：银行存款）。`,
+      '付款确认',
+      { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await purchaseApi.pay(row.id)
+    ElMessage.success('付款成功，已生成付款凭证')
+    approveDialogVisible.value = false
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '付款失败')
+  }
 }
 
 async function submitApprove() {
