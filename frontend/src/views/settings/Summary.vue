@@ -137,7 +137,7 @@ function showHelp() {
     <div class="toolbar">
       <div class="toolbar-left">
         <div class="page-title">
-          <el-icon><Document /></el-icon>
+          <AppIcon name="Document"/>
           <span>凭证摘要</span>
         </div>
         <el-input
@@ -147,20 +147,20 @@ function showHelp() {
           class="search-input"
         >
           <template #prefix>
-            <el-icon><Search /></el-icon>
+            <AppIcon name="Search"/>
           </template>
         </el-input>
         <span class="count-tip">共 {{ filteredRows.length }} 条</span>
       </div>
       <div class="toolbar-right">
         <el-button text circle title="帮助" @click="showHelp">
-          <el-icon><QuestionFilled /></el-icon>
+          <AppIcon name="QuestionFilled"/>
         </el-button>
         <el-button text circle title="刷新" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
+          <AppIcon name="Refresh"/>
         </el-button>
         <el-button text circle title="设置">
-          <el-icon><Setting /></el-icon>
+          <AppIcon name="Setting"/>
         </el-button>
       </div>
     </div>
@@ -213,7 +213,7 @@ function showHelp() {
               size="small"
               @click="deleteRow(row)"
             >
-              <el-icon><Delete /></el-icon>删除
+              <AppIcon name="Delete"/>删除
             </el-button>
             <span v-else class="muted">—</span>
           </template>

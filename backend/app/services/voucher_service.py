@@ -372,6 +372,38 @@ def generate_disposal_voucher(
     return voc
 
 
+# ==================== 凭证记账状态机（审核 / 记账）====================
+def audit_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
+    """审核：未审核 → 已审核；已审核/已记账 幂等返回当前态；不存在返回 None。"""
+    v = db.get(vm.Voucher, vid)
+    if not v:
+        return None
+    if v.status in ("已审核", "已记账"):
+        return v
+    v.status = "已审核"
+    db.commit()
+    db.refresh(v)
+    return v
+
+
+def post_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
+    """记账：已审核 → 已记账；未审核不可直接记账（先审核）；已记账 幂等；不存在返回 None。
+
+    违反顺序时抛 ValueError（由 API 层转 400）。
+    """
+    v = db.get(vm.Voucher, vid)
+    if not v:
+        return None
+    if v.status == "已记账":
+        return v
+    if v.status != "已审核":
+        raise ValueError("仅「已审核」凭证可记账，请先审核")
+    v.status = "已记账"
+    db.commit()
+    db.refresh(v)
+    return v
+
+
 # ==================== 批量补生成（回填历史已通过单据）====================
 def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
     """扫描所有「已通过」的报销单/采购申请，对尚未生成凭证的补生成。

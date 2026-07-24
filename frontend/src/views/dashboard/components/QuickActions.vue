@@ -55,9 +55,7 @@ function handleClick(item: ActionItem) {
         @click="handleClick(item)"
       >
         <div class="action-icon" :style="{ backgroundColor: tint(item.color) }">
-          <el-icon :size="22" :color="item.color">
-            <component :is="item.icon" />
-          </el-icon>
+          <AppIcon :size="22" :color="item.color" :name=item.icon />
         </div>
         <span class="action-label">{{ item.label }}</span>
       </div>

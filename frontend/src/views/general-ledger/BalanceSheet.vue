@@ -79,11 +79,11 @@ onMounted(loadData)
           size="small"
           style="width: 240px"
         >
-          <template #prefix><el-icon><Search /></el-icon></template>
+          <template #prefix><AppIcon name="Search"/></template>
         </el-input>
         <el-checkbox v-model="hideZero" size="small" @change="() => {}">隐藏余额为 0</el-checkbox>
         <el-button size="small" circle title="刷新" @click="loadData">
-          <el-icon><Refresh /></el-icon>
+          <AppIcon name="Refresh"/>
         </el-button>
       </div>
       <div class="toolbar-right">

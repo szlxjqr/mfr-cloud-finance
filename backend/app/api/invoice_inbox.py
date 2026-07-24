@@ -38,6 +38,25 @@ def _get_or_404(db: Session, pk: int) -> m.InvoiceInbox:
     return obj
 
 
+def _dup_of(db: Session, seller_tax_no: Optional[str], no: Optional[str]) -> Optional["m.InvoiceInbox"]:
+    """P1 去重：按发票号码（可选叠加税号）查箱中是否已存在同票。"""
+    if not no:
+        return None
+    for r in db.scalars(select(m.InvoiceInbox)).all():
+        if not r.extracted_json:
+            continue
+        try:
+            d = json.loads(r.extracted_json)
+        except Exception:
+            continue
+        if d.get("no") != no:
+            continue
+        if seller_tax_no and d.get("sellerTaxNo") and d.get("sellerTaxNo") != seller_tax_no:
+            continue
+        return r
+    return None
+
+
 def _safe_filename(name: str) -> str:
     return re.sub(r"[^\w\-_.\u4e00-\u9fff]", "_", name or "unknown")
 
@@ -64,6 +83,21 @@ async def upload(
     db: Session = Depends(get_db),
 ):
     content = await file.read()
+    # ── P1 去重：同发票号码（可选税号）已在箱中存在，直接返回已有记录，不重复落盘 ──
+    _seller = None
+    _no = None
+    if extracted_json:
+        try:
+            _ej = json.loads(extracted_json)
+            _seller = _ej.get("sellerTaxNo")
+            _no = _ej.get("no")
+        except Exception:
+            pass
+    dup = _dup_of(db, _seller, _no)
+    if dup:
+        resp = s.InvoiceInboxRead.model_validate(dup)
+        resp.duplicated = True
+        return resp
     # 先建记录拿 id，再按 id 命名文件（避免重名覆盖）
     rec = m.InvoiceInbox(
         filename=file.filename or "unknown",

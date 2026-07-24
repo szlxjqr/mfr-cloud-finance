@@ -690,7 +690,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
         />
         <el-dropdown trigger="click" @command="(c: string) => ElMessage.info(`筛选：${c}`)">
           <el-button>
-            <el-icon><Filter /></el-icon>筛选<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            <AppIcon name="Filter"/>筛选<AppIcon class="el-icon--right" name="ArrowDown" />
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -701,22 +701,22 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </template>
         </el-dropdown>
         <el-button text circle @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
+          <AppIcon name="Refresh"/>
         </el-button>
       </div>
       <div class="toolbar-right">
         <el-button text circle @click="showHelp">
-          <el-icon><QuestionFilled /></el-icon>帮助
+          <AppIcon name="QuestionFilled"/>帮助
         </el-button>
         <el-button class="ai-btn" @click="aiRecognize">
-          <el-icon><MagicStick /></el-icon>AI 发票识别
+          <AppIcon name="MagicStick"/>AI 发票识别
         </el-button>
         <el-button class="ai-btn purple" @click="aiMatch">
-          <el-icon><MagicStick /></el-icon>AI 科目匹配
+          <AppIcon name="MagicStick"/>AI 科目匹配
         </el-button>
         <el-dropdown trigger="click" @command="smartFetch">
           <el-button type="primary">
-            智能取票<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            智能取票<AppIcon class="el-icon--right" name="ArrowDown" />
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -726,11 +726,11 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </template>
         </el-dropdown>
         <el-button type="primary" @click="openAdd">
-          <el-icon><Plus /></el-icon>新增
+          <AppIcon name="Plus"/>新增
         </el-button>
         <el-dropdown trigger="click" @command="generateVoucher">
           <el-button>
-            生成凭证(本月)<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            生成凭证(本月)<AppIcon class="el-icon--right" name="ArrowDown" />
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -740,10 +740,10 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </template>
         </el-dropdown>
         <el-button @click="deleteRows()">
-          <el-icon><Delete /></el-icon>全部删除
+          <AppIcon name="Delete"/>全部删除
         </el-button>
         <el-button text circle>
-          <el-icon><Setting /></el-icon>
+          <AppIcon name="Setting"/>
         </el-button>
       </div>
     </div>
@@ -752,11 +752,11 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
     <div class="batch-bar">
       <span class="selected-tip">已选中 <strong>{{ selectedIds.size }}</strong> 条</span>
       <el-button text @click="adjustAccount">
-        <el-icon><EditPen /></el-icon>调整科目
+        <AppIcon name="EditPen"/>调整科目
       </el-button>
       <el-dropdown trigger="click" @command="generateVoucher">
         <el-button text>
-          <el-icon><DocumentChecked /></el-icon>生成凭证<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          <AppIcon name="DocumentChecked"/>生成凭证<AppIcon class="el-icon--right" name="ArrowDown" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -765,7 +765,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
         </template>
       </el-dropdown>
       <el-button text type="danger" @click="deleteRows()">
-        <el-icon><Delete /></el-icon>删除
+        <AppIcon name="Delete"/>删除
       </el-button>
     </div>
 
@@ -979,7 +979,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
                 </td>
                 <td>
                   <el-button text type="danger" size="small" @click="removeDetail(idx)">
-                    <el-icon><Delete /></el-icon>
+                    <AppIcon name="Delete"/>
                   </el-button>
                 </td>
               </tr>
@@ -998,7 +998,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </table>
           </div>
           <el-button text type="primary" class="add-detail-btn" @click="addDetail">
-            <el-icon><Plus /></el-icon>添加明细行
+            <AppIcon name="Plus"/>添加明细行
           </el-button>
         </div>
 
@@ -1006,7 +1006,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
         <div class="upload-section">
           <el-upload action="#" :auto-upload="false" :show-file-list="false">
             <el-button text>
-              <el-icon><Upload /></el-icon>上传附件（请在表格行操作「归档」上传）
+              <AppIcon name="Upload"/>上传附件（请在表格行操作「归档」上传）
             </el-button>
           </el-upload>
         </div>
@@ -1038,7 +1038,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
             :on-change="onAiFileChange"
             class="ai-uploader"
           >
-            <el-icon class="ai-upload-icon"><Picture /></el-icon>
+            <AppIcon class="ai-upload-icon" name="Picture" />
             <div class="ai-upload-text">
               <p>点击或拖拽上传发票图片 / PDF</p>
               <p class="ai-upload-tip">上传后系统将自动识别并填充发票信息</p>
@@ -1048,10 +1048,10 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           <!-- 已选文件预览 -->
           <div v-if="aiFile" class="ai-file-preview">
             <div class="ai-file-info">
-              <el-icon><Document /></el-icon>
+              <AppIcon name="Document"/>
               <span class="ai-file-name">{{ aiFile.name }}</span>
               <el-button text type="danger" size="small" @click="removeAiFile">
-                <el-icon><Close /></el-icon>
+                <AppIcon name="Close"/>
               </el-button>
             </div>
             <div v-if="aiPreviewUrl && aiFile.type.startsWith('image')" class="ai-image-preview">
@@ -1062,14 +1062,14 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
 
         <!-- 识别中 -->
         <div v-if="aiRecognizing" class="ai-loading">
-          <el-icon class="ai-spin"><Refresh /></el-icon>
+          <AppIcon class="ai-spin" name="Refresh" />
           <p>AI 正在识别发票内容，请稍候…</p>
         </div>
 
         <!-- 识别结果 -->
         <div v-if="aiResult" class="ai-result">
           <div class="ai-result-title">
-            <el-icon><DocumentChecked /></el-icon>
+            <AppIcon name="DocumentChecked"/>
             <span>识别结果</span>
           </div>
           <div class="ai-result-grid">

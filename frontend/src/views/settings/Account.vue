@@ -127,9 +127,9 @@ onMounted(loadData)
     <div class="toolbar">
       <div class="toolbar-left">
         <el-input v-model="searchKey" placeholder="请输入科目编号或名称" clearable class="search-input">
-          <template #suffix><el-icon><Search /></el-icon></template>
+          <template #suffix><AppIcon name="Search"/></template>
         </el-input>
-        <el-button text circle title="刷新" @click="loadData"><el-icon><Refresh /></el-icon></el-button>
+        <el-button text circle title="刷新" @click="loadData"><AppIcon name="Refresh"/></el-button>
       </div>
       <div class="toolbar-right">
         <el-button type="primary" @click="openAdd">新增科目</el-button>

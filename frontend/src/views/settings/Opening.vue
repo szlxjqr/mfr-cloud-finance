@@ -281,13 +281,13 @@ onMounted(loadSubjects)
         />
         <el-tooltip content="期初余额说明" placement="top">
           <el-button circle @click="showHelp">
-            <el-icon><QuestionFilled /></el-icon>
+            <AppIcon name="QuestionFilled"/>
           </el-button>
         </el-tooltip>
         <el-button type="primary" @click="openTrial">试算平衡</el-button>
         <el-dropdown trigger="click" @command="exportCsv">
           <el-button>
-            导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            导出<AppIcon class="el-icon--right" name="ArrowDown" />
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -297,7 +297,7 @@ onMounted(loadSubjects)
         </el-dropdown>
         <el-tooltip content="列显示设置" placement="top">
           <el-button circle @click="showSetting">
-            <el-icon><Setting /></el-icon>
+            <AppIcon name="Setting"/>
           </el-button>
         </el-tooltip>
       </div>
@@ -312,7 +312,7 @@ onMounted(loadSubjects)
         class="search-input"
       >
         <template #prefix>
-          <el-icon><Search /></el-icon>
+          <AppIcon name="Search"/>
         </template>
       </el-input>
       <span class="count-tip">共 {{ filteredRows.length }} 条科目</span>
@@ -400,8 +400,8 @@ onMounted(loadSubjects)
         </el-table-column>
       </el-table>
       <div class="trial-result" :class="trialBalanced ? 'ok' : 'bad'">
-        <el-icon v-if="trialBalanced"><CircleCheckFilled /></el-icon>
-        <el-icon v-else><CircleCloseFilled /></el-icon>
+        <AppIcon v-if="trialBalanced" name="CircleCheckFilled" />
+        <AppIcon v-else name="CircleCloseFilled" />
         <span v-if="trialBalanced">借贷平衡，期初数据正确。</span>
         <span v-else>借贷不平衡，请检查各科目期初余额。</span>
       </div>

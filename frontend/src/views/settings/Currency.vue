@@ -294,7 +294,7 @@ function showHelp() {
     <div class="toolbar">
       <div class="toolbar-left">
         <div class="page-title">
-          <el-icon><Money /></el-icon>
+          <AppIcon name="Money"/>
           <span>币别</span>
         </div>
         <el-input
@@ -304,45 +304,45 @@ function showHelp() {
           class="search-input"
         >
           <template #prefix>
-            <el-icon><Search /></el-icon>
+            <AppIcon name="Search"/>
           </template>
         </el-input>
         <span class="count-tip">共 {{ filteredRows.length }} 条</span>
       </div>
       <div class="toolbar-right">
         <el-button text circle title="帮助" @click="showHelp">
-          <el-icon><QuestionFilled /></el-icon>
+          <AppIcon name="QuestionFilled"/>
         </el-button>
         <el-button type="primary" @click="openAdd">
-          <el-icon><Plus /></el-icon>新增
+          <AppIcon name="Plus"/>新增
         </el-button>
         <el-button @click="openEdit()">
-          <el-icon><Edit /></el-icon>编辑
+          <AppIcon name="Edit"/>编辑
         </el-button>
         <el-button @click="deleteRows()">
-          <el-icon><Delete /></el-icon>删除
+          <AppIcon name="Delete"/>删除
         </el-button>
         <el-dropdown trigger="click" @command="(c: string) => c === 'tpl' ? downloadTemplate() : triggerImport()">
           <el-button>
-            导入<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            导入<AppIcon class="el-icon--right" name="ArrowDown" />
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="tpl">下载导入模板</el-dropdown-item>
               <el-dropdown-item command="file">
-                <el-icon><Upload /></el-icon>选择 CSV 文件导入
+                <AppIcon name="Upload"/>选择 CSV 文件导入
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
         <el-button @click="exportCsv">
-          <el-icon><Download /></el-icon>导出
+          <AppIcon name="Download"/>导出
         </el-button>
         <el-button text circle title="刷新" @click="handleRefresh">
-          <el-icon><Refresh /></el-icon>
+          <AppIcon name="Refresh"/>
         </el-button>
         <el-button text circle title="设置">
-          <el-icon><Setting /></el-icon>
+          <AppIcon name="Setting"/>
         </el-button>
       </div>
     </div>
@@ -396,10 +396,10 @@ function showHelp() {
         <el-table-column label="操作" width="140" fixed="right" align="center">
           <template #default="{ row }">
             <el-button text type="primary" size="small" @click.stop="openEdit(row)">
-              <el-icon><Edit /></el-icon>修改
+              <AppIcon name="Edit"/>修改
             </el-button>
             <el-button text type="danger" size="small" @click.stop="deleteRows(row)">
-              <el-icon><Delete /></el-icon>删除
+              <AppIcon name="Delete"/>删除
             </el-button>
           </template>
         </el-table-column>

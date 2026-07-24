@@ -113,7 +113,7 @@
         <div class="linked-header">
           <span class="linked-title">已关联发票</span>
           <el-button type="primary" size="small" @click="openAddInvoice">
-            <el-icon><Plus /></el-icon>增加发票
+            <AppIcon name="Plus"/>增加发票
           </el-button>
         </div>
         <el-table :key="linkedTableKey" :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
@@ -196,7 +196,7 @@
       <!-- 上传识别区 -->
       <div class="recognize-section">
         <div class="recognize-title">
-          <el-icon><Picture /></el-icon>
+          <AppIcon name="Picture"/>
           <span>上传发票自动识别</span>
         </div>
         <el-upload
@@ -209,7 +209,7 @@
           :on-change="onRecognizeFileChange"
           class="recognize-uploader"
         >
-          <el-icon class="recognize-upload-icon"><Picture /></el-icon>
+          <AppIcon class="recognize-upload-icon" name="Picture" />
           <div class="recognize-upload-text">
             <p>点击或拖拽上传发票图片 / PDF / OFD</p>
             <p class="recognize-upload-tip">支持 JPG、PNG、PDF、OFD 格式，上传后自动识别并填入下方表单</p>
@@ -218,10 +218,10 @@
 
         <div v-if="recognizeFile" class="recognize-file">
           <div class="recognize-file-info">
-            <el-icon><Document /></el-icon>
+            <AppIcon name="Document"/>
             <span class="recognize-file-name">{{ recognizeFile.name }}</span>
             <el-button text type="danger" size="small" :disabled="recognizing" @click="removeRecognizeFile">
-              <el-icon><Close /></el-icon>
+              <AppIcon name="Close"/>
             </el-button>
           </div>
           <div v-if="recognizePreviewUrl && recognizeFile.type.startsWith('image')" class="recognize-image-preview">
@@ -230,7 +230,7 @@
         </div>
 
         <div v-if="recognizing" class="recognize-loading">
-          <el-icon class="recognize-spin"><Refresh /></el-icon>
+          <AppIcon class="recognize-spin" name="Refresh" />
           <span>正在识别发票内容，请稍候…</span>
         </div>
 
@@ -332,14 +332,14 @@
                 </td>
                 <td>
                   <el-button text type="danger" size="small" @click="removeDetail(idx)">
-                    <el-icon><Delete /></el-icon>
+                    <AppIcon name="Delete"/>
                   </el-button>
                 </td>
               </tr>
             </tbody>
           </table>
           <el-button text type="primary" size="small" @click="addDetail">
-            <el-icon><Plus /></el-icon>添加明细行
+            <AppIcon name="Plus"/>添加明细行
           </el-button>
         </div>
       </el-form>

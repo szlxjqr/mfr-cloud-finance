@@ -221,8 +221,13 @@ async function handleFiles(files: File[]) {
       console.warn('解析失败，仅上传原文件', f.name, e)
     }
     try {
-      await inboxApi.upload(f, json)
-      ok++
+      const res = await inboxApi.upload(f, json)
+      if (res?.duplicated) {
+        // P1 去重：与箱中已有同票重复，后端直接返回已有记录、未重复落盘
+        ElMessage.warning(`「${f.name}」与发票箱已有记录重复，已跳过`)
+      } else {
+        ok++
+      }
     } catch (e: any) {
       ElMessage.error((e?.response?.data?.detail || '上传失败') + '：' + f.name)
     }

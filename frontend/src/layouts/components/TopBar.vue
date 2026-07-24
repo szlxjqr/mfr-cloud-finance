@@ -74,7 +74,7 @@ function handleUserCommand(command: UserCommand) {
       >
         <span class="company-trigger">
           <span class="company-label">{{ currentCompany }}</span>
-          <el-icon><ArrowDown /></el-icon>
+          <AppIcon name="ArrowDown"/>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
@@ -90,15 +90,11 @@ function handleUserCommand(command: UserCommand) {
       </el-dropdown>
 
       <el-tooltip content="折叠/展开菜单" placement="bottom">
-        <el-icon class="icon-btn collapse-btn" @click="appStore.toggleSidebar()">
-          <component :is="appStore.sidebarCollapsed ? 'Expand' : 'Fold'" />
-        </el-icon>
+        <AppIcon class="icon-btn collapse-btn" @click="appStore.toggleSidebar()" :name="appStore.sidebarCollapsed ? 'Expand' : 'Fold'" />
       </el-tooltip>
 
       <el-tooltip content="全局搜索" placement="bottom">
-        <el-icon class="icon-btn" @click="() => {}">
-          <Search />
-        </el-icon>
+        <AppIcon class="icon-btn" @click="() => {}" name="Search" />
       </el-tooltip>
     </div>
 
@@ -112,7 +108,7 @@ function handleUserCommand(command: UserCommand) {
       </el-tooltip>
 
       <el-badge is-dot class="bell-icon hide-md">
-        <el-icon class="icon-btn"><Bell /></el-icon>
+        <AppIcon class="icon-btn" name="Bell" />
       </el-badge>
 
       <!-- 用户头像 + 下拉菜单 -->
@@ -120,21 +116,21 @@ function handleUserCommand(command: UserCommand) {
         <span class="user-trigger">
           <el-avatar :size="32" class="user-avatar">{{ displayName.charAt(0) }}</el-avatar>
           <span class="user-name hide-md">{{ displayName }}</span>
-          <el-icon class="hide-md"><ArrowDown /></el-icon>
+          <AppIcon class="hide-md" name="ArrowDown" />
         </span>
         <template #dropdown>
           <el-dropdown-menu>
             <el-dropdown-item :command="'profile'">
-              <el-icon><User /></el-icon> 个人中心
+              <AppIcon name="User"/> 个人中心
             </el-dropdown-item>
             <el-dropdown-item :command="'settings'">
-              <el-icon><Setting /></el-icon> 账号设置
+              <AppIcon name="Setting"/> 账号设置
             </el-dropdown-item>
             <el-dropdown-item :command="'lock'">
-              <el-icon><Lock /></el-icon> 锁定屏幕
+              <AppIcon name="Lock"/> 锁定屏幕
             </el-dropdown-item>
             <el-dropdown-item divided :command="'logout'">
-              <el-icon><SwitchButton /></el-icon> 退出登录
+              <AppIcon name="SwitchButton"/> 退出登录
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>

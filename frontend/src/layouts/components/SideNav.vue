@@ -48,9 +48,7 @@ function isActive(item: typeof menuItems[number]): boolean {
           :class="['module-item', { active: isActive(item), collapsed: appStore.sidebarCollapsed }]"
           @click="handleClick(item)"
         >
-          <el-icon v-if="item.icon" :size="20" class="module-icon">
-            <component :is="item.icon" />
-          </el-icon>
+          <AppIcon v-if="item.icon" :size="20" class="module-icon" :name=item.icon />
           <span v-if="!appStore.sidebarCollapsed" class="module-title">{{ item.title }}</span>
           <span v-if="!appStore.sidebarCollapsed && item.badge" class="module-badge">{{ item.badge }}</span>
         </li>

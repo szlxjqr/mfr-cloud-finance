@@ -41,6 +41,12 @@ def _clean(db):
     for t in _BUSINESS_TABLES:
         db.execute(text(f"DELETE FROM {t}"))
     db.commit()
+    # SQLite 在 DELETE 后复用主键 id（不记 sqlite_sequence），
+    # ledger_service 的 L4 聚合缓存键=(行数,最大id) 会因此与上一个测试撞车、
+    # 返回陈旧聚合。测试是「外部直接改库」的典型场景，必须清缓存
+    # （clear_ledger_cache 的 docstring 即注明此用途），否则跨测试污染。
+    from app.services import ledger_service
+    ledger_service.clear_ledger_cache()
 
 
 import pytest  # noqa: E402

@@ -123,7 +123,11 @@ def general_ledger(
     if period:
         periods = [p for p in periods if p <= period]
 
-    cd, cc = _prior_cum(sub['periods'], period)
+    # 期初 = 首个「展示期间」之前的累计（与下方逐期累加解耦）。
+    # 原实现用 _prior_cum(.., period) 预灌，会把首期又重复计入，
+    # 导致「period 筛选」下期初/期末翻倍（真实 bug，已被 test_ledger_opening 抓出）。
+    first_shown = periods[0] if periods else None
+    cd, cc = _prior_cum(sub['periods'], first_shown)
     rows: List[dict] = []
     for p in periods:
         deb = sub['periods'][p].get('借', 0.0)

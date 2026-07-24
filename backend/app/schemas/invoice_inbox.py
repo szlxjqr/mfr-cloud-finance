@@ -22,6 +22,7 @@ class InvoiceInboxRead(InvoiceInboxBase):
     created_at: datetime
     recognized_at: Optional[datetime] = None
     linked_at: Optional[datetime] = None
+    duplicated: bool = False  # P1 去重：本次上传与箱中已有同票重复时置 True
     model_config = ConfigDict(from_attributes=True)
 
 

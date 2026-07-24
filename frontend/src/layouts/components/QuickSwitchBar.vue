@@ -85,7 +85,7 @@ function hideMenu() {
         <span class="qs-dot" />
         <span class="qs-title">{{ t.title }}</span>
         <span class="qs-close" @click.stop="close(t.path)">
-          <el-icon><Close /></el-icon>
+          <AppIcon name="Close"/>
         </span>
       </div>
     </div>
@@ -93,7 +93,7 @@ function hideMenu() {
     <div class="qs-actions">
       <el-tooltip content="关闭其他标签" placement="bottom">
         <el-button text size="small" class="qs-action-btn" @click="closeOthers(route.path)">
-          <el-icon><CircleClose /></el-icon>
+          <AppIcon name="CircleClose"/>
         </el-button>
       </el-tooltip>
     </div>
@@ -106,16 +106,16 @@ function hideMenu() {
       :style="{ left: menuX + 'px', top: menuY + 'px' }"
     >
       <div class="menu-item" @click="refresh(menuPath)">
-        <el-icon><RefreshRight /></el-icon> 刷新
+        <AppIcon name="RefreshRight"/> 刷新
       </div>
       <div class="menu-item" @click="close(menuPath); hideMenu()">
-        <el-icon><Close /></el-icon> 关闭
+        <AppIcon name="Close"/> 关闭
       </div>
       <div class="menu-item" @click="closeOthers(menuPath); hideMenu()">
-        <el-icon><CircleClose /></el-icon> 关闭其他
+        <AppIcon name="CircleClose"/> 关闭其他
       </div>
       <div class="menu-item" @click="closeAll(); hideMenu()">
-        <el-icon><CircleClose /></el-icon> 关闭全部
+        <AppIcon name="CircleClose"/> 关闭全部
       </div>
     </div>
   </div>

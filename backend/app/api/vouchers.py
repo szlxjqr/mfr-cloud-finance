@@ -77,6 +77,35 @@ def delete_voucher(
     return {"ok": True}
 
 
+@router.post("/{vid}/audit", response_model=s.VoucherRead)
+def audit_voucher(
+    vid: int,
+    db: Session = Depends(get_db),
+    current_user: object = Depends(get_current_user),
+):
+    """审核：未审核 → 已审核；已审核/已记账 幂等返回当前态。"""
+    v = voucher_service.audit_voucher(db, vid)
+    if not v:
+        raise HTTPException(status_code=404, detail="凭证不存在")
+    return _to_read(v)
+
+
+@router.post("/{vid}/post", response_model=s.VoucherRead)
+def post_voucher(
+    vid: int,
+    db: Session = Depends(get_db),
+    current_user: object = Depends(get_current_user),
+):
+    """记账：已审核 → 已记账；未审核不可直接记账（先审核）；已记账 幂等。"""
+    try:
+        v = voucher_service.post_voucher(db, vid)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not v:
+        raise HTTPException(status_code=404, detail="凭证不存在")
+    return _to_read(v)
+
+
 @router.post("/sync", response_model=s.VoucherGenerateResult)
 def sync_from_approved(
     db: Session = Depends(get_db),

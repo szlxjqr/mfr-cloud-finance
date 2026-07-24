@@ -242,7 +242,7 @@ onMounted(() => {
 
         <!-- 筛选 -->
         <el-dropdown trigger="click">
-          <el-button plain>筛选<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+          <el-button plain>筛选<AppIcon class="el-icon--right" name="ArrowDown" /></el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item>全部状态</el-dropdown-item>
@@ -267,7 +267,7 @@ onMounted(() => {
         <el-button type="primary" @click="goNew">新增</el-button>
 
         <el-dropdown trigger="click" @command="handleImport">
-          <el-button plain>导入<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+          <el-button plain>导入<AppIcon class="el-icon--right" name="ArrowDown" /></el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="excel">Excel导入</el-dropdown-item>
@@ -287,7 +287,7 @@ onMounted(() => {
 
       <el-dropdown trigger="click" @command="(cmd: string) => handleAudit(cmd as any)">
         <el-button text size="small">
-          审核<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          审核<AppIcon class="el-icon--right" name="ArrowDown" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -300,7 +300,7 @@ onMounted(() => {
 
       <el-dropdown trigger="click" @command="(cmd: string) => handlePrint(cmd as any)">
         <el-button text size="small">
-          打印<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          打印<AppIcon class="el-icon--right" name="ArrowDown" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -313,7 +313,7 @@ onMounted(() => {
 
       <el-dropdown trigger="click" @command="(cmd: string) => handleExport(cmd as any)">
         <el-button text size="small">
-          导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          导出<AppIcon class="el-icon--right" name="ArrowDown" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -325,7 +325,7 @@ onMounted(() => {
       </el-dropdown>
 
       <el-button text size="small" danger :disabled="selectedCount === 0" @click="handleDelete">
-        <el-icon style="margin-right:2px"><Delete /></el-icon>删除
+        <AppIcon style="margin-right:2px" name="Delete" />删除
       </el-button>
     </div>
 
@@ -349,13 +349,11 @@ onMounted(() => {
         <!-- 展开/折叠图标列 -->
         <el-table-column width="48" align="center" label="">
           <template #default="{ row }">
-            <el-icon
+            <AppIcon
               class="expand-toggle"
               :class="{ 'is-open': row.expanded }"
               @click.stop="toggleExpand(row)"
-            >
-              <component is="ArrowRight" />
-            </el-icon>
+             name="component" />
           </template>
         </el-table-column>
 

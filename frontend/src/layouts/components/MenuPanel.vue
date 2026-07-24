@@ -40,7 +40,7 @@ function navigate(path: string) {
             class="group-icon"
             :style="{ background: group.color + '15', color: group.color }"
           >
-            <el-icon :size="20"><component :is="group.icon" /></el-icon>
+            <AppIcon :size="20" :name=group.icon />
           </span>
           <span class="group-title">{{ group.title }}</span>
         </div>
