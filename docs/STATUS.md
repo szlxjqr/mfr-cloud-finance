@@ -23,13 +23,13 @@
 |---|---|
 | 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
 | Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
-| 当前分支 | `main`（HEAD: `69fb574` feat(invoice): 发票识别工具 P0） |
+| 当前分支 | `main`（HEAD: `abcbd50` feat: 凭证状态机前端入口 + OCR 兜底验证） |
 | 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
 | 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
-| 前端源码文件数 | ~50（`.vue` + `.ts`） |
+| 前端源码文件数 | ~52（`.vue` + `.ts`，含 api/voucher.ts 等） |
 | 科目数据 | 后端 `account_subjects` 表（28 个权威科目，由 `GET /subjects` 提供；前端原 `accountData.ts` 187 静态科目已删，统一到后端源） |
-| 测试套件 | 23 个 pytest 回归测试 + 34 个 invoice 离线字段提取测试 |
+| 测试套件 | 33 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板等）+ 34 个 invoice 离线字段提取测试 |
 
 ---
 
@@ -40,6 +40,13 @@
 - **占位页改造（2026-07-24）**：出纳·发票其余·结账·设置其余 共 15 个占位页——有真实数据源的挂真数据（日记账/核对总账/费用发票/期末结转预览，均复用现有 ledger/invoice 接口、零后端改动）；纯配置/工具类（业务类型·销项发票·发票抬头·发票设置·结账·凭证模板·凭证配置·日记账模板·归档管理·系统设置·审计导出 共 11 个）改为诚实「功能待启用」页（FeatureDisabled，标注未开放原因）。
 - **报表导出（Excel/PDF）（2026-07-24 落地）**：资产负债表/利润表/现金流量表/季报 4 个财务报表页均加「导出Excel」「导出PDF」按钮，零新增依赖——Excel 用已依赖的 jszip 生成真正 `.xlsx`（多 sheet、金额写为数值可二次计算）；PDF 用独立打印窗口（克隆节点 + 注入样式 + `@page A4`）。季报导出 3 个 sheet。至此 STATUS §6 候选清单①②③④⑤ 全部清零。
 - 视图目录：`dashboard / voucher / general-ledger / auxiliary-ledger / settings / reports / cashier / payroll / invoice / closing / assets`
+
+### 设计系统 / B 方案组件化（2026-07-24）
+- **设计令牌**：`frontend/src/assets/design-tokens.css`（增量式，只定义 style.css 缺失的令牌——图表色板/业务状态色/间距/字号/圆角/阴影/动效/层级）。
+- **6 个全局组件**（`main.ts` 注册，页面直接 `<Xxx>`）：`EmptyState`(统一空态) / `DataLoader`(加载/错误/空/正常四态) / `BatchActionBar`(批量操作条) / `StatusTag`(业务状态标签) / `AppIcon`(统一图标入口) / `KpiTile`(仪表盘 KPI 卡)。
+- **全量铺开**：① 品牌色收口（37 处 `#409eff`→`var(--el-color-primary)`）；② StatusTag 全站 15 文件状态列（删 12 处 dead 辅助函数）；③ DataLoader/EmptyState 全量套到 22 表格 + 13 卡片/汇总区（统一四态）；④ AppIcon 全量（views+layouts 约 80 处 `<el-icon>`→`<AppIcon>`，修 TopBar 一处 `:name=` 未加引号编译错）。
+- **暖色浅底全局**：侧栏 `#001529` 深海军蓝→浅色科技风；KpiTile 数字上色（珊瑚橙#D85A30/暖绿#639922/金黄#EF9F27/暖蓝#378ADD）；design-tokens 图表色板转暖亮。配色偏好：**要暖、要亮，拒绝闷沉深色**。
+- 对应提交：228a773（基础设施）→ e2402ae（色+样板）→ 45fd58f（暖色浅底）→ 80331cd（StatusTag 全量）→ c3b6f7c（DataLoader/EmptyState 全量）→ 439b320（AppIcon 全量）。
 
 ### 发票报销模块进度（2026-07-21）
 | 功能 | 状态 | 说明 |
@@ -63,9 +70,14 @@
 | 发票箱页 (InvoiceInbox.vue) | ✅ | 拖拽上传→浏览器 parse→存后端+原文件；状态机(待识别/已识别/已挂接)、挂接(报销单/采购申请)生成正式进项发票、查验结果登记(P1轻量版)。 |
 | 内嵌识别弹窗 (InvoiceRecognizeDialog.vue) | ✅ | 报销/采购录入界面上传即识别、字段可编辑、确认填入表单或存入发票箱。 |
 | 后端发票箱 API | ✅ | 独立 `invoice_inbox` 表 + 7 端点(上传/列表/校正/挂接/查验/删除)；Invoice 模型新增 `purchase_requisition_id` FK；列迁移防重复。 |
-| OCR 兜底 | ✅ P0 | 前端 tesseract.js（零部署），补图片型发票识别缺口；更准后端 OCR 留 P2。 |
+| OCR 兜底 | ✅ | 前端 tesseract.js（零部署）；invoiceParser.ts 文字过空→渲染 canvas→OCR→宽松解析，已接进 InvoiceInbox 上传流；vite build 可打包。2 空火车票（文本层仅 `￥`）+ 1 行程单（图片型）重新拖入即走 OCR（首次需联网拉 wasm/字库）。 |
 | 查验 | 🟡 P1 轻量版 | 跳官方查验页 + 人工登记结果，完整 API 对接留 P1 末/P2。 |
 | 文档 | ✅ | `docs/prd-invoice-recognition.md` + `docs/architecture-invoice-recognition.md` |
+
+### 凭证状态机前端（2026-07-24）
+- **后端状态机**（commit 439b320）：`voucher_service.audit_voucher`(未审核→已审核，幂等) / `post_voucher`(已审核→已记账，未审核直接记账返 400)；`api/vouchers.py` 加 `/{vid}/audit`·`/{vid}/post` 两端点（挂鉴权）。
+- **前端入口**（commit abcbd50）：新增 `api/voucher.ts`；`VoucherList.vue` 删除原 stub `handleAudit`（只弹框不调接口），换成真实调用——单行 `handleRowAudit`(未审核→审核) / `handleRowPost`(已审核→记账)；批量 `batchAudit`/`batchPost`（幂等，未审核记账被后端 400 拦截）。表格加**状态感知「操作」列**（未审核→审核按钮 / 已审核→记账按钮 / 已记账→已记账标签）；批量栏「审核」「记账」两个直按钮。
+- 实测：401 鉴权门 / 幂等 audit 200 不改状态 / 未知 ID 404；post 正向+400 由 pytest 临时库覆盖。
 
 ### 科目数据进度
 - **28 个权威科目种子**（资产8/负债7/权益3/成本3/损益7，末级 27 含 2221 应交税费树）由后端 `_seed_subjects()` 在 `init_db()` 时自动填充。
@@ -85,6 +97,12 @@
 | **侧边栏分级缩进** | 宽 `200px → 224px`；CSS 变量 `--lv1-pad:6px / --lv2-pad:30px / --lv3-pad:44px` 控制一/二/三级缩进 |
 | **科目表树形渲染** | 早期为内联 Mock 平铺 → 改为 `accountData.ts` + 扁平化展开，模板 `v-for="row in visibleRows"` 用 `row.node.xxx` 与 `row.depth` 缩进 |
 | **构建命令 cwd** | 必须在 `frontend/` 下执行 `npm run build`（否则报 Missing script: build） |
+| **表结法（无需结转损益）** | 财务报表引擎自动把「损益类全年累计净额」并入「本年利润(3103)」权益项，资产=负债+权益恒等；年终决算**不要**写结转损益凭证（账结法思路会重复/破坏平衡）。 |
+| **现金流量表符号** | 以「现金方方向」定流入/流出（借=流入+/贷=流出−），对方科目仅定经营/投资/筹资活动；股东注资被记筹资+（修复过符号反 bug）。 |
+| **AppIcon 全量重写** | views+layouts 的 `<el-icon>` 全转 `<AppIcon>`；build 抓出 TopBar 一处 `:name=` 表达式未加引号导致编译器报错（`vue-tsc` 不报，仅 `vite build` 暴露）。 |
+| **凭证状态机（单向）** | 后端 `voucher.status`：未审核→已审核(audit)→已记账(post)，幂等；未审核不可直接记账（后端 400）。前端 VoucherList 加状态感知按钮。反审核/反记账未做（需补端点）。 |
+| **L4 缓存 + general_ledger bug** | ledger_service 加账套版本缓存（失效键=分录行数+最大 id）；general_ledger(period) 期间筛选期初余额翻倍 bug 已修；conftest 清测试加 clear_ledger_cache 隔离。 |
+| **测试补全（#3）** | 新增 10 用例（综合看板 3 + 期初余额派生 2 + 凭证状态机 5），全 suite 33 passed；覆盖支付联动/现金流/税/资产/工资分摊（早期 23 个）。 |
 | **预览 SIGTERM** | `pkill -f "http.server 8137"` 会误杀执行命令自身 → 改用 `fuser -k 8137/tcp` 按端口结束，再用 `setsid ... < /dev/null &` 脱离终端启动 |
 
 ---
@@ -135,6 +153,12 @@ git push origin main
 - [x] 销售合同 → 客户管理抽屉；采购合同 → 供应商/采购申请抽屉（2026-07-24 完成：往来单位 PartyList 加「详情」抽屉——客户列销售合同、供应商列采购合同+采购申请；采购申请按供应商名称精确匹配，已在抽屉内标注口径）
 - [x] 出纳·发票其余·结账·设置其余 15 占位页改造（2026-07-24：4 真实数据页 + 11 诚实「功能待启用」页，零后端改动）
 - [x] 凭证录入页会计科目选择器弹窗优化 → **重解读落地**：凭证录入页保持占位（避免孤立手工凭证的产品决策不变）；「科目选择器弹窗优化」落在科目管理(Account.vue)的「新增科目」弹窗——上级科目由手填 input 改为 **el-tree-select 科目树选择器**（选父级自动带出类别/方向/层级、给出编码前缀建议）；期初余额(Opening.vue)改为接后端 `/subjects`，并**删除前端死文件 `accountData.ts`**（187 纯数字编码，与后端凭证体系不兼容的演示残留），前端科目统一到后端 28 个权威源。2026-07-24 完成。
+
+### 待办（真实剩余，设计已收口 / 代码待专家评估）
+- [x] 设计系统 B 方案：设计令牌(design-tokens.css) + 6 核心组件(EmptyState/DataLoader/BatchActionBar/StatusTag/AppIcon/KpiTile) 全量铺开（StatusTag/DataLoader/AppIcon 已铺；暖色浅底全局落地）。2026-07-24 完成。
+- [x] 凭证状态机前端入口：voucher.ts + VoucherList 审核/记账按钮（接后端 audit/post）。2026-07-24 完成。
+- [x] 发票箱去重(P1) + OCR 兜底验证。2026-07-24 完成。
+- [ ] 待专家评估后定（代码类）：① tesseract 离线化（wasm/字库本地化，免首次联网）；② 凭证反审核/反记账逆向（需后端补端点，当前仅单向 审核→记账）；③ Voucher.vue 录入页仍「功能待启用」占位（老板拍板暂不开手工凭证，维持"业务驱动账务"灵魂）。
 
 ---
 
@@ -282,8 +306,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-24
-- **Git HEAD**：`7098b9f`（main；已 push 到 GitHub 远程；含此前 17 个积压提交一并推送）
+- **最后更新**：2026-07-24（深夜，补全设计文档与 STATUS 收口）
+- **Git HEAD**：`abcbd50`（main；已 push 到 GitHub 远程）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -320,3 +344,12 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 27. 上线前全面检查完成（本报告同级目录 `deliverables/gstack/pre-launch-check-checkout-2026-07-24.md`）：🟢 条件 Go，0 🔴 阻塞项，2 🟠 建议上线前修复（部署配置/CORS域名），5 🟡 后续迭代。
   - 28. STATUS.md 全篇更新：移除沙箱/SSH/CloudStudio 残留，补充发票识别工具进度表，命令改为本机路径。`__init__.py` 补充 `InvoiceInbox` 导出。
 - **对应提交**：`b9f09ec`（发票宽松解析）、`69fb574`（发票识别工具P0）
+  - 29. B 方案基础设施：design-tokens.css（增量令牌：图表色板/业务状态色/间距/字号/圆角/阴影/动效/层级）+ 6 全局组件（main.ts 注册）；KpiTile/StatusTag 等初版（提交 228a773）。
+  - 30. B 方案第1-2步：19 文件 37 处 #409eff 换 var(--el-color-primary)；样板页套用 StatusTag/BatchActionBar/KpiTile（提交 e2402ae）。
+  - 31. 暖色浅底全局：侧栏 #001529 深海军蓝→浅色科技风；KpiTile 数字上色（珊瑚橙#D85A30/暖绿#639922/金黄#EF9F27）；design-tokens 图表色板转暖亮（提交 45fd58f）。
+  - 32. StatusTag 全量铺开：15 文件状态列改 <StatusTag>，删 12 处 now-dead 辅助函数（提交 80331cd）。
+  - 33. DataLoader/EmptyState 全量铺开：22 表格 + 13 卡片/汇总区外套四态；踩坑（闭合标签误替/DataLoader 父子序/vue-tsc 不抓模板错，必须 vite build 验证）已记（提交 c3b6f7c）。
+  - 34. AppIcon 全量重写：views+layouts 约 80 处 <el-icon>→<AppIcon>；修 TopBar:93 :name= 未加引号编译错（vue-tsc 不报、vite build 才暴露）；发票箱去重(P1)；凭证状态机 audit/post + 10 新 pytest（33 passed）；修 general_ledger 期间翻倍 + L4 缓存隔离（提交 439b320）。
+  - 35. 凭证状态机前端入口 + OCR 兜底验证：voucher.ts + VoucherList 删除 stub handleAudit 换成真调用（单行/批量 审核/记账，状态感知按钮）；OCR 管线此前已实现并接进 InvoiceInbox 上传流，本次验证 vite build 可打包（提交 abcbd50）。
+  - 36. 设计文档集（AICoding）：高层架构设计/系统设计/部署设计/安全设计/UserStory 五份核心文档（共 ~1975 行，提交 7f17772）；UI Designer 全面审计 + 设计系统草案（提交 86cd29f）；发票识别 PRD + 架构文档。
+  - 37. STATUS.md 本次收口：HEAD 69fb574→abcbd50，补 B 方案/组件全量/暖色浅底/凭证状态机/OCR/测试补全 等进度与决策；设计文档集（5 架构 + 生命周期 18 篇 + PRD + UI 审计）均已落地，**设计工作收口**。代码类下一步（OCR 离线化/反审核/手工凭证）待老板找其他专家评估后定。
