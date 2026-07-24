@@ -11,6 +11,26 @@ from sqlalchemy.orm import Session
 from app.models import subject as sm
 from app.models import voucher as vm
 
+# ── L4 修复：全表聚合结果缓存（避免报表/总账每次重算）──
+# 失效键 = (凭证分录总行数, 最大 id)。本系统写路径只有「新增凭证」
+# （审批/支付均追加新凭证），不存在原地改已存分录金额，故行数/最大 id
+# 任一变化即代表账套已变，旧缓存自动失效，不会出现脏数据。
+# 作用：balance_sheet / income_statement / cash_flow 之外，quarter_report 按月
+# 循环不再反复整表 GROUP BY；general_ledger 按科目逐查也复用同一次聚合。
+_agg_cache: dict = {}
+
+
+def _agg_version(db: Session) -> tuple:
+    row = db.execute(
+        select(func.count(vm.VoucherEntry.id), func.max(vm.VoucherEntry.id))
+    ).first()
+    return (row[0] or 0, row[1] or 0)
+
+
+def clear_ledger_cache() -> None:
+    """显式清空聚合缓存（如外部直接改库后）。"""
+    _agg_cache.clear()
+
 
 def _normalize(normal_direction: str, cum_debit: float, cum_credit: float):
     """按科目正常方向，把累计借/贷归算为期末借/贷余额。
@@ -37,7 +57,16 @@ def _subject_direction(db: Session, code: str) -> str:
 
 
 def _aggregate(db: Session) -> Dict[str, dict]:
-    """返回 {code: {'name':.., 'periods': {period: {'借':x, '贷':y}}}}。"""
+    """返回 {code: {'name':.., 'periods': {period: {'借':x, '贷':y}}}}。
+
+    结果按账套版本（凭证分录行数 + 最大 id）缓存：同一账套内
+    balance_sheet / income_statement / quarter_report（按月循环）/ general_ledger
+    多次调用只跑一次整表 GROUP BY，消除 L4「全表聚合每次重算」。
+    """
+    version = _agg_version(db)
+    if version in _agg_cache:
+        return _agg_cache[version]
+
     rows = db.execute(
         select(
             vm.VoucherEntry.subject_code,
@@ -59,6 +88,7 @@ def _aggregate(db: Session) -> Dict[str, dict]:
         d = agg.setdefault(code, {'name': name, 'periods': {}})
         d['periods'].setdefault(period, {'借': 0.0, '贷': 0.0})
         d['periods'][period][direction] = float(amt or 0)
+    _agg_cache[version] = agg
     return agg
 
 

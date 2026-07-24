@@ -42,9 +42,15 @@
       </el-table-column>
       <el-table-column prop="submit_date" label="提交日期" width="110" />
       <el-table-column prop="approve_date" label="审批日期" width="110" />
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button
+            v-if="row.status === '已通过'"
+            link
+            type="primary"
+            @click="payRow(row)"
+          >付款</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -56,6 +62,11 @@
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button
+            v-if="currentBill && currentBill.status === '已通过'"
+            type="success"
+            @click="payRow(currentBill)"
+          >付款</el-button>
           <el-button type="primary" @click="printDetail">打印报销单</el-button>
         </div>
       </template>
@@ -65,7 +76,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { reimburseApi } from '@/api/reimburse'
 import type { ReimbursementBill } from '@/types/reimburse'
 import BillDetail from './BillDetail.vue'
@@ -124,6 +135,29 @@ async function openDetail(row: ReimbursementBill) {
     detailVisible.value = true
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '加载详情失败')
+  }
+}
+
+async function payRow(bill: ReimbursementBill) {
+  try {
+    await ElMessageBox.confirm(
+      `确认支付报销单「${bill.bill_no || ('#' + bill.id)}」？系统将自动生成付款凭证（借：其他应付款，贷：银行存款）。`,
+      '付款确认',
+      { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    await reimburseApi.pay(bill.id)
+    ElMessage.success('付款成功，已生成付款凭证')
+    // 同步详情与列表状态
+    if (currentBill.value && currentBill.value.id === bill.id) {
+      currentBill.value = { ...currentBill.value, status: '已支付' }
+    }
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '付款失败')
   }
 }
 
