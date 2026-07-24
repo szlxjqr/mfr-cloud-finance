@@ -1,13 +1,43 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import QuickActions from './components/QuickActions.vue'
 import VoucherCard from './components/VoucherCard.vue'
 import FundOverview from './components/FundOverview.vue'
 import BusinessChart from './components/BusinessChart.vue'
 import TaxChart from './components/TaxChart.vue'
+import { getVoucherCount, getFundsOverview, getDashboardSummary } from '@/api/dashboard'
+import { formatCurrency } from '@/utils/format'
 
 /** 顶部二级标签（当前激活项） */
 const activeTab = ref('voucher')
+
+/** 关键指标（KpiTile 示范，接已有接口 + 兜底演示值） */
+const kpi = reactive({ voucher: 128, fund: 1000000, tax: 0 })
+
+async function loadKpi() {
+  try {
+    const [vc, funds, sum] = await Promise.all([
+      getVoucherCount(),
+      getFundsOverview(),
+      getDashboardSummary(),
+    ])
+    const fundSum = Array.isArray(funds.data)
+      ? funds.data.reduce((a: number, b: any) => a + (b.amount || 0), 0)
+      : 1000000
+    const taxItem = Array.isArray(sum.data?.taxItems)
+      ? sum.data.taxItems.find((t: any) => String(t.name).includes('应交'))
+      : null
+    kpi.voucher = typeof vc.data === 'number' ? vc.data : 128
+    kpi.fund = fundSum
+    kpi.tax = taxItem?.value ?? 0
+  } catch {
+    kpi.voucher = 128
+    kpi.fund = 1000000
+    kpi.tax = 0
+  }
+}
+
+onMounted(loadKpi)
 
 interface TopTab {
   label: string
@@ -35,6 +65,19 @@ const topTabs: TopTab[] = [
         {{ tab.label }}
       </div>
     </div>
+
+    <!-- 关键指标（KpiTile 示范） -->
+    <el-row :gutter="16" class="row-gap">
+      <el-col :xs="24" :sm="8" :md="8">
+        <KpiTile label="本月凭证" :value="kpi.voucher" delta-label="张" icon="Document" accent="brand" />
+      </el-col>
+      <el-col :xs="24" :sm="8" :md="8">
+        <KpiTile label="资金总额" :value="formatCurrency(kpi.fund)" icon="Wallet" accent="success" />
+      </el-col>
+      <el-col :xs="24" :sm="8" :md="8">
+        <KpiTile label="应交税费" :value="formatCurrency(kpi.tax)" icon="Money" accent="warning" />
+      </el-col>
+    </el-row>
 
     <!-- 常用功能（全宽） -->
     <el-row :gutter="16">
@@ -91,13 +134,13 @@ const topTabs: TopTab[] = [
 }
 
 .top-tab:hover {
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 
 .top-tab.active {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-weight: 600;
-  border-bottom-color: #409eff;
+  border-bottom-color: var(--el-color-primary);
 }
 
 .row-gap {

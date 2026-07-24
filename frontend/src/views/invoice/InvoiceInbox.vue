@@ -38,7 +38,11 @@
       拖拽发票文件到此处（PDF / OFD / 图片），自动 OCR + 结构化
     </div>
 
-    <el-table :data="rows" v-loading="loading" stripe border empty-text="发票箱为空，拖拽或上传发票开始">
+    <BatchActionBar :selected-count="selectedRows.length" @clear="clearSelection">
+      <el-button type="danger" plain size="small" :disabled="!selectedRows.length" @click="batchRemove">批量删除</el-button>
+    </BatchActionBar>
+
+    <el-table ref="tableRef" :data="rows" v-loading="loading" stripe border empty-text="发票箱为空，拖拽或上传发票开始" @selection-change="onSelectionChange">
       <el-table-column prop="filename" label="文件名" min-width="160" />
       <el-table-column label="提取摘要" min-width="200">
         <template #default="{ row }">
@@ -46,9 +50,10 @@
           <span v-else class="muted">（未识别）</span>
         </template>
       </el-table-column>
+      <el-table-column type="selection" width="42" />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="statusTag(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+          <StatusTag :status="row.status" />
         </template>
       </el-table-column>
       <el-table-column label="查验" width="100">
@@ -135,6 +140,9 @@ const keyword = ref('')
 const statusFilter = ref<string | undefined>(undefined)
 const dragover = ref(false)
 
+const tableRef = ref()
+const selectedRows = ref<InvoiceInbox[]>([])
+
 const linkVisible = ref(false)
 const linkForm = reactive({ id: 0, docType: 'reimburse', docId: 1 })
 const verifyVisible = ref(false)
@@ -165,11 +173,31 @@ function summary(row: InvoiceInbox): string {
   }
 }
 
-function statusText(s: string): string {
-  return { pending: '待识别', recognized: '已识别', linked: '已挂接', error: '异常' }[s] || s
+function onSelectionChange(rows: any[]) {
+  selectedRows.value = rows
 }
-function statusTag(s: string): 'info' | 'primary' | 'success' | 'danger' {
-  return ({ pending: 'info', recognized: 'primary', linked: 'success', error: 'danger' }[s] || 'info') as 'info' | 'primary' | 'success' | 'danger'
+function clearSelection() {
+  tableRef.value?.clearSelection()
+}
+async function batchRemove() {
+  const list = selectedRows.value
+  if (!list.length) return
+  try {
+    await ElMessageBox.confirm(`确认批量删除 ${list.length} 张发票？原文件一并移除。`, '删除确认', { type: 'warning' })
+  } catch {
+    return
+  }
+  let ok = 0
+  for (const row of list) {
+    try {
+      await inboxApi.remove(row.id)
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '删除失败') + '：' + row.filename)
+    }
+  }
+  if (ok) ElMessage.success(`已删除 ${ok} 张`)
+  load()
 }
 function verifyText(s: string): string {
   return { real: '真', fake: '假', abnormal: '异常' }[s] || s
@@ -279,6 +307,6 @@ onMounted(load)
   border: 2px dashed #dcdfe6; border-radius: 8px; padding: 28px;
   text-align: center; color: #909399; margin-bottom: 16px; transition: .2s;
 }
-.dropzone.dragover { border-color: #409eff; color: #409eff; background: #ecf5ff; }
+.dropzone.dragover { border-color: var(--el-color-primary); color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
 .muted { color: #c0c4cc; }
 </style>

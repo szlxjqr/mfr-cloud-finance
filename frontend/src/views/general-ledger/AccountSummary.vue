@@ -372,7 +372,7 @@ onMounted(() => loadData())
   color: #909399;
   user-select: none;
 }
-.expand-toggle:hover { color: #409eff; }
+.expand-toggle:hover { color: var(--el-color-primary); }
 
 .amount {
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;

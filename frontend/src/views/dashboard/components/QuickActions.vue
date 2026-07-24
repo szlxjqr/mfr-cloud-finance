@@ -88,7 +88,7 @@ function handleClick(item: ActionItem) {
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 10px solid #409eff;
+  border-left: 10px solid var(--el-color-primary);
 }
 
 .action-grid {

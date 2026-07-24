@@ -384,11 +384,11 @@ onMounted(async () => {
   transition: background 0.15s; font-size: 13px;
 }
 .account-item:hover { background: #f5f7fa; }
-.account-item.active { background: #ecf5ff; color: #409eff; }
+.account-item.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
 .account-code { color: #909399; font-size: 12px; min-width: 50px; }
 .account-name { flex: 1; color: #303133; }
-.account-item.active .account-name { color: #409eff; font-weight: 500; }
-.account-item.active .account-code { color: #409eff; }
+.account-item.active .account-name { color: var(--el-color-primary); font-weight: 500; }
+.account-item.active .account-code { color: var(--el-color-primary); }
 .expand-icon { font-size: 10px; color: #909399; }
 
 /* 拖拽条 */
@@ -403,7 +403,7 @@ onMounted(async () => {
 }
 .nav-btn { padding: 4px 8px; font-size: 12px; }
 .selector-display {
-  flex: 1; background: #409eff; color: #fff; padding: 6px 16px; border-radius: 4px;
+  flex: 1; background: var(--el-color-primary); color: #fff; padding: 6px 16px; border-radius: 4px;
   text-align: center; font-size: 14px; font-weight: 500;
 }
 .selector-placeholder { opacity: 0.7; }
@@ -414,7 +414,7 @@ onMounted(async () => {
 .amount { font-family: 'SF Mono','Menlo','Consolas',monospace; font-size: 13px; color: #606266; }
 .amount.debit { color: #303133; font-weight: 500; }
 .amount.credit { color: #67c23a; }
-.amount.balance { color: #409eff; font-weight: 600; }
+.amount.balance { color: var(--el-color-primary); font-weight: 600; }
 
 :deep(.el-table){ font-size: 13px; }
 :deep(.el-table th){ padding: 8px 0; }

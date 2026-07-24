@@ -558,7 +558,7 @@ onMounted(() => {
   flex-shrink: 0;
 }
 .select-count strong {
-  color: #409eff;
+  color: var(--el-color-primary);
   margin: 0 2px;
 }
 .batch-bar .el-button {
@@ -581,7 +581,7 @@ onMounted(() => {
   font-size: 13px;
 }
 .voucher-table :deep(.el-table__row:hover > td) {
-  background: #ecf5ff !important;
+  background: var(--el-color-primary-light-9) !important;
 }
 .row-expanded > td {
   background: #fafcff !important;
@@ -596,7 +596,7 @@ onMounted(() => {
 }
 .expand-toggle.is-open {
   transform: rotate(90deg);
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 
 /* ---- 摘要单元格 ---- */
@@ -616,7 +616,7 @@ onMounted(() => {
   border-radius: 3px;
   white-space: nowrap;
 }
-.tag-记 { background: #ecf5ff; color: #409eff; border: 1px solid #b3d8ff; }
+.tag-记 { background: var(--el-color-primary-light-9); color: var(--el-color-primary); border: 1px solid var(--el-color-primary-light-5); }
 .tag-收 { background: #fdf6ec; color: #e6a23c; border: 1px solid #f5dab1; }
 .tag-付 { background: #fef0f0; color: #f56c6c; border: 1px solid #fbc4c4; }
 .tag-转 { background: #f4f4f5; color: #909399; border: 1px solid #dcdfe6; }

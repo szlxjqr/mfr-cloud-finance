@@ -473,12 +473,12 @@ onMounted(() => {
 }
 
 .account-item.active {
-  background: #ecf5ff;
-  color: #409eff;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
 }
 
 .account-item.active .account-code {
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 
 .account-code {
@@ -493,7 +493,7 @@ onMounted(() => {
 }
 
 .account-item.active .account-name {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-weight: 500;
 }
 
@@ -545,7 +545,7 @@ onMounted(() => {
 
 .selector-display {
   flex: 1;
-  background: #409eff;
+  background: var(--el-color-primary);
   color: #fff;
   padding: 6px 16px;
   border-radius: 4px;
@@ -581,7 +581,7 @@ onMounted(() => {
 }
 
 .amount.balance {
-  color: #409eff;
+  color: var(--el-color-primary);
   font-weight: 600;
 }
 

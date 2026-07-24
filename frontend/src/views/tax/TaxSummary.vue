@@ -304,7 +304,7 @@ function onExportPdf() {
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 10px solid #409eff;
+  border-left: 10px solid var(--el-color-primary);
 }
 @media (max-width: 980px) {
   .kpi-row {

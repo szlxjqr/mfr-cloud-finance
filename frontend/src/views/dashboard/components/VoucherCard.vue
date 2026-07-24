@@ -106,7 +106,7 @@ function addVoucher() {
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 10px solid #409eff;
+  border-left: 10px solid var(--el-color-primary);
 }
 
 .header-tools {
@@ -135,7 +135,7 @@ function addVoucher() {
   font-size: 52px;
   font-weight: 700;
   line-height: 1;
-  color: #409eff;
+  color: var(--el-color-primary);
   font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif;
 }
 

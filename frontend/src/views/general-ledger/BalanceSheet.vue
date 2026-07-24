@@ -182,11 +182,11 @@ onMounted(loadData)
   font-size: 12px;
   font-weight: 500;
 }
-.dir-tag.借 { color: #409eff; background: rgba(64, 158, 255, .1); }
+.dir-tag.借 { color: var(--el-color-primary); background: rgba(22, 103, 255, .1); }
 .dir-tag.贷 { color: #e6a23c; background: rgba(230, 162, 60, .12); }
 
 .amt { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 13px; color: #909399; }
-.amt.end { color: #409eff; font-weight: 600; }
+.amt.end { color: var(--el-color-primary); font-weight: 600; }
 
 .total-bar {
   padding: 10px 16px;
@@ -195,5 +195,5 @@ onMounted(loadData)
   color: #606266;
   flex-shrink: 0;
 }
-.total-bar .end { color: #409eff; margin: 0 4px; }
+.total-bar .end { color: var(--el-color-primary); margin: 0 4px; }
 </style>

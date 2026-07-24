@@ -23,7 +23,10 @@ const props = withDefaults(
 
 const MAP: Record<string, { text: string; color: string; bg: string }> = {
   draft: { text: '草稿', color: 'var(--status-draft)', bg: 'var(--el-color-info-light-9)' },
-  pending: { text: '待处理', color: 'var(--status-pending)', bg: 'var(--el-color-warning-light-9)' },
+  pending: { text: '待识别', color: 'var(--el-color-info)', bg: 'var(--el-color-info-light-9)' },
+  recognized: { text: '已识别', color: 'var(--el-color-primary)', bg: 'var(--el-color-primary-light-9)' },
+  linked: { text: '已挂接', color: 'var(--el-color-success)', bg: 'var(--el-color-success-light-9)' },
+  error: { text: '异常', color: 'var(--el-color-danger)', bg: 'var(--el-color-danger-light-9)' },
   approved: { text: '已通过', color: 'var(--status-approved)', bg: 'var(--el-color-success-light-9)' },
   paid: { text: '已支付', color: 'var(--status-paid)', bg: 'var(--el-color-primary-light-9)' },
   rejected: { text: '已驳回', color: 'var(--status-rejected)', bg: 'var(--el-color-danger-light-9)' },

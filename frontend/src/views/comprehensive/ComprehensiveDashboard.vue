@@ -267,7 +267,7 @@ function onExportPdf() {
 }
 .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #303133; }
 .hint { font-size: 12px; font-weight: 400; color: #909399; }
-.triangle { width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid #409eff; }
+.triangle { width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid var(--el-color-primary); }
 .tools { display: flex; align-items: center; gap: 8px; }
 .row-gap { margin-top: 16px; }
 .kpi-card {

@@ -233,7 +233,7 @@ onMounted(loadData)
   display: inline-block; padding: 1px 10px; border-radius: 10px;
   font-size: 12px; font-weight: 500;
 }
-.dir-tag.借 { color: #409eff; background: rgba(64, 158, 255, .1); }
+.dir-tag.借 { color: var(--el-color-primary); background: rgba(22, 103, 255, .1); }
 .dir-tag.贷 { color: #e6a23c; background: rgba(230, 162, 60, .12); }
 .prefix-tip {
   margin-top: 6px;
@@ -246,6 +246,6 @@ onMounted(loadData)
   padding: 1px 6px;
   border-radius: 3px;
   font-family: Consolas, monospace;
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 </style>

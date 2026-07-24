@@ -1203,11 +1203,11 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
   border-color: #a0522d;
 }
 .invoice-form :deep(.el-radio__input.is-checked .el-radio__inner) {
-  background-color: #409eff;
-  border-color: #409eff;
+  background-color: var(--el-color-primary);
+  border-color: var(--el-color-primary);
 }
 .invoice-form :deep(.el-radio__input.is-checked + .el-radio__label) {
-  color: #409eff;
+  color: var(--el-color-primary);
 }
 
 .invoice-type-bar {
