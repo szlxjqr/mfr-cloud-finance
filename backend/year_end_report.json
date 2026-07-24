@@ -1,0 +1,255 @@
+{
+  "as_of": "2026-12",
+  "per_month": {
+    "2026-05": {
+      "vouchers": 5,
+      "debit": 78300.0,
+      "credit": 78300.0
+    },
+    "2026-06": {
+      "vouchers": 6,
+      "debit": 1077300.0,
+      "credit": 1077300.0
+    },
+    "2026-07": {
+      "vouchers": 5,
+      "debit": 77300.0,
+      "credit": 77300.0
+    },
+    "2026-08": {
+      "vouchers": 5,
+      "debit": 46300.0,
+      "credit": 46300.0
+    },
+    "2026-09": {
+      "vouchers": 5,
+      "debit": 46300.0,
+      "credit": 46300.0
+    },
+    "2026-10": {
+      "vouchers": 5,
+      "debit": 75300.0,
+      "credit": 75300.0
+    },
+    "2026-11": {
+      "vouchers": 4,
+      "debit": 15300.0,
+      "credit": 15300.0
+    },
+    "2026-12": {
+      "vouchers": 4,
+      "debit": 16300.0,
+      "credit": 16300.0
+    }
+  },
+  "balance_sheet": {
+    "as_of": "2026-12",
+    "sections": [
+      {
+        "name": "流动资产",
+        "items": [
+          {
+            "code": "1001",
+            "name": "库存现金",
+            "amount": 0.0
+          },
+          {
+            "code": "1002",
+            "name": "银行存款",
+            "amount": 1000000.0
+          },
+          {
+            "code": "1122",
+            "name": "应收账款",
+            "amount": 0.0
+          },
+          {
+            "code": "1123",
+            "name": "预付账款",
+            "amount": 0.0
+          },
+          {
+            "code": "1403",
+            "name": "原材料",
+            "amount": 0.0
+          },
+          {
+            "code": "1405",
+            "name": "库存商品",
+            "amount": 0.0
+          },
+          {
+            "code": "4001",
+            "name": "生产成本",
+            "amount": 0.0
+          }
+        ],
+        "total": 1000000.0
+      },
+      {
+        "name": "非流动资产",
+        "items": [
+          {
+            "code": "1601",
+            "name": "固定资产",
+            "amount": 0.0
+          },
+          {
+            "code": "4301",
+            "name": "研发支出",
+            "amount": 300000.0
+          }
+        ],
+        "total": 300000.0
+      },
+      {
+        "name": "流动负债",
+        "items": [
+          {
+            "code": "2202",
+            "name": "应付账款",
+            "amount": 300000.0
+          },
+          {
+            "code": "2211",
+            "name": "应付职工薪酬",
+            "amount": 72000.0
+          },
+          {
+            "code": "2221",
+            "name": "应交税费",
+            "amount": 0.0
+          },
+          {
+            "code": "2241",
+            "name": "其他应付款",
+            "amount": 60400.0
+          }
+        ],
+        "total": 432400.0
+      },
+      {
+        "name": "所有者权益",
+        "items": [
+          {
+            "code": "3001",
+            "name": "实收资本",
+            "amount": 1000000.0
+          },
+          {
+            "code": "3103",
+            "name": "本年利润",
+            "amount": -132400.0
+          },
+          {
+            "code": "3104",
+            "name": "利润分配",
+            "amount": 0.0
+          }
+        ],
+        "total": 867600.0
+      }
+    ],
+    "total_assets": 1300000.0,
+    "total_liabilities": 432400.0,
+    "total_equity": 867600.0,
+    "balanced": true,
+    "note": ""
+  },
+  "income_statement": {
+    "period": "2026-12",
+    "revenue": [
+      {
+        "code": "5001",
+        "name": "主营业务收入",
+        "current": 0.0,
+        "cumulative": 0.0
+      },
+      {
+        "code": "5051",
+        "name": "其他业务收入",
+        "current": 0.0,
+        "cumulative": 0.0
+      }
+    ],
+    "cost": [
+      {
+        "code": "5401",
+        "name": "主营业务成本",
+        "current": 0.0,
+        "cumulative": 0.0
+      },
+      {
+        "code": "5501",
+        "name": "其他业务成本",
+        "current": 0.0,
+        "cumulative": 0.0
+      }
+    ],
+    "expense": [
+      {
+        "code": "5601",
+        "name": "销售费用",
+        "current": 0.0,
+        "cumulative": 0.0
+      },
+      {
+        "code": "5602",
+        "name": "管理费用",
+        "current": 16300.0,
+        "cumulative": 132400.0
+      },
+      {
+        "code": "5603",
+        "name": "财务费用",
+        "current": 0.0,
+        "cumulative": 0.0
+      },
+      {
+        "code": "5801",
+        "name": "所得税费用",
+        "current": 0.0,
+        "cumulative": 0.0
+      }
+    ],
+    "total_revenue_cur": 0.0,
+    "total_revenue_cum": 0.0,
+    "total_expense_cur": 16300.0,
+    "total_expense_cum": 132400.0,
+    "operating_profit_cur": -16300.0,
+    "operating_profit_cum": -132400.0,
+    "total_profit_cur": -16300.0,
+    "total_profit_cum": -132400.0,
+    "net_profit_cur": -16300.0,
+    "net_profit_cum": -132400.0
+  },
+  "cash_flow": {
+    "period": "累计",
+    "operating": {
+      "name": "经营活动产生的现金流量",
+      "items": [],
+      "total": 0.0
+    },
+    "investing": {
+      "name": "投资活动产生的现金流量",
+      "items": [],
+      "total": 0.0
+    },
+    "financing": {
+      "name": "筹资活动产生的现金流量",
+      "items": [
+        {
+          "name": "实收资本",
+          "amount": 1000000.0
+        }
+      ],
+      "total": 1000000.0
+    },
+    "net_operating": 0.0,
+    "net_investing": 0.0,
+    "net_financing": 1000000.0,
+    "net_increase": 1000000.0,
+    "note": ""
+  },
+  "journal_lines": 78
+}

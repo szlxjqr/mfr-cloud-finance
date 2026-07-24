@@ -246,16 +246,29 @@ def cash_flow_statement(db: Session, period: Optional[str] = None) -> dict:
         .where(vm.VoucherEntry.voucher_id.in_(cash_voucher_ids) if cash_voucher_ids else False)
     ).all() if cash_voucher_ids else []
 
-    # 归类：对每个现金分录，找同凭证内非现金的对方科目，按其类别决定活动
+    # 归类：逐凭证，以「现金方方向」定流入/流出，以「对方科目类别」定活动。
+    # 现金方 借=流入(+)、贷=流出(-)；对方科目仅决定 经营/投资/筹资。
+    by_vouch: dict = {}
+    for vid, code, name, direction, amount, category in all_rows:
+        by_vouch.setdefault(vid, []).append((code, name, direction, amount, category))
     buckets = {"operating": {}, "investing": {}, "financing": {}}
     has_data = False
-    for vid, code, name, direction, amount, category in all_rows:
-        if code in _CASH_CODES:
-            continue  # 现金方本身，跳过
-        has_data = True
-        act = _classify(category)
-        sign = float(amount) if direction == "借" else -float(amount)  # 现金流出记负
-        buckets[act][name] = round(buckets[act].get(name, 0.0) + sign, 2)
+    for vid, lines in by_vouch.items():
+        cash_dir = None
+        for code, name, direction, amount, category in lines:
+            if code in _CASH_CODES:
+                cash_dir = direction  # 取现金方方向
+                break
+        if cash_dir is None:
+            continue
+        cash_sign = 1.0 if cash_dir == "借" else -1.0
+        for code, name, direction, amount, category in lines:
+            if code in _CASH_CODES:
+                continue  # 现金方本身，跳过
+            has_data = True
+            act = _classify(category)
+            sign = cash_sign * float(amount)
+            buckets[act][name] = round(buckets[act].get(name, 0.0) + sign, 2)
 
     def section(items: dict, label: str):
         lines_ = [{"name": k, "amount": v} for k, v in items.items()]
