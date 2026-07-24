@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  Search,
-  Refresh,
-  Setting,
-  QuestionFilled,
-  Document,
-  Delete,
-} from '@element-plus/icons-vue'
 
 /** 凭证摘要记录 */
 interface SummaryRecord {

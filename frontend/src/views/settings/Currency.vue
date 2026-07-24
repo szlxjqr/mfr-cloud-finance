@@ -1,19 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import {
-  Plus,
-  Edit,
-  Delete,
-  Download,
-  Upload,
-  Search,
-  Refresh,
-  Setting,
-  QuestionFilled,
-  ArrowDown,
-  Money,
-} from '@element-plus/icons-vue'
 
 /** 币别记录 */
 interface CurrencyRecord {

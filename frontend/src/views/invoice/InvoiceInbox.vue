@@ -222,7 +222,7 @@ async function handleFiles(files: File[]) {
     }
     try {
       const res = await inboxApi.upload(f, json)
-      if (res?.duplicated) {
+      if (res.data?.duplicated) {
         // P1 去重：与箱中已有同票重复，后端直接返回已有记录、未重复落盘
         ElMessage.warning(`「${f.name}」与发票箱已有记录重复，已跳过`)
       } else {

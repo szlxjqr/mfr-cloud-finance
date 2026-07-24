@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Close, CircleClose, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useTabsStore } from '@/stores/tabs'
 

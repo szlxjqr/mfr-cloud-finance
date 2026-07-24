@@ -40,6 +40,7 @@ export interface InvoiceInbox {
   filename: string
   storage_path: string
   source: string // upload | box
+  duplicated?: boolean // P1 去重：本次上传与箱中已有同票重复时置 true
   extracted_json?: string | null
   status: string // pending | recognized | linked | error
   linked_doc_type?: string | null // reimburse | purchase

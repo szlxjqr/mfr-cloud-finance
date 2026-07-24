@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  QuestionFilled,
-  ArrowDown,
-  Setting,
-  Search,
-  CircleCheckFilled,
-  CircleCloseFilled,
-} from '@element-plus/icons-vue'
 import { listSubjects } from '@/api/ledger'
 import type { AccountSubject } from '@/types/ledger'
 

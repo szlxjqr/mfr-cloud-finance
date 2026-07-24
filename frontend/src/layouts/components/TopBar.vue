@@ -4,15 +4,6 @@ import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
-import {
-  Search,
-  Bell,
-  ArrowDown,
-  User,
-  Setting,
-  Lock,
-  SwitchButton,
-} from '@element-plus/icons-vue'
 
 const appStore = useAppStore()
 const authStore = useAuthStore()

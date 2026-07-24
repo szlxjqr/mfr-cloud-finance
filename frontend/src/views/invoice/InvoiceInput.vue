@@ -1,22 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import {
-  Plus,
-  Delete,
-  Refresh,
-  Setting,
-  QuestionFilled,
-  Filter,
-  MagicStick,
-  DocumentChecked,
-  ArrowDown,
-  EditPen,
-  Upload,
-  Picture,
-  Document,
-  Close,
-} from '@element-plus/icons-vue'
 import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '../../utils/invoiceParser'
 import { invoiceApi } from '@/api/invoice'
 import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
