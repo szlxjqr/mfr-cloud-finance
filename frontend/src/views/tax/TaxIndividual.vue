@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { getIndividualTax } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
+import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
 import type { IndividualTax } from '@/types/tax'
 
@@ -27,10 +28,40 @@ const rows = computed(() => data.value?.rows ?? [])
 const totalTax = computed(() => data.value?.total_tax ?? 0)
 const totalGross = computed(() => data.value?.total_gross ?? 0)
 const headcount = computed(() => data.value?.headcount ?? 0)
+
+const pageRef = ref<HTMLElement>()
+function xlsxRows(): (string | number | null)[][] {
+  const out: (string | number | null)[][] = []
+  out.push([`个税申报明细（${period.value}）`])
+  out.push([])
+  out.push(['员工', '工号', '部门', '工资月份', '应发', '社保(个人)', '公积金(个人)', '个人所得税'])
+  for (const r of rows.value) {
+    out.push([
+      r.employee_name,
+      r.employee_no,
+      r.department,
+      r.period,
+      r.gross_pay,
+      r.social_personal,
+      r.fund_personal,
+      r.tax_personal,
+    ])
+  }
+  out.push([])
+  out.push(['合计', '', '', '', totalGross.value, '', '', totalTax.value])
+  return out
+}
+function onExportExcel() {
+  if (!rows.value.length) return
+  void exportXlsx(`个税申报_${period.value}.xlsx`, [{ name: '个税申报', rows: xlsxRows() }])
+}
+function onExportPdf() {
+  printReport(`个税申报（${period.value}）`, pageRef.value)
+}
 </script>
 
 <template>
-  <div class="tax-individual">
+  <div class="tax-individual" ref="pageRef">
     <!-- 期间选择 + 刷新 -->
     <el-card shadow="never" class="bar-card">
       <div class="bar">
@@ -54,6 +85,22 @@ const headcount = computed(() => data.value?.headcount ?? 0)
             :loading="loading"
             @click="load"
           />
+          <span class="spacer" />
+          <el-button
+            type="primary"
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!rows.length"
+            @click="onExportExcel"
+          >导出Excel</el-button>
+          <el-button
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!rows.length"
+            @click="onExportPdf"
+          >导出PDF</el-button>
         </div>
       </div>
     </el-card>
@@ -129,6 +176,9 @@ const headcount = computed(() => data.value?.headcount ?? 0)
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.spacer {
+  flex: 1;
 }
 .kpi-row {
   display: grid;

@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import VChart from '@/plugins/echarts'
 import { getTaxSummary } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
+import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
 import type { EChartsOption } from 'echarts'
 import type { TaxSummaryDetail, TaxInputDetail } from '@/types/tax'
@@ -76,10 +77,55 @@ const trendOption = computed<EChartsOption>(() => {
     ],
   }
 })
+
+const pageRef = ref<HTMLElement>()
+type Sheet = { name: string; rows: (string | number | null)[][] }
+function xlsxSheets(): Sheet[] {
+  const s = summary.value
+  const sumSheet: (string | number | null)[][] = []
+  sumSheet.push([`发票税务汇总（${period.value}）`])
+  sumSheet.push([])
+  sumSheet.push(['指标', '数值（元）'])
+  sumSheet.push(['本期进项税额', s?.input_tax ?? 0])
+  sumSheet.push(['本期销项税额', s?.output_tax ?? 0])
+  sumSheet.push([s?.carryforward ? '留抵税额' : '本期应交增值税', Math.abs(s?.vat_payable ?? 0)])
+  sumSheet.push(['本年累计进项税额', ytdInput.value])
+
+  const detailSheet: (string | number | null)[][] = []
+  detailSheet.push(['进项税额明细'])
+  detailSheet.push([])
+  detailSheet.push(['凭证号', '日期', '摘要', '来源单号', '税额(元)'])
+  for (const d of details.value) {
+    detailSheet.push([d.voucher_no, d.date, d.summary, d.source_no, d.amount])
+  }
+  detailSheet.push([])
+  detailSheet.push(['合计', '', '', '', totalDetail.value])
+
+  const trendSheet: (string | number | null)[][] = []
+  trendSheet.push([`月度趋势（${period.value.slice(0, 4)}年）`])
+  trendSheet.push([])
+  trendSheet.push(['期间', '进项税额', '销项税额'])
+  for (const m of (data.value?.monthly ?? [])) {
+    trendSheet.push([m.period, m.input_tax, m.output_tax])
+  }
+
+  return [
+    { name: '税务汇总', rows: sumSheet },
+    { name: '进项明细', rows: detailSheet },
+    { name: '月度趋势', rows: trendSheet },
+  ]
+}
+function onExportExcel() {
+  if (!data.value) return
+  void exportXlsx(`发票税务汇总_${period.value}.xlsx`, xlsxSheets())
+}
+function onExportPdf() {
+  printReport(`发票税务汇总（${period.value}）`, pageRef.value)
+}
 </script>
 
 <template>
-  <div class="tax-summary">
+  <div class="tax-summary" ref="pageRef">
     <!-- 期间选择 + 刷新 -->
     <el-card shadow="never" class="bar-card">
       <div class="bar">
@@ -103,6 +149,22 @@ const trendOption = computed<EChartsOption>(() => {
             :loading="loading"
             @click="load"
           />
+          <span class="spacer" />
+          <el-button
+            type="primary"
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!data"
+            @click="onExportExcel"
+          >导出Excel</el-button>
+          <el-button
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!data"
+            @click="onExportPdf"
+          >导出PDF</el-button>
         </div>
       </div>
     </el-card>
@@ -185,6 +247,9 @@ const trendOption = computed<EChartsOption>(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.spacer {
+  flex: 1;
 }
 .kpi-row {
   display: grid;

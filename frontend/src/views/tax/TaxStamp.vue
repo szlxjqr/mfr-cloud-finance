@@ -2,7 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { getStampTax } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
+import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
 import type { StampTax } from '@/types/tax'
 
@@ -32,10 +33,39 @@ const rateText = computed(() => {
   const r = rows.value[0]?.rate ?? 0.0003
   return (r * 100).toFixed(2) + '%'
 })
+
+const pageRef = ref<HTMLElement>()
+function xlsxRows(): (string | number | null)[][] {
+  const out: (string | number | null)[][] = []
+  out.push([`印花税明细（${year.value}）`])
+  out.push([])
+  out.push(['合同号', '类型', '对方单位', '签约日期', '合同金额', '税率', '应纳税额'])
+  for (const r of rows.value) {
+    out.push([
+      r.contract_no,
+      r.type,
+      r.party,
+      r.sign_date,
+      r.amount,
+      (r.rate * 100).toFixed(2) + '%',
+      r.tax,
+    ])
+  }
+  out.push([])
+  out.push(['合计', '', '', '', totalAmount.value, rateText.value, totalTax.value])
+  return out
+}
+function onExportExcel() {
+  if (!rows.value.length) return
+  void exportXlsx(`印花税_${year.value}.xlsx`, [{ name: '印花税', rows: xlsxRows() }])
+}
+function onExportPdf() {
+  printReport(`印花税（${year.value}）`, pageRef.value)
+}
 </script>
 
 <template>
-  <div class="tax-stamp">
+  <div class="tax-stamp" ref="pageRef">
     <!-- 年度选择 + 刷新 -->
     <el-card shadow="never" class="bar-card">
       <div class="bar">
@@ -59,6 +89,22 @@ const rateText = computed(() => {
             :loading="loading"
             @click="load"
           />
+          <span class="spacer" />
+          <el-button
+            type="primary"
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!rows.length"
+            @click="onExportExcel"
+          >导出Excel</el-button>
+          <el-button
+            plain
+            size="small"
+            :icon="Download"
+            :disabled="!rows.length"
+            @click="onExportPdf"
+          >导出PDF</el-button>
         </div>
       </div>
     </el-card>
@@ -143,6 +189,9 @@ const rateText = computed(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.spacer {
+  flex: 1;
 }
 .kpi-row {
   display: grid;

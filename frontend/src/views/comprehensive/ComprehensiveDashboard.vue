@@ -3,7 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import VChart from '@/plugins/echarts'
 import { getComprehensiveOverview } from '@/api/comprehensive'
 import { formatCurrency } from '@/utils/format'
-import { Refresh } from '@element-plus/icons-vue'
+import { Refresh, Download } from '@element-plus/icons-vue'
+import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
 import type { ComprehensiveOverview, StatusMap } from '@/types/comprehensive'
 import type { EChartsOption } from 'echarts'
@@ -11,6 +12,7 @@ import type { EChartsOption } from 'echarts'
 const period = ref(dayjs().format('YYYY-MM'))
 const loading = ref(false)
 const data = ref<ComprehensiveOverview | null>(null)
+const pageRef = ref<HTMLElement>()
 
 const VAT_COLOR = '#E6A23C'
 const CARRY_COLOR = '#909399'
@@ -105,10 +107,51 @@ function statusText(m: StatusMap | undefined): string {
     .map(([k, v]) => `${k} ${v}`)
     .join(' / ')
 }
+
+function xlsxSheets(): { name: string; rows: (string | number | null)[][] }[] {
+  const d = data.value
+  if (!d) return []
+  const p = period.value || '累计'
+  const out: (string | number | null)[][] = []
+  out.push([`综合报表看板（${p}）`])
+  out.push([])
+  out.push(['指标', '数值'])
+  for (const k of kpis.value) out.push([k.label, k.value])
+  out.push([])
+  out.push(['资金情况（关键科目真实余额）'])
+  out.push(['科目', '余额（元）'])
+  for (const f of (d.funds ?? [])) out.push([`${f.code} ${f.name}`, f.amount])
+  out.push([])
+  out.push(['税务概况'])
+  out.push(['项目', '金额（元）'])
+  for (const t of taxRows.value) out.push([t.name, t.value])
+  out.push([])
+  out.push(['经营趋势（主营业务收入 6001 按月）'])
+  out.push(['期间', '主营业务收入（元）'])
+  for (const r of (d.revenue_trend ?? [])) out.push([r.period, r.revenue])
+  out.push([])
+  out.push(['业务概况（单据状态）'])
+  out.push(['模块', '状态'])
+  const b = d.business
+  out.push(['报销单', statusText(b.reimburse)])
+  out.push(['采购申请', statusText(b.purchase)])
+  out.push(['差旅申请', statusText(b.travel)])
+  out.push(['待审批合计', b.pending_total])
+  out.push(['凭证总数', d.voucher.total])
+  out.push(['所选期间凭证数', d.voucher.period_count])
+  return [{ name: '综合看板', rows: out }]
+}
+function onExportExcel() {
+  if (!data.value) return
+  void exportXlsx(`综合报表看板_${period.value || '累计'}.xlsx`, xlsxSheets())
+}
+function onExportPdf() {
+  printReport(`综合报表看板（${period.value || '累计'}）`, pageRef.value)
+}
 </script>
 
 <template>
-  <div class="comprehensive" v-loading="loading">
+  <div class="comprehensive" v-loading="loading" ref="pageRef">
     <!-- 顶部：期间 + 刷新 -->
     <div class="top-bar">
       <div class="section-title">
@@ -126,6 +169,21 @@ function statusText(m: StatusMap | undefined): string {
           @change="load"
         />
         <el-button :icon="Refresh" circle size="small" :loading="loading" @click="load" />
+        <el-button
+          type="primary"
+          plain
+          size="small"
+          :icon="Download"
+          :disabled="!data"
+          @click="onExportExcel"
+        >导出Excel</el-button>
+        <el-button
+          plain
+          size="small"
+          :icon="Download"
+          :disabled="!data"
+          @click="onExportPdf"
+        >导出PDF</el-button>
       </div>
     </div>
 
@@ -204,7 +262,7 @@ function statusText(m: StatusMap | undefined): string {
 .top-bar {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow:0 1px 4px rgba(0, 0, 0, 0.04);
   padding: 12px 16px; margin-bottom: 16px;
 }
 .section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #303133; }
@@ -214,7 +272,7 @@ function statusText(m: StatusMap | undefined): string {
 .row-gap { margin-top: 16px; }
 .kpi-card {
   background: #fff; border-radius: 8px; padding: 18px 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow:0 1px 4px rgba(0, 0, 0, 0.04);
 }
 .kpi-label { font-size: 13px; color: #909399; }
 .kpi-value { margin-top: 8px; font-size: 24px; font-weight: 700; font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif; }

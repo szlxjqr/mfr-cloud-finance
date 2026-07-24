@@ -168,6 +168,7 @@ h1.rpt-title { text-align:center; font-size:18px; font-weight:700; margin:0 0 12
 .el-card { box-shadow:none !important; border:1px solid #dcdfe6 !important; }
 .el-card__body { padding:12px !important; }
 .toolbar { display:none !important; }
+.tools { display:none !important; }
 .el-table { box-shadow:none !important; }
 .el-table::before { display:none !important; }
 .el-table table { border-collapse:collapse !important; width:100%; }
