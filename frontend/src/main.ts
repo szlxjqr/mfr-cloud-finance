@@ -8,6 +8,14 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 
+// 设计系统核心组件（全局注册，供各页面统一引用，无需逐页 import）
+import EmptyState from './components/EmptyState.vue'
+import DataLoader from './components/DataLoader.vue'
+import BatchActionBar from './components/BatchActionBar.vue'
+import StatusTag from './components/StatusTag.vue'
+import AppIcon from './components/AppIcon.vue'
+import KpiTile from './components/KpiTile.vue'
+
 const app = createApp(App)
 
 // 注册 Pinia 状态管理
@@ -23,5 +31,13 @@ app.use(ElementPlus, { locale: zhCn })
 for (const [name, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(name, component)
 }
+
+// 注册设计系统核心组件（全局可用：空态/加载态/批量条/状态标签/图标/KPI）
+app.component('EmptyState', EmptyState)
+app.component('DataLoader', DataLoader)
+app.component('BatchActionBar', BatchActionBar)
+app.component('StatusTag', StatusTag)
+app.component('AppIcon', AppIcon)
+app.component('KpiTile', KpiTile)
 
 app.mount('#app')
