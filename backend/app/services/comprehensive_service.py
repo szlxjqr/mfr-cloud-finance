@@ -90,10 +90,17 @@ def business_summary(db: Session) -> dict:
 
 
 def voucher_summary(db: Session, period: Optional[str] = None) -> dict:
-    total = db.query(vm.Voucher).count()
+    total = db.scalar(select(func.count()).select_from(vm.Voucher)) or 0
     period_count = 0
     if period:
-        period_count = db.query(vm.Voucher).filter(vm.Voucher.period == period).count()
+        period_count = (
+            db.scalar(
+                select(func.count())
+                .select_from(vm.Voucher)
+                .where(vm.Voucher.period == period)
+            )
+            or 0
+        )
     return {"total": total, "period": period, "period_count": period_count}
 
 

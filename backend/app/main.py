@@ -2,9 +2,11 @@
 
 from contextlib import asynccontextmanager
 from pathlib import Path
+import logging
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.api.auth import get_current_user
 
 from app.api import company_settings
@@ -49,10 +51,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="智慧经营 API", version="1.0.0", lifespan=lifespan)
 
-# 配置 CORS 中间件，允许前端跨域访问
+# 配置 CORS：仅允许本机前端源（同源 8521 + 开发服务器 5173）。
+# 不再使用 "*"（与 allow_credentials=True 冲突，且等价于完全开放），收紧到本地。
+_ALLOWED_ORIGINS = [
+    "http://localhost:8521",
+    "http://127.0.0.1:8521",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -111,6 +120,20 @@ if _FRONTEND_DIST.is_dir():
     from fastapi.staticfiles import StaticFiles
 
     app.mount("/", StaticFiles(directory=str(_FRONTEND_DIST), html=True), name="frontend")
+
+
+# 全局异常兜底：捕获未处理异常，记录日志并返回统一 500，
+# 避免将堆栈信息泄露给前端（L5 代码健壮性）。
+_logger = logging.getLogger("uvicorn.error")
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    _logger.exception("未捕获异常: %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "服务器内部错误，请联系管理员"},
+    )
 
 
 if __name__ == "__main__":

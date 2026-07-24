@@ -79,13 +79,14 @@ def create_bill(payload: s.ReimbursementBillCreate, db: Session = Depends(get_db
 
 @router.get("/{bid}", response_model=s.ReimbursementBillRead)
 def get_bill(bid: int, db: Session = Depends(get_db)):
-    obj = (
-        db.query(m.ReimbursementBill)
+    stmt = (
+        select(m.ReimbursementBill)
         .options(
             selectinload(m.ReimbursementBill.invoices).selectinload(im.Invoice.details)
         )
-        .get(bid)
+        .where(m.ReimbursementBill.id == bid)
     )
+    obj = db.scalars(stmt).first()
     if not obj:
         raise HTTPException(status_code=404, detail="报销单不存在")
     return obj

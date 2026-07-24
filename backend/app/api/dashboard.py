@@ -9,7 +9,7 @@
 """
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -38,8 +38,8 @@ _FUND_COLORS = {
 @router.get("/summary", response_model=DashboardSummaryResponse)
 def get_summary(db: Session = Depends(get_db)):
     """仪表盘汇总：凭证总数 + 最近业务期间。"""
-    total = db.query(vm.Voucher).count()
-    current_month = db.query(func.max(vm.Voucher.period)).scalar() or ""
+    total = db.scalar(select(func.count()).select_from(vm.Voucher)) or 0
+    current_month = db.scalar(select(func.max(vm.Voucher.period))) or ""
     return DashboardSummaryResponse(voucher_count=total, current_month=current_month)
 
 
@@ -88,7 +88,7 @@ def get_voucher_count(
     db: Session = Depends(get_db),
 ):
     """指定月份的凭证总数（默认全部期间）。"""
-    q = db.query(vm.Voucher)
+    stmt = select(func.count()).select_from(vm.Voucher)
     if month:
-        q = q.filter(vm.Voucher.period == month)
-    return q.count()
+        stmt = stmt.where(vm.Voucher.period == month)
+    return db.scalar(stmt) or 0
