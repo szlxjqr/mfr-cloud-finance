@@ -34,6 +34,23 @@ export interface Invoice {
   details: InvoiceDetail[]
 }
 
+// 发票箱（收口/暂存）记录
+export interface InvoiceInbox {
+  id: number
+  filename: string
+  storage_path: string
+  source: string // upload | box
+  extracted_json?: string | null
+  status: string // pending | recognized | linked | error
+  linked_doc_type?: string | null // reimburse | purchase
+  linked_doc_id?: number | null
+  verify_result?: string | null // none | real | fake | abnormal
+  verify_note?: string | null
+  created_at: string
+  recognized_at?: string | null
+  linked_at?: string | null
+}
+
 export interface InvoiceCreatePayload {
   invoice_type: string
   code?: string | null

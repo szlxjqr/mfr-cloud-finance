@@ -227,6 +227,7 @@ const router = createRouter({
         { path: 'cashier/check-general', name: 'CashierCheckGeneral', component: () => import('@/views/cashier/CashierCheckGeneral.vue'), meta: { title: '核对总账', group: '出纳', module: 'accounting' } },
         // --- 发票 ---
         { path: 'invoice/input', name: 'InvoiceInput', component: () => import('@/views/invoice/InvoiceInput.vue'), meta: { title: '进项发票', group: '发票', module: 'accounting' } },
+        { path: 'invoice/inbox', name: 'InvoiceInbox', component: () => import('@/views/invoice/InvoiceInbox.vue'), meta: { title: '发票箱', group: '发票', module: 'accounting' } },
         { path: 'invoice/output', name: 'InvoiceOutput', component: FeatureDisabled, props: { title: '销项发票', reason: '销项发票需对接税控开票/销售开票数据源，当前仅建模进项发票，暂无销项数据可展示。' }, meta: { title: '销项发票', group: '发票', module: 'accounting' } },
         { path: 'invoice/expense', name: 'InvoiceExpense', component: () => import('@/views/invoice/InvoiceExpense.vue'), meta: { title: '费用发票', group: '发票', module: 'accounting' } },
         { path: 'invoice/title', name: 'InvoiceTitle', component: FeatureDisabled, props: { title: '发票抬头', reason: '发票抬头（购方/销方开票资料）尚未单独建表，需新增抬头管理后启用。' }, meta: { title: '发票抬头', group: '发票', module: 'accounting' } },

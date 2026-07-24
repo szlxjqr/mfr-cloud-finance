@@ -13,6 +13,7 @@ from app.api import company_settings
 from app.api import contracts
 from app.api import dashboard
 from app.api import invoice
+from app.api import invoice_inbox
 from app.api import reimburse
 from app.api import purchase
 from app.api import travel
@@ -32,6 +33,7 @@ from app.models import company as company_model  # noqa: F401 注册公司设置
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
 from app.models import employee as employee_model  # noqa: F401 注册员工/账号模型
 from app.models import invoice as invoice_model  # noqa: F401 注册发票模型
+from app.models import invoice_inbox as invoice_inbox_model  # noqa: F401 注册发票箱模型
 from app.models import reimburse as reimburse_model  # noqa: F401 注册报销单模型
 from app.models import purchase as purchase_model  # noqa: F401 注册采购申请模型
 from app.models import travel as travel_model  # noqa: F401 注册差旅申请模型
@@ -89,6 +91,8 @@ app.include_router(salary.router, prefix="/api", dependencies=_AUTH_DEP)
 app.include_router(salary_settings.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册发票管理路由（进项发票 CRUD + 关联报销单 + 归档 + 凭证草稿）
 app.include_router(invoice.router, prefix="/api", dependencies=_AUTH_DEP)
+# 注册发票箱路由（发票收口/暂存 + 挂接业务单 + 查验登记）
+app.include_router(invoice_inbox.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册登录鉴权路由（登录 / 当前用户）—— 必须保持开放，否则无法登录
 app.include_router(auth.router, prefix="/api")
 # 注册人员管理路由（员工档案 CRUD + 自动建账号）

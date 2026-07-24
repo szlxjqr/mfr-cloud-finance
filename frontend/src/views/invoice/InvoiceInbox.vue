@@ -1,0 +1,284 @@
+<template>
+  <div class="inbox">
+    <div class="toolbar">
+      <el-upload
+        class="uploader"
+        :auto-upload="false"
+        :show-file-list="false"
+        :on-change="onPick"
+        multiple
+        accept=".pdf,.ofd,.png,.jpg,.jpeg"
+      >
+        <el-button type="primary" :loading="uploading">批量上传并识别</el-button>
+      </el-upload>
+      <el-input
+        v-model="keyword"
+        placeholder="搜索文件名/销售方/税号"
+        clearable
+        style="width: 240px"
+        @clear="load"
+        @keyup.enter="load"
+      />
+      <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 130px" @change="load">
+        <el-option label="待识别" value="pending" />
+        <el-option label="已识别" value="recognized" />
+        <el-option label="已挂接" value="linked" />
+      </el-select>
+      <el-button @click="load">刷新</el-button>
+    </div>
+
+    <!-- 拖拽上传区 -->
+    <div
+      class="dropzone"
+      :class="{ dragover }"
+      @dragover.prevent="dragover = true"
+      @dragleave.prevent="dragover = false"
+      @drop.prevent="onDrop"
+    >
+      拖拽发票文件到此处（PDF / OFD / 图片），自动 OCR + 结构化
+    </div>
+
+    <el-table :data="rows" v-loading="loading" stripe border empty-text="发票箱为空，拖拽或上传发票开始">
+      <el-table-column prop="filename" label="文件名" min-width="160" />
+      <el-table-column label="提取摘要" min-width="200">
+        <template #default="{ row }">
+          <span v-if="row.extracted_json">{{ summary(row) }}</span>
+          <span v-else class="muted">（未识别）</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="statusTag(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="查验" width="100">
+        <template #default="{ row }">
+          <el-tag v-if="row.verify_result && row.verify_result !== 'none'" :type="verifyTag(row.verify_result)" size="small">
+            {{ verifyText(row.verify_result) }}
+          </el-tag>
+          <span v-else class="muted">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="挂接" min-width="120">
+        <template #default="{ row }">
+          <span v-if="row.linked_doc_type === 'reimburse'">报销单 #{{ row.linked_doc_id }}</span>
+          <span v-else-if="row.linked_doc_type === 'purchase'">采购申请 #{{ row.linked_doc_id }}</span>
+          <span v-else class="muted">—</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="240" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" @click="openLink(row)" :disabled="row.status === 'linked'">挂接</el-button>
+          <el-button size="small" @click="openVerify(row)" :disabled="!row.extracted_json">查验</el-button>
+          <el-button size="small" type="danger" plain @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 挂接对话框 -->
+    <el-dialog v-model="linkVisible" title="挂接到业务单" width="420px">
+      <el-form label-width="90px">
+        <el-form-item label="业务单类型">
+          <el-radio-group v-model="linkForm.docType">
+            <el-radio value="reimburse">报销单</el-radio>
+            <el-radio value="purchase">采购申请</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item :label="linkForm.docType === 'reimburse' ? '报销单 ID' : '采购申请 ID'">
+          <el-input-number v-model="linkForm.docId" :min="1" :controls="true" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="linkVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmLink">确认挂接</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 查验对话框 -->
+    <el-dialog v-model="verifyVisible" title="发票查验（跳税务局平台人工核对）" width="420px">
+      <el-alert type="info" :closable="false" style="margin-bottom: 12px">
+        系统对接税务局查验 API 为 P1 后续；本期请在
+        <a href="https://inv-veri.chinatax.gov.cn" target="_blank" rel="noopener">全国增值税发票查验平台</a>
+        按 发票号码 / 税号 / 金额 / 日期 核对后，回填结果。
+      </el-alert>
+      <el-form label-width="90px">
+        <el-form-item label="结果">
+          <el-radio-group v-model="verifyForm.result">
+            <el-radio value="real">真</el-radio>
+            <el-radio value="fake">假</el-radio>
+            <el-radio value="abnormal">异常</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="verifyForm.note" type="textarea" :rows="2" placeholder="可填查验时间/平台单号" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="verifyVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmVerify">记录结果</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { inboxApi } from '@/api/inboxApi'
+import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
+import type { InvoiceInbox } from '@/types/invoice'
+
+const rows = ref<InvoiceInbox[]>([])
+const loading = ref(false)
+const uploading = ref(false)
+const keyword = ref('')
+const statusFilter = ref<string | undefined>(undefined)
+const dragover = ref(false)
+
+const linkVisible = ref(false)
+const linkForm = reactive({ id: 0, docType: 'reimburse', docId: 1 })
+const verifyVisible = ref(false)
+const verifyForm = reactive({ id: 0, result: 'real', note: '' })
+
+async function load() {
+  loading.value = true
+  try {
+    const res = await inboxApi.list({ status: statusFilter.value, keyword: keyword.value || undefined })
+    rows.value = res.data
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载发票箱失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+function summary(row: InvoiceInbox): string {
+  if (!row.extracted_json) return '—'
+  try {
+    const p = JSON.parse(row.extracted_json) as ParsedInvoice
+    const parts: string[] = []
+    if (p.sellerName) parts.push(p.sellerName)
+    if (p.total) parts.push('¥' + p.total)
+    return parts.join('  ')
+  } catch {
+    return '—'
+  }
+}
+
+function statusText(s: string): string {
+  return { pending: '待识别', recognized: '已识别', linked: '已挂接', error: '异常' }[s] || s
+}
+function statusTag(s: string): 'info' | 'primary' | 'success' | 'danger' {
+  return ({ pending: 'info', recognized: 'primary', linked: 'success', error: 'danger' }[s] || 'info') as 'info' | 'primary' | 'success' | 'danger'
+}
+function verifyText(s: string): string {
+  return { real: '真', fake: '假', abnormal: '异常' }[s] || s
+}
+function verifyTag(s: string): 'success' | 'danger' | 'warning' {
+  return ({ real: 'success', fake: 'danger', abnormal: 'warning' }[s] || 'info') as 'success' | 'danger' | 'warning'
+}
+
+// 解析 + 上传（批量识别核心）：解析失败也上传原文件（置 pending）
+async function handleFiles(files: File[]) {
+  uploading.value = true
+  let ok = 0
+  for (const f of files) {
+    let json = ''
+    try {
+      const parsed = await parseInvoiceFile(f)
+      json = JSON.stringify(parsed)
+    } catch (e) {
+      console.warn('解析失败，仅上传原文件', f.name, e)
+    }
+    try {
+      await inboxApi.upload(f, json)
+      ok++
+    } catch (e: any) {
+      ElMessage.error((e?.response?.data?.detail || '上传失败') + '：' + f.name)
+    }
+  }
+  uploading.value = false
+  if (ok) ElMessage.success(`已上传并识别 ${ok} 张`)
+  load()
+}
+
+function onPick(_: any, fileList: any[]) {
+  // el-upload 的 on-change：仅取本次新增文件
+  const files = (fileList as any[]).map((f) => f.raw).filter(Boolean) as File[]
+  if (files.length) handleFiles(files)
+}
+
+function onDrop(e: DragEvent) {
+  dragover.value = false
+  const files = Array.from(e.dataTransfer?.files || [])
+  if (files.length) handleFiles(files)
+}
+
+function openLink(row: InvoiceInbox) {
+  linkForm.id = row.id
+  linkForm.docType = 'reimburse'
+  linkForm.docId = 1
+  linkVisible.value = true
+}
+async function confirmLink() {
+  if (!linkForm.docId) {
+    ElMessage.warning('请输入业务单 ID')
+    return
+  }
+  try {
+    await inboxApi.link(linkForm.id, linkForm.docType, linkForm.docId)
+    ElMessage.success('已挂接并生成正式发票')
+    linkVisible.value = false
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '挂接失败')
+  }
+}
+
+function openVerify(row: InvoiceInbox) {
+  verifyForm.id = row.id
+  verifyForm.result = 'real'
+  verifyForm.note = ''
+  verifyVisible.value = true
+}
+async function confirmVerify() {
+  try {
+    await inboxApi.verify(verifyForm.id, verifyForm.result, verifyForm.note || undefined)
+    ElMessage.success('已记录查验结果')
+    verifyVisible.value = false
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '记录失败')
+  }
+}
+
+async function remove(row: InvoiceInbox) {
+  try {
+    await ElMessageBox.confirm(`确认删除「${row.filename}」？原文件一并移除。`, '删除确认', {
+      type: 'warning',
+    })
+  } catch {
+    return
+  }
+  try {
+    await inboxApi.remove(row.id)
+    ElMessage.success('已删除')
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '删除失败')
+  }
+}
+
+onMounted(load)
+</script>
+
+<style scoped>
+.inbox { padding: 16px; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.dropzone {
+  border: 2px dashed #dcdfe6; border-radius: 8px; padding: 28px;
+  text-align: center; color: #909399; margin-bottom: 16px; transition: .2s;
+}
+.dropzone.dragover { border-color: #409eff; color: #409eff; background: #ecf5ff; }
+.muted { color: #c0c4cc; }
+</style>

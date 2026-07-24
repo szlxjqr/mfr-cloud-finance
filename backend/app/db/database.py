@@ -62,9 +62,11 @@ def init_db() -> None:
     from app.models import salary_setting as _salary_setting  # noqa: F401
     from app.models import fixed_asset as _fixed_asset  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
+    from app.models import invoice_inbox as _invoice_inbox  # noqa: F401 注册发票箱模型
 
     Base.metadata.create_all(bind=engine)
     _ensure_invoice_code_column(engine)
+    _ensure_invoice_columns(engine)
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
     _ensure_employees_columns(engine)
@@ -90,9 +92,25 @@ def _ensure_invoice_code_column(engine) -> None:
         return
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE invoices ADD COLUMN invoice_code VARCHAR(16)"))
-        conn.execute(
+            conn.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_code ON invoices(invoice_code)")
         )
+
+
+def _ensure_invoice_columns(engine) -> None:
+    """为已存在的 invoices 表补加「采购申请」外键列。
+
+    SQLite 的 create_all 只会建缺失的表、不会给已存在的表加列，故单独处理；
+    新库由模型约束建好，跳过即可。
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("invoices")]
+    if "purchase_requisition_id" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE invoices ADD COLUMN purchase_requisition_id INTEGER"))
 
 
 def _ensure_reimbursement_bills_columns(engine) -> None:

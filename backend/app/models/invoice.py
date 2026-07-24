@@ -10,7 +10,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -42,6 +42,13 @@ class Invoice(Base):
     bill: Mapped[Optional["ReimbursementBill"]] = relationship(
         "ReimbursementBill",
         back_populates="invoices",
+    )
+    # 关联采购申请（采购类发票挂接到采购单，与报销单平行）
+    purchase_requisition_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("purchase_requisitions.id"), nullable=True, index=True
+    )
+    purchase_requisition: Mapped[Optional["PurchaseRequisition"]] = relationship(
+        "PurchaseRequisition",
     )
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 归档附件路径（PDF/OFD）
     route_info: Mapped[Optional[str]] = mapped_column(String(100))  # 路线（火车票/机票用）

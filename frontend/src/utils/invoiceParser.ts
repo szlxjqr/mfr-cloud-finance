@@ -20,19 +20,10 @@ const CMAP_PACKED = true
 const STANDARD_FONT_DATA_URL = '/standard_fonts/'
 
 // 复用纯字段提取（来自 invoiceFields.ts）
-export {
-  extractInvoiceFields,
-  extractLineItems,
-  validateInvoice,
-  verifyInvoice,
-  parseMoney,
-} from './invoiceFields'
-export type {
-  ParsedInvoice,
-  ParsedLineItem,
-  ValidationResult,
-  VerifyResult,
-} from './invoiceFields'
+import { extractInvoiceFields, extractLineItems, validateInvoice, verifyInvoice } from './invoiceFields'
+import type { ParsedInvoice, ParsedLineItem, ValidationResult, VerifyResult } from './invoiceFields'
+export { extractInvoiceFields, extractLineItems, validateInvoice, verifyInvoice }
+export type { ParsedInvoice, ParsedLineItem, ValidationResult, VerifyResult }
 
 // 判断提取文本是否过空（标签与值相隔极远或字体无法解码），决定是否需要 OCR 兜底
 function looksEmpty(text: string): boolean {
@@ -87,13 +78,14 @@ async function extractPdfText(buf: ArrayBuffer): Promise<string> {
     // 按 y 行分组（四舍五入到 3 单位，容忍基线抖动）
     const lines = new Map<number, any[]>()
     for (const it of items) {
-      const y = Math.round((it.transform[5] ?? 0) / 3) * 3
+      const t = it as any
+      const y = Math.round((t.transform[5] ?? 0) / 3) * 3
       if (!lines.has(y)) lines.set(y, [])
       lines.get(y)!.push(it)
     }
     const ys = [...lines.keys()].sort((a, b) => b - a) // 从上到下
     for (const y of ys) {
-      const row = lines.get(y)!.sort((a, b) => (a.transform[4] ?? 0) - (b.transform[4] ?? 0))
+      const row = lines.get(y)!.sort((a, b) => ((a as any).transform[4] ?? 0) - ((b as any).transform[4] ?? 0))
       text += row.map((it) => it.str).join('') + '\n'
     }
     text += '\n'

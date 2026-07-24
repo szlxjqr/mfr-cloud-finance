@@ -7,6 +7,7 @@
         <el-option v-for="s in statusOptions" :key="s" :label="s" :value="s" />
       </el-select>
       <el-button type="primary" @click="load">刷新</el-button>
+      <el-button type="success" @click="recognizeVisible = true">上传发票/重新识别</el-button>
     </div>
 
     <el-table :data="list" border stripe v-loading="loading" empty-text="暂无报销单">
@@ -71,6 +72,7 @@
         </div>
       </template>
     </el-dialog>
+    <InvoiceRecognizeDialog v-model:visible="recognizeVisible" @confirm="onInvoiceConfirm" />
   </div>
 </template>
 
@@ -81,6 +83,7 @@ import { reimburseApi } from '@/api/reimburse'
 import type { ReimbursementBill } from '@/types/reimburse'
 import BillDetail from './BillDetail.vue'
 import TravelBillDetail from './TravelBillDetail.vue'
+import InvoiceRecognizeDialog from '@/components/InvoiceRecognizeDialog.vue'
 
 const loading = ref(false)
 const list = ref<ReimbursementBill[]>([])
@@ -88,6 +91,7 @@ const applicant = ref('沈雷')
 const statusFilter = ref('')
 const detailVisible = ref(false)
 const currentBill = ref<ReimbursementBill | null>(null)
+const recognizeVisible = ref(false)
 
 const billType = (b: ReimbursementBill) => b.bill_type || '采购报销'
 const detailTitle = computed(() =>
@@ -233,6 +237,10 @@ function printDetail() {
 }
 
 onMounted(load)
+
+function onInvoiceConfirm(parsed: any) {
+  ElMessage.success(`已识别：${parsed.sellerName || ''} ¥${parsed.total || ''}。发票已存入发票箱（可在发票箱页面查看），新建报销单时可引用。`)
+}
 </script>
 
 <style scoped>
