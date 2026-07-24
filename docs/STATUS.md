@@ -11,9 +11,9 @@
 
 - **产品名**：智慧经营（原 "MFR智慧经营" 已全局统一为 "智慧经营"，含 backend/doc/前端）
 - **定位**：中小企业智慧经营系统（对标 WP5 智慧经营截图）
-- **前端栈**：Vue 3 `<script setup>` + TypeScript + Vite（rolldown 打包）+ Element Plus + ECharts + Pinia + Vue Router(Hash)
-- **后端栈**：FastAPI（Python 3.11）+ CORS，目前以 Mock 数据为主
-- **绝对路径**：`/workspace/mfr-cloud-finance/`（本地电脑无此路径，跨任务/本地靠 git clone 或 T 网盘（tdrive）获取）
+- **前端栈**：Vue 3 `<script setup>` + TypeScript + Vite + Element Plus + ECharts + Pinia + Vue Router(Hash)
+- **后端栈**：FastAPI（Python 3.9）+ CORS，SQLite 数据库
+- **绝对路径**：`/Users/szlxjqr/Developer/mfr-cloud-finance/`（本机开发目录）
 
 ---
 
@@ -21,18 +21,15 @@
 
 | 项 | 值 |
 |---|---|
-| 项目根目录 | `/workspace/mfr-cloud-finance` |
-| **Git 仓库根** | `/workspace`（项目在子目录 `mfr-cloud-finance/`；完整前端依赖 `frontend/node_modules` 已随 git 提交，约 1.4 万文件） |
-| Git 远程 | `git@github.com:szlxjqr/mfr-cloud-finance.git`（SSH，公开仓库） |
-| 当前分支 | `main`（HEAD 见 `git log`；2026-07-23 已含 报表/资产/工资/合同/打印 等模块） |
-| 预览地址 | `https://webview.e2b.bj9.sandbox.cloudstudio.club/?x-cs-sandbox-id=2a28c3ff07dc470ca7e399c5464b5f7f&x-cs-sandbox-port=8137` |
-| 预览服务 | `python3 -m http.server 8137 --bind 0.0.0.0`（服务 `frontend/dist`，Hash 路由刷新安全） |
-| SSH 配置 | `~/.ssh/config` → `github.com` 走 `ssh.github.com:443`（沙箱 22 端口被封） |
-| 前端源码文件数 | 35（`.vue` + `.ts`） |
+| 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
+| Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
+| 当前分支 | `main`（HEAD: `69fb574` feat(invoice): 发票识别工具 P0） |
+| 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
+| 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
+| 生产构建 | `frontend/dist/`（`npm run build` 产出） |
+| 前端源码文件数 | ~50（`.vue` + `.ts`） |
 | 科目数据 | 后端 `account_subjects` 表（28 个权威科目，由 `GET /subjects` 提供；前端原 `accountData.ts` 187 静态科目已删，统一到后端源） |
-| **本文件 T 网盘位置** | T 网盘（tdrive）根目录 `IxkOwRcwRUxu`，`file_id: IzMjhnpPfZrG`（其他任务可先读此文件再连 git；**权威源仍为 GitHub `docs/STATUS.md`**） |
-| **T 网盘源码包（tdrive）** | `mfr-cloud-finance-src.tar.gz`（已排除 node_modules/dist/.git），`file_id: InrDRdZmGnAs`；git 连不上时的兜底获取方式 |
-| **SSH 私钥交接** | 临时文件 `T1.md`（在 T 网盘根目录 `IxkOwRcwRUxu`）含 ed25519 私钥；用完即删，**绝不下 git**。新任务取到后存为 `~/.ssh/id_ed25519` + `chmod 600` |
+| 测试套件 | 23 个 pytest 回归测试 + 34 个 invoice 离线字段提取测试 |
 
 ---
 
@@ -56,11 +53,24 @@
 | 报销单号规则 | ✅ | 单号 = `BXGL` + 4位年份 + 4位年自增（如 `BXGL20260001`）；新增 `GET /api/reimbursements/next-bill-no` 预占接口，新建弹窗预览单号、保存时以入库值为准 |
 | 报销单关联多张发票（录入式） | ✅ | 报销单编辑态「增加发票」按钮 → 弹出发票录入弹窗（类型/日期/销方/结算科目/明细行，税额自动算），保存即关联该报销单；保存后自动按关联发票汇总回填报销金额 |
 
+### 发票识别工具进度（2026-07-24 P0 落地）
+
+| 功能 | 状态 | 说明 |
+|---|---|---|
+| 宽松发票字段解析 (invoiceFields.ts) | ✅ | 格式无关/宽松匹配：CJK 标签还原、名称锚点顺序购→销、金额三元组、价税合计/账单实付兜底、火车票中国铁路；两税号 jammed 时按 18 位等分拆分。13 真实样本 pass=67/fail=0。 |
+| 版面感知 PDF 文本提取 | ✅ | `invoiceParser.ts` 按行分组、按 x 排序、无空格拼接，修复 pdfjs 字形拆开打碎标签问题。 |
+| 脱敏离线回归测试 | ✅ | `tests/invoice_accuracy.mjs` + 5 fixtures（专票/机票/酒店/火车/账单），pass=34/fail=0。 |
+| 发票箱页 (InvoiceInbox.vue) | ✅ | 拖拽上传→浏览器 parse→存后端+原文件；状态机(待识别/已识别/已挂接)、挂接(报销单/采购申请)生成正式进项发票、查验结果登记(P1轻量版)。 |
+| 内嵌识别弹窗 (InvoiceRecognizeDialog.vue) | ✅ | 报销/采购录入界面上传即识别、字段可编辑、确认填入表单或存入发票箱。 |
+| 后端发票箱 API | ✅ | 独立 `invoice_inbox` 表 + 7 端点(上传/列表/校正/挂接/查验/删除)；Invoice 模型新增 `purchase_requisition_id` FK；列迁移防重复。 |
+| OCR 兜底 | ✅ P0 | 前端 tesseract.js（零部署），补图片型发票识别缺口；更准后端 OCR 留 P2。 |
+| 查验 | 🟡 P1 轻量版 | 跳官方查验页 + 人工登记结果，完整 API 对接留 P1 末/P2。 |
+| 文档 | ✅ | `docs/prd-invoice-recognition.md` + `docs/architecture-invoice-recognition.md` |
+
 ### 科目数据进度
-- **187 个标准科目**已由 Excel (`getExcel.xls`) 初始化到 `accountData.ts`
-- 分布：资产 44 / 负债 57 / 权益 14 / 成本 7 / 损益 65
-- 三级嵌套：4 位(一级) / 7 位(二级) / 10 位(三级)，前缀匹配父子关系
-- 渲染：`Account.vue` 用 `expandedIds`(Set) + `flatten()` 扁平化为 `visibleRows`，支持展开/折叠/搜索/行选中（默认选中 应收账款 1122）
+- **28 个权威科目种子**（资产8/负债7/权益3/成本3/损益7，末级 27 含 2221 应交税费树）由后端 `_seed_subjects()` 在 `init_db()` 时自动填充。
+- 编码为带点风格（如 `2221.01.01`）。
+- 开发库实际仅用 6 个码：1403 / 2202 / 2221.01.01 / 2241 / 4301 / 5602。系统当前极简够用。
 
 ---
 
@@ -68,10 +78,9 @@
 
 | 主题 | 结论 / 做法 |
 |---|---|
-| **刷新 404** | 原 History 模式 + `http.server` 无 SPA fallback 会 404 → 改 `createWebHashHistory()`，URL 形如 `/#/settings/account` |
-| **GitHub 22 端口被封** | `ssh -T git@github.com` 超时 → `~/.ssh/config` 配 `Hostname ssh.github.com` + `Port 443` 解决。**注意：此方案仅对"22 封但 443 通"的沙箱有效**；部分沙箱把 github.com 全域透明代理拦截（DNS 解析到 `198.18.x.x`、SSH/HTTPS 全断），那种**直连走不通，必须走中转模式（见第 8 节）** |
-| **`git push` HTTP/2 卡死** | 443 实际连通（curl 直连 HTTPS 正常），但 git 默认走 HTTP/2 多路复用（`can multiplex`）卡在 TLS 协商 → 加 `GIT_HTTP_VERSION=1.1 git push` 立即成功。**排查顺序**：先 `python3 -c "socket.create_connection(('github.com',443))"` 验端口，再 `curl -v https://github.com` 验 TLS，最后 `GIT_CURL_VERBOSE=1 git push` 看卡在哪一环；不要一上来就怀疑断网 |
-| **认证方式** | 已弃用 PAT token（曾失效），统一走 **SSH over 443**，免密推送。**SSH key 不要删**（删了配对失效，推送断） |
+| **刷新 404** | 原 History 模式 + 静态服务无 SPA fallback 会 404 → 改 `createWebHashHistory()`，URL 形如 `/#/settings/account` |
+| **`git push` HTTP/2 卡死** | 443 实际连通（curl 直连 HTTPS 正常），但 git 默认走 HTTP/2 多路复用（`can multiplex`）卡在 TLS 协商 → 加 `GIT_HTTP_VERSION=1.1 git push` 立即成功。本机实测 OK。 |
+| **认证方式** | HTTPS 远程（`https://github.com/szlxjqr/mfr-cloud-finance.git`），无 SSH key。 |
 | **品牌统一** | "MFR智慧经营" → "智慧经营"，`git grep` 已验证无残留 |
 | **侧边栏分级缩进** | 宽 `200px → 224px`；CSS 变量 `--lv1-pad:6px / --lv2-pad:30px / --lv3-pad:44px` 控制一/二/三级缩进 |
 | **科目表树形渲染** | 早期为内联 Mock 平铺 → 改为 `accountData.ts` + 扁平化展开，模板 `v-for="row in visibleRows"` 用 `row.node.xxx` 与 `row.depth` 缩进 |
@@ -83,19 +92,28 @@
 ## 5. 常用命令
 
 ```bash
-# 构建（务必在 frontend 目录）
-cd /workspace/mfr-cloud-finance/frontend && npm run build
+# 后端启动
+cd /Users/szlxjqr/Developer/mfr-cloud-finance/backend
+.venv/bin/python -m uvicorn app.main:app --port 8521 --reload
 
-# 重启预览（先按端口结束旧进程，避免 pkill 误杀）
-fuser -k 8137/tcp
-cd /workspace/mfr-cloud-finance/frontend && setsid python3 -m http.server 8137 --bind 0.0.0.0 < /dev/null > /tmp/preview8137.log 2>&1 &
+# 前端开发
+cd /Users/szlxjqr/Developer/mfr-cloud-finance/frontend && npm run dev
+
+# 构建
+cd /Users/szlxjqr/Developer/mfr-cloud-finance/frontend && npm run build
+
+# 后端测试
+cd /Users/szlxjqr/Developer/mfr-cloud-finance/backend && .venv/bin/python -m pytest -q
+
+# 前端 invoice 离线回归测试
+cd /Users/szlxjqr/Developer/mfr-cloud-finance/frontend && node tests/invoice_accuracy.mjs
 
 # 提交与推送
-cd /workspace/mfr-cloud-finance
-git add -A && git commit -m "..." && git push origin main
+cd /Users/szlxjqr/Developer/mfr-cloud-finance
+git add -A && git commit -m "..." && GIT_HTTP_VERSION=1.1 git push origin main
 
-# 跨任务/本地获取文件
-git clone git@github.com:szlxjqr/mfr-cloud-finance.git   # 或用 T 网盘（tdrive）src 包
+# 本机终端直接推送（gitconfig 已有 HTTP/1.1 降级时）
+git push origin main
 ```
 
 ---
@@ -296,3 +314,9 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   24. 2026-07-24 晚 收尾：STATUS §6 两条历史残留待办（凭证录入页科目选择器优化 / accountData.ts 迁后端）经探查证实已过时——① 凭证录入页(Voucher.vue)本身是「功能待启用」占位（避免孤立手工凭证的产品决策），无科目选择器可优化；② 后端 `/subjects` API 早在 B 联动地基阶段已建（account_subjects 表 + 种子），科目管理(Account.vue)已接后端，而 `accountData.ts`（187 纯数字编码）仅被期初余额(Opening.vue)引用，是与后端凭证体系不兼容的前端演示残留。**重解读落地**：期初余额(Opening.vue)改为接后端 `listSubjects()`（统一到后端 28 个权威科目），删除死文件 `accountData.ts`；科目管理(Account.vue)「新增科目」弹窗的「上级编码」手填 input 升级为 **el-tree-select 科目树选择器**（选父级自动带出类别/方向/层级、提示编码前缀）；凭证录入页保持占位不动。前端构建(vue-tsc)通过；起后端 urllib 联调 `/api/subjects` 返回 200 + 28 个科目（含 2221 应交税费树），数据源统一无误。
 - **对应提交**：`a41588f`（发票报销功能）、`aaaae4c`（STATUS 进度更新）、`21f909e`（单号+增加发票）、`e0fd4b8`（STATUS）、`95dd9bc`（重复校验修复）、`df3ce53`（16位发票编码+并发安全生成器）、`3ab900d`（一级审批流程）、`475fda7`（我的报销+物品报销单详情）、`5ad4a7a`（STATUS 记录）、`f4faf53`（详情页版式微调）、`3a5f301`（一行一发票汇总式）、`c55a157`（发票方框卡片）、`bc3ad58`（火车票风卡片）、`a8b461b`（卡片布局优化：编码日期露全/类型缩写/价税区缩小/物品字号调小）、`de17513`（发票号码+开票日期分行）、`83c8d6c`（类型标签改为号码后缀）、`5de3faa`（类型徽章移到左侧空白区并放大美化）、`206057b`（登机牌式紧凑发票卡片）、`2fd7fc8`（黑白灰度打印友好方案，物品改为内容）、`81cd147`（发票卡片定稿打磨）、`019b3ae`（采购报销单打印版式整体重排）、`b811137`（汇总表头换行：报销金额/支付金额（元）分两行）、`1ae8ca8`（修复发票识别购销方互换：按标签定位提取 buyer/seller）、`11d9acd`（chore：开发库 smart_finance.db 纳入 git，.gitignore 加例外）、`0bdb981`（fix：A4 打印分页初版，后证实方向偏差）、`4a6864d`（fix：报销单打印改为独立打印窗口，根治 el-dialog 固定定位裁切头部）
 - **坑**：① `npm run build` 的 `vue-tsc -b` 类型校验——`ReimbursementBill.bill_no` 为 `string | null | undefined`，赋给 `form.bill_no`（`string | null`）需 `?? null` 兜底；② 8521 端口若被上次会话遗留的旧后端占用，新进程会 bind 失败（`address already in use`），需先 `lsof -ti tcp:8521 | xargs kill` 再起；③ `git push` 仍走 `GIT_HTTP_VERSION=1.1`（见 §4，HTTPS 远程）。
+- **（本轮 2026-07-24 晚间）**：
+  - 25. 发票解析器 #2 全面宽松化改造 + 脱敏离线回归测试落地（commit `b9f09ec`）。13 真实样本 pass=67/fail=0；fixture 回归 pass=34/fail=0。
+  - 26. 发票识别工具 P0 完整上线：发票箱页、内嵌识别弹窗、后端 `invoice_inbox` 表 + 7 端点 API；报销/采购录入嵌入上传按钮；`Invoice` 模型新增 `purchase_requisition_id` FK（commit `69fb574`）。含 PRD + 架构文档。
+  - 27. 上线前全面检查完成（本报告同级目录 `deliverables/gstack/pre-launch-check-checkout-2026-07-24.md`）：🟢 条件 Go，0 🔴 阻塞项，2 🟠 建议上线前修复（部署配置/CORS域名），5 🟡 后续迭代。
+  - 28. STATUS.md 全篇更新：移除沙箱/SSH/CloudStudio 残留，补充发票识别工具进度表，命令改为本机路径。`__init__.py` 补充 `InvoiceInbox` 导出。
+- **对应提交**：`b9f09ec`（发票宽松解析）、`69fb574`（发票识别工具P0）

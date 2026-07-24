@@ -92,7 +92,7 @@ def _ensure_invoice_code_column(engine) -> None:
         return
     with engine.begin() as conn:
         conn.execute(text("ALTER TABLE invoices ADD COLUMN invoice_code VARCHAR(16)"))
-            conn.execute(
+        conn.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS uq_invoice_code ON invoices(invoice_code)")
         )
 
