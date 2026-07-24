@@ -14,8 +14,8 @@ const loading = ref(false)
 const data = ref<ComprehensiveOverview | null>(null)
 const pageRef = ref<HTMLElement>()
 
-const VAT_COLOR = '#E6A23C'
-const CARRY_COLOR = '#909399'
+const VAT_COLOR = '#D85A30'
+const CARRY_COLOR = '#B4B2A9'
 
 async function load() {
   loading.value = true
@@ -35,9 +35,9 @@ const kpis = computed(() => {
   if (!d) return []
   const vat = d.tax.vat_payable
   return [
-    { label: '凭证总数', value: String(d.voucher.total), color: '#409EFF' },
-    { label: '待审批业务单', value: String(d.business.pending_total), color: '#F56C6C' },
-    { label: '本期进项税额', value: formatCurrency(d.tax.input_tax), color: '#67C23A' },
+    { label: '凭证总数', value: String(d.voucher.total), color: '#378ADD' },
+    { label: '待审批业务单', value: String(d.business.pending_total), color: '#D85A30' },
+    { label: '本期进项税额', value: formatCurrency(d.tax.input_tax), color: '#639922' },
     {
       label: d.tax.carryforward ? '留抵税额' : '本期应交增值税',
       value: formatCurrency(Math.abs(vat)),
@@ -51,8 +51,8 @@ const taxRows = computed(() => {
   const t = data.value?.tax
   if (!t) return []
   return [
-    { name: '进项税额', value: t.input_tax, color: '#409EFF' },
-    { name: '销项税额', value: t.output_tax, color: '#67C23A' },
+    { name: '进项税额', value: t.input_tax, color: '#378ADD' },
+    { name: '销项税额', value: t.output_tax, color: '#639922' },
     { name: '应交增值税', value: Math.max(t.vat_payable, 0), color: VAT_COLOR },
     { name: '留抵税额', value: t.carryforward ? -t.vat_payable : 0, color: CARRY_COLOR },
   ]
@@ -83,15 +83,15 @@ const revenueOption = computed<EChartsOption>(() => {
         symbol: 'circle',
         symbolSize: 6,
         data: trend.map((d) => d.revenue),
-        itemStyle: { color: '#409EFF' },
-        lineStyle: { width: 3, color: '#409EFF' },
+        itemStyle: { color: '#378ADD' },
+        lineStyle: { width: 3, color: '#378ADD' },
         areaStyle: {
           color: {
             type: 'linear',
             x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: 'rgba(64,158,255,0.30)' },
-              { offset: 1, color: 'rgba(64,158,255,0.02)' },
+              { offset: 0, color: 'rgba(55,138,221,0.30)' },
+              { offset: 1, color: 'rgba(55,138,221,0.02)' },
             ],
           },
         },
@@ -246,7 +246,7 @@ function onExportPdf() {
             <el-descriptions-item label="采购申请">{{ statusText(data?.business.purchase) }}</el-descriptions-item>
             <el-descriptions-item label="差旅申请">{{ statusText(data?.business.travel) }}</el-descriptions-item>
             <el-descriptions-item label="待审批合计">
-              <b style="color:#F56C6C">{{ data?.business.pending_total ?? 0 }}</b> 笔
+              <b style="color:#D85A30">{{ data?.business.pending_total ?? 0 }}</b> 笔
             </el-descriptions-item>
             <el-descriptions-item label="凭证总数">{{ data?.voucher.total ?? 0 }} 张</el-descriptions-item>
             <el-descriptions-item label="所选期间凭证数">{{ data?.voucher.period_count ?? 0 }} 张</el-descriptions-item>

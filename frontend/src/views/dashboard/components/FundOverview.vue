@@ -13,12 +13,12 @@ const funds = ref<FundItem[]>([])
 
 /** 后端不可用时的演示数据（与接口结构一致） */
 const fallback: FundItem[] = [
-  { name: '现金', amount: 156820.5, color: '#E6A23C', unit: '元' },
-  { name: '银行存款', amount: 842310.75, color: '#67C23A', unit: '元' },
-  { name: '应收账款', amount: 312500, color: '#409EFF', unit: '元' },
-  { name: '应付账款', amount: 198640, color: '#909399', unit: '元' },
-  { name: '主营业务收入', amount: 1256000, color: '#F56C6C', unit: '元' },
-  { name: '管理费用', amount: 86420.3, color: '#00CED1', unit: '元' },
+  { name: '现金', amount: 156820.5, color: '#EF9F27', unit: '元' },
+  { name: '银行存款', amount: 842310.75, color: '#639922', unit: '元' },
+  { name: '应收账款', amount: 312500, color: '#378ADD', unit: '元' },
+  { name: '应付账款', amount: 198640, color: '#B4B2A9', unit: '元' },
+  { name: '主营业务收入', amount: 1256000, color: '#D85A30', unit: '元' },
+  { name: '管理费用', amount: 86420.3, color: '#1D9E75', unit: '元' },
 ]
 
 async function load() {

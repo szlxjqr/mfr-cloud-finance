@@ -69,13 +69,13 @@ const topTabs: TopTab[] = [
     <!-- 关键指标（KpiTile 示范） -->
     <el-row :gutter="16" class="row-gap">
       <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="本月凭证" :value="kpi.voucher" delta-label="张" icon="Document" accent="brand" />
+        <KpiTile label="本月凭证" :value="kpi.voucher" delta-label="张" icon="Document" accent="brand" color="#D85A30" />
       </el-col>
       <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="资金总额" :value="formatCurrency(kpi.fund)" icon="Wallet" accent="success" />
+        <KpiTile label="资金总额" :value="formatCurrency(kpi.fund)" icon="Wallet" accent="success" color="#639922" />
       </el-col>
       <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="应交税费" :value="formatCurrency(kpi.tax)" icon="Money" accent="warning" />
+        <KpiTile label="应交税费" :value="formatCurrency(kpi.tax)" icon="Money" accent="warning" color="#EF9F27" />
       </el-col>
     </el-row>
 

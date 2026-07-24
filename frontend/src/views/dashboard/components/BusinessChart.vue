@@ -71,8 +71,8 @@ const option = computed<EChartsOption>(() => ({
       symbol: 'circle',
       symbolSize: 6,
       data: data.value.map((d) => d.value),
-      itemStyle: { color: '#409EFF' },
-      lineStyle: { width: 3, color: '#409EFF' },
+      itemStyle: { color: '#378ADD' },
+      lineStyle: { width: 3, color: '#378ADD' },
       areaStyle: {
         color: {
           type: 'linear',
@@ -81,8 +81,8 @@ const option = computed<EChartsOption>(() => ({
           x2: 0,
           y2: 1,
           colorStops: [
-            { offset: 0, color: 'rgba(64,158,255,0.30)' },
-            { offset: 1, color: 'rgba(64,158,255,0.02)' },
+            { offset: 0, color: 'rgba(55,138,221,0.30)' },
+            { offset: 1, color: 'rgba(55,138,221,0.02)' },
           ],
         },
       },

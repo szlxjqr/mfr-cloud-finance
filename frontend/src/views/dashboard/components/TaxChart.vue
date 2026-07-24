@@ -15,10 +15,10 @@ const data = ref<TaxItem[]>([])
 
 /** 后端不可用时的演示数据 */
 const fallback: TaxItem[] = [
-  { name: '增值税', value: 12000, color: '#409EFF' },
-  { name: '企业所得税', value: 8000, color: '#67C23A' },
-  { name: '城建税', value: 3000, color: '#E6A23C' },
-  { name: '其他税费', value: 1500, color: '#909399' },
+  { name: '增值税', value: 12000, color: '#378ADD' },
+  { name: '企业所得税', value: 8000, color: '#639922' },
+  { name: '城建税', value: 3000, color: '#EF9F27' },
+  { name: '其他税费', value: 1500, color: '#B4B2A9' },
 ]
 
 async function load() {

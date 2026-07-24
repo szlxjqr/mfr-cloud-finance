@@ -18,22 +18,25 @@ const props = withDefaults(
     icon?: string
     /** 强调色 */
     accent?: Accent
+    /** 自定义强调色（覆盖 accent，用于暖色板等场景） */
+    color?: string
   }>(),
-  { delta: null, deltaLabel: '', icon: '', accent: 'brand' },
+  { delta: null, deltaLabel: '', icon: '', accent: 'brand', color: '' },
 )
 
 const deltaDir = computed<'up' | 'down' | 'none'>(() =>
   props.delta == null ? 'none' : props.delta >= 0 ? 'up' : 'down',
 )
-const accentVar = computed(
-  () =>
-    ({
-      brand: 'var(--brand)',
-      success: 'var(--success)',
-      warning: 'var(--warning)',
-      danger: 'var(--danger)',
-      info: 'var(--info)',
-    })[props.accent],
+const accentVar = computed(() =>
+  props.color
+    ? props.color
+    : ({
+        brand: 'var(--brand)',
+        success: 'var(--success)',
+        warning: 'var(--warning)',
+        danger: 'var(--danger)',
+        info: 'var(--info)',
+      })[props.accent],
 )
 </script>
 
@@ -86,7 +89,7 @@ const accentVar = computed(
 .kpi-tile__value {
   font-size: var(--fs-xl);
   font-weight: 600;
-  color: var(--text-strong);
+  color: var(--kpi-accent);
   line-height: var(--lh-tight);
   font-variant-numeric: tabular-nums;
 }

@@ -16,18 +16,18 @@ const router = useRouter()
 
 /** 12 个常用功能入口（3 行 4 列） */
 const actions: ActionItem[] = [
-  { icon: 'Document', label: '查看凭证', path: '/finance/voucher', color: '#409EFF' },
-  { icon: 'Notebook', label: '日记账', path: '/finance/journal', color: '#00CED1' },
-  { icon: 'DataAnalysis', label: '总账', path: '/finance/ledger', color: '#E6A23C' },
-  { icon: 'List', label: '明细账', path: '/finance/detail-ledger', color: '#409EFF' },
-  { icon: 'Coin', label: '余额表', path: '/finance/balance', color: '#9254DE' },
-  { icon: 'Trophy', label: '资产负债表', path: '/report/balance-sheet', color: '#F56C6C' },
-  { icon: 'Money', label: '利润表', path: '/report/income', color: '#F0B020' },
-  { icon: 'TrendCharts', label: '现金流量表', path: '/report/cash-flow', color: '#409EFF' },
-  { icon: 'Download', label: '进项发票', path: '/tax/input-invoice', color: '#00CED1' },
-  { icon: 'Upload', label: '销项发票', path: '/tax/output-invoice', color: '#E6A23C' },
-  { icon: 'DocumentCopy', label: '进销存基础资料', path: '/inventory/basic', color: '#9254DE' },
-  { icon: 'Tickets', label: '费用发票', path: '/tax/expense-invoice', color: '#67C23A' },
+  { icon: 'Document', label: '查看凭证', path: '/finance/voucher', color: '#378ADD' },
+  { icon: 'Notebook', label: '日记账', path: '/finance/journal', color: '#1D9E75' },
+  { icon: 'DataAnalysis', label: '总账', path: '/finance/ledger', color: '#BA7517' },
+  { icon: 'List', label: '明细账', path: '/finance/detail-ledger', color: '#378ADD' },
+  { icon: 'Coin', label: '余额表', path: '/finance/balance', color: '#7F77DD' },
+  { icon: 'Trophy', label: '资产负债表', path: '/report/balance-sheet', color: '#D85A30' },
+  { icon: 'Money', label: '利润表', path: '/report/income', color: '#BA7517' },
+  { icon: 'TrendCharts', label: '现金流量表', path: '/report/cash-flow', color: '#378ADD' },
+  { icon: 'Download', label: '进项发票', path: '/tax/input-invoice', color: '#1D9E75' },
+  { icon: 'Upload', label: '销项发票', path: '/tax/output-invoice', color: '#BA7517' },
+  { icon: 'DocumentCopy', label: '进销存基础资料', path: '/inventory/basic', color: '#7F77DD' },
+  { icon: 'Tickets', label: '费用发票', path: '/tax/expense-invoice', color: '#639922' },
 ]
 
 /** 计算图标背景的浅色底（主题色 12% 透明度） */

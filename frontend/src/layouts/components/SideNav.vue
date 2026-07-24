@@ -64,9 +64,9 @@ function isActive(item: typeof menuItems[number]): boolean {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  /* Ant Design 极简深色侧栏 */
-  background: #001529;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  /* 浅色科技侧栏（WPS 风） */
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-soft);
   transition: width 0.2s ease;
   overflow: hidden;
   user-select: none;
@@ -81,7 +81,7 @@ function isActive(item: typeof menuItems[number]): boolean {
   justify-content: center;
   gap: 10px;
   padding: 0 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-soft);
 }
 .logo-img {
   width: 28px;
@@ -89,13 +89,13 @@ function isActive(item: typeof menuItems[number]): boolean {
   flex-shrink: 0;
   border-radius: 6px;
   object-fit: contain;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--el-color-primary-light-9);
   padding: 2px;
 }
 .logo-text {
   font-size: 15px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-strong);
   letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
@@ -124,20 +124,20 @@ function isActive(item: typeof menuItems[number]): boolean {
   padding: 0 14px;
   border-radius: 8px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--text-base);
   transition: all 0.15s ease;
   position: relative;
 }
 .module-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  background: var(--el-color-primary-light-9);
+  color: var(--text-strong);
 }
 .module-item:hover .module-icon {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--el-color-primary);
 }
 
 .module-icon {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--text-muted);
   flex-shrink: 0;
   transition: color 0.15s ease;
 }
@@ -160,17 +160,17 @@ function isActive(item: typeof menuItems[number]): boolean {
 
 /* 选中态 */
 .module-item.active {
-  background: var(--el-color-primary);
-  color: #fff;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
   font-weight: 500;
-  box-shadow: none;
+  box-shadow: inset 3px 0 0 var(--el-color-primary);
 }
 .module-item.active .module-icon {
-  color: #fff;
+  color: var(--el-color-primary);
 }
 .module-item.active .module-badge {
-  background: #fff;
-  color: var(--el-color-primary);
+  background: var(--el-color-primary);
+  color: #fff;
 }
 
 /* 折叠态：仅图标 */
