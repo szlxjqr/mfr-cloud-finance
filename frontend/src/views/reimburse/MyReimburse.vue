@@ -10,7 +10,8 @@
       <el-button type="success" @click="recognizeVisible = true">上传发票/重新识别</el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading" empty-text="暂无报销单">
+    <DataLoader :loading="loading" :is-empty="!list.length" :empty-description="'暂无报销单'">
+      <el-table :data="list" border stripe>
       <el-table-column prop="bill_no" label="报销单号" width="160" />
       <el-table-column prop="applicant" label="报销人" width="100" />
       <el-table-column prop="department" label="部门" width="120" show-overflow-tooltip />
@@ -54,7 +55,8 @@
           >付款</el-button>
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+      </DataLoader>
 
     <!-- 报销单详情弹窗：按报销类型渲染物品报销单 / 差旅报销单 -->
     <el-dialog v-model="detailVisible" :title="detailTitle" width="950px" :close-on-click-modal="false" class="detail-dialog">

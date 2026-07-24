@@ -61,7 +61,8 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
       </div>
     </el-card>
 
-    <div v-loading="loading" class="groups">
+    <DataLoader :loading="loading">
+      <div class="groups">
       <!-- 增值税 -->
       <el-card shadow="never" class="group">
         <template #header>
@@ -124,7 +125,8 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
           </div>
         </div>
       </el-card>
-    </div>
+      </div>
+    </DataLoader>
   </div>
 </template>
 

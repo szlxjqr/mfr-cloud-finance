@@ -8,7 +8,8 @@
       <span class="text-muted">默认显示「待审批」</span>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="req_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="traveler" label="出差人" width="100" />
@@ -41,6 +42,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 审批弹窗 -->
     <el-dialog

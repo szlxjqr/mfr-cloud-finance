@@ -42,7 +42,8 @@
       <el-button type="danger" plain size="small" :disabled="!selectedRows.length" @click="batchRemove">批量删除</el-button>
     </BatchActionBar>
 
-    <el-table ref="tableRef" :data="rows" v-loading="loading" stripe border empty-text="发票箱为空，拖拽或上传发票开始" @selection-change="onSelectionChange">
+    <DataLoader :loading="loading" :is-empty="!rows.length" :empty-description="'发票箱为空，拖拽或上传发票开始'">
+      <el-table ref="tableRef" :data="rows" stripe border @selection-change="onSelectionChange">
       <el-table-column prop="filename" label="文件名" min-width="160" />
       <el-table-column label="提取摘要" min-width="200">
         <template #default="{ row }">
@@ -79,6 +80,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 挂接对话框 -->
     <el-dialog v-model="linkVisible" title="挂接到业务单" width="420px">

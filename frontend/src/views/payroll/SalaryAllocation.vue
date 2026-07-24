@@ -20,7 +20,8 @@
       <el-button plain size="small" :icon="Download" :disabled="!data.rows.length" @click="onExportPdf">导出PDF</el-button>
     </div>
 
-    <div class="kpis" v-loading="loading">
+    <DataLoader :loading="loading">
+      <div class="kpis">
       <el-card shadow="never" class="kpi">
         <div class="k-label">工资总额（应发）</div>
         <div class="k-value">{{ fmt(data.total_gross) }}</div>
@@ -37,9 +38,11 @@
         <div class="k-label">归集部门数</div>
         <div class="k-value">{{ data.rows.length }}</div>
       </el-card>
-    </div>
+      </div>
+    </DataLoader>
 
-    <el-table :data="data.rows" border stripe v-loading="loading" show-summary :summary-method="summaryMethod">
+    <DataLoader :loading="loading" :is-empty="!data.rows.length" :empty-description="'暂无工资数据'">
+      <el-table :data="data.rows" border stripe show-summary :summary-method="summaryMethod">
       <el-table-column prop="department" label="部门" min-width="140" />
       <el-table-column prop="headcount" label="人数" width="90" align="center" />
       <el-table-column label="应发合计" align="right">
@@ -62,7 +65,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-empty v-if="!loading && data.rows.length === 0" description="暂无工资数据" />
+    </DataLoader>
 
     <el-alert
       class="note"

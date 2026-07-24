@@ -293,15 +293,15 @@ onMounted(async () => {
 
         <!-- 数据表格 -->
         <div class="table-area">
-          <el-table
-            v-if="selectedAccount"
-            :data="displayData"
-            v-loading="loading"
-            border stripe size="small"
-            :header-cell-style="{ background:'#f5f7fa', color:'#303133', fontWeight:600, fontSize:'13px' }"
-            style="width:100%"
-            max-height="calc(100vh - 240px)"
-          >
+          <DataLoader :loading="loading" :is-empty="!!selectedAccount && !displayData.length">
+            <el-table
+              v-if="selectedAccount"
+              :data="displayData"
+              border stripe size="small"
+              :header-cell-style="{ background:'#f5f7fa', color:'#303133', fontWeight:600, fontSize:'13px' }"
+              style="width:100%"
+              max-height="calc(100vh - 240px)"
+            >
             <el-table-column prop="date" label="日期" width="110" align="center" sortable />
             <el-table-column label="凭证号" width="110" align="center">
               <template #default="{ row }">
@@ -341,6 +341,7 @@ onMounted(async () => {
               <template #image><div style="font-size:80px;opacity:0.3">📊</div></template>
             </el-empty>
           </div>
+          </DataLoader>
         </div>
       </div>
     </div>

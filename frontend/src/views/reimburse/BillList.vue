@@ -8,7 +8,8 @@
       <el-button type="primary" @click="openCreate">新建报销单</el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="bill_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
@@ -53,7 +54,8 @@
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
-    </el-table>
+      </el-table>
+      </DataLoader>
 
     <!-- 报销单新增/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑报销单' : '新建报销单'" width="1040px" :close-on-click-modal="false">
@@ -167,7 +169,8 @@
         <span class="text-muted">仅显示未关联报销单的发票</span>
       </div>
 
-      <el-table :data="unlinkedInvoices" border stripe height="360" v-loading="invoiceLoading" @selection-change="handleSelectionChange">
+      <DataLoader :loading="invoiceLoading" :is-empty="!unlinkedInvoices.length">
+        <el-table :data="unlinkedInvoices" border stripe height="360" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="48" align="center" />
         <el-table-column prop="invoice_date" label="开票日期" width="110" />
         <el-table-column prop="invoice_type" label="类型" width="120" />
@@ -180,6 +183,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </DataLoader>
 
       <template #footer>
         <el-button @click="linkDialogVisible = false">取消</el-button>

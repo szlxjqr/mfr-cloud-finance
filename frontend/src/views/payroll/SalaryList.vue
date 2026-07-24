@@ -11,7 +11,8 @@
       <el-button type="primary" @click="openCreate">新建工资单</el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="salary_no" label="单号" width="150" />
       <el-table-column prop="employee_name" label="员工" width="100" />
       <el-table-column prop="department" label="部门" width="120" />
@@ -49,6 +50,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 新建 / 编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑工资单' : '新建工资单'" width="760px" :close-on-click-modal="false">

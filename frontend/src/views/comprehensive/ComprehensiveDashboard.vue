@@ -151,7 +151,7 @@ function onExportPdf() {
 </script>
 
 <template>
-  <div class="comprehensive" v-loading="loading" ref="pageRef">
+  <div class="comprehensive" ref="pageRef">
     <!-- 顶部：期间 + 刷新 -->
     <div class="top-bar">
       <div class="section-title">
@@ -187,6 +187,7 @@ function onExportPdf() {
       </div>
     </div>
 
+    <DataLoader :loading="loading">
     <!-- KPI 卡片 -->
     <el-row :gutter="16" class="row-gap">
       <el-col v-for="k in kpis" :key="k.label" :xs="12" :sm="12" :md="6" :lg="6">
@@ -254,6 +255,7 @@ function onExportPdf() {
         </el-card>
       </el-col>
     </el-row>
+    </DataLoader>
   </div>
 </template>
 

@@ -212,17 +212,17 @@ onMounted(() => loadData())
 
     <!-- ===== 数据表格 ===== -->
     <div class="table-wrapper">
-      <el-table
-        :data="flattenedData"
-        v-loading="loading"
-        border
-        stripe
-        size="small"
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
-        :row-class-name="({ row }: { row: SummaryRow }) => accountClass(row)"
-        style="width:100%"
-        max-height="calc(100vh - 220px)"
-      >
+      <DataLoader :loading="loading" :is-empty="!flattenedData.length">
+        <el-table
+          :data="flattenedData"
+          border
+          stripe
+          size="small"
+          :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
+          :row-class-name="({ row }: { row: SummaryRow }) => accountClass(row)"
+          style="width:100%"
+          max-height="calc(100vh - 220px)"
+        >
         <el-table-column prop="accountCode" label="科目编码" width="140" fixed="left">
           <template #default="{ row }">
             <span :style="{ paddingLeft: (row.accountLevel - 1) * 16 + 'px' }">
@@ -288,6 +288,7 @@ onMounted(() => loadData())
           </template>
         </el-table-column>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- ===== 底部合计 ===== -->

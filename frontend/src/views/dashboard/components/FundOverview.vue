@@ -62,13 +62,15 @@ onMounted(load)
       </div>
     </div>
 
-    <div class="fund-grid" v-loading="loading">
+    <DataLoader :loading="loading">
+      <div class="fund-grid">
       <div v-for="item in funds" :key="item.name" class="fund-item">
         <span class="dot" :style="{ backgroundColor: item.color }" />
         <span class="fund-name">{{ item.name }}</span>
         <span class="fund-amount">{{ formatCurrency(item.amount) }}</span>
       </div>
-    </div>
+      </div>
+    </DataLoader>
   </div>
 </template>
 

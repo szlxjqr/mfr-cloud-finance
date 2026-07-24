@@ -109,7 +109,8 @@ const total = computed(() =>
       </div>
     </el-card>
 
-    <el-table :data="filteredRows" v-loading="loading" border height="560">
+    <DataLoader :loading="loading" :is-empty="!filteredRows.length">
+      <el-table :data="filteredRows" border height="560">
       <el-table-column prop="date" label="开票日期" width="120" />
       <el-table-column prop="no" label="发票号码" width="150" />
       <el-table-column prop="type" label="票种" width="140" />
@@ -133,6 +134,7 @@ const total = computed(() =>
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <el-alert
       type="info"

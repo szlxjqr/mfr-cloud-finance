@@ -320,15 +320,15 @@ onMounted(loadSubjects)
 
     <!-- 主表格 -->
     <div class="table-wrap">
-      <el-table
-        :data="filteredRows"
-        v-loading="loading"
-        border
-        stripe
-        :max-height="'calc(100vh - 280px)'"
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
-        size="small"
-      >
+      <DataLoader :loading="loading" :is-empty="!filteredRows.length">
+        <el-table
+          :data="filteredRows"
+          border
+          stripe
+          :max-height="'calc(100vh - 280px)'"
+          :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
+          size="small"
+        >
         <el-table-column prop="code" label="科目编号" width="100" fixed />
         <el-table-column prop="name" label="科目名称" min-width="160" fixed />
         <el-table-column prop="direction" label="方向" width="64" align="center" />
@@ -379,6 +379,7 @@ onMounted(loadSubjects)
           </el-table-column>
         </el-table-column>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- 试算平衡弹窗 -->

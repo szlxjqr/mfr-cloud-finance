@@ -354,7 +354,8 @@ onMounted(load)
     </div>
 
     <!-- 员工表格 -->
-    <el-table :data="list" v-loading="loading" class="emp-table" border stripe>
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" class="emp-table" border stripe>
       <el-table-column prop="employee_no" label="工号" width="100" />
       <el-table-column prop="name" label="姓名" width="100" />
       <el-table-column prop="department" label="部门" min-width="110" />
@@ -398,6 +399,7 @@ onMounted(load)
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <div class="hint">
       提示：点击「详情」可查看员工的劳动合同、提交/打印/终止合同。新增员工时系统按「姓名全拼」自动创建登录账号（如：沈雷 → shenlei），初始密码统一为
@@ -514,7 +516,8 @@ onMounted(load)
               <el-button type="success" :icon="PlusIcon" @click="openNewContract">新建劳动合同</el-button>
             </div>
           </template>
-          <el-table :data="detailContracts" v-loading="detailContractsLoading" border stripe empty-text="暂无合同">
+          <DataLoader :loading="detailContractsLoading" :is-empty="!detailContracts.length" :empty-description="'暂无合同'">
+            <el-table :data="detailContracts" border stripe>
             <el-table-column label="合同号" width="160">
               <template #default="{ row }">{{ contractNo(row) }}</template>
             </el-table-column>
@@ -547,6 +550,7 @@ onMounted(load)
               </template>
             </el-table-column>
           </el-table>
+          </DataLoader>
           <div class="contract-hint">
             合同填写说明：选择员工后姓名/身份证/部门/岗位/乙方自动带出；甲方（公司）自动取「公司设置」；
             新签合同无状态，保存即草稿，提交后一人公司自动审批生效，可按深圳市标准范本打印。

@@ -331,18 +331,18 @@ onMounted(() => {
 
     <!-- ====== 数据表格 ====== -->
     <div class="table-area">
-      <el-table
-        :data="vouchers"
-        v-loading="loading"
-        row-key="id"
-        border
-        stripe
-        header-cell-class-name="table-header"
-        :default-expand-all="false"
-        class="voucher-table"
-        :row-class-name="(row: VoucherItem) => row.expanded ? 'row-expanded' : ''"
-        @selection-change="(rows: VoucherItem[]) => { selectedIds = rows.map(r => r.id) }"
-      >
+      <DataLoader :loading="loading" :is-empty="!vouchers.length">
+        <el-table
+          :data="vouchers"
+          row-key="id"
+          border
+          stripe
+          header-cell-class-name="table-header"
+          :default-expand-all="false"
+          class="voucher-table"
+          :row-class-name="(row: VoucherItem) => row.expanded ? 'row-expanded' : ''"
+          @selection-change="(rows: VoucherItem[]) => { selectedIds = rows.map(r => r.id) }"
+        >
         <!-- 选择列 -->
         <el-table-column type="selection" width="44" align="center" />
 
@@ -486,6 +486,7 @@ onMounted(() => {
           </template>
         </el-table-column>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- 分页（当未取消分页时） -->

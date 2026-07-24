@@ -8,7 +8,8 @@
       <el-tag type="info" effect="plain">当前用户：{{ currentUser }}</el-tag>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="req_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
@@ -33,6 +34,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 差旅申请单详情弹窗 -->
     <el-dialog v-model="detailVisible" title="差旅申请单详情" width="640px" :close-on-click-modal="false">

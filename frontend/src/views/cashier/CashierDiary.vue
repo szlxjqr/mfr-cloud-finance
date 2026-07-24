@@ -69,9 +69,10 @@ const bankEnd = computed(() => (bankRows.value.length ? bankRows.value[bankRows.
       </div>
     </el-card>
 
-    <el-tabs>
+    <DataLoader :loading="loading" :is-empty="!cashRows.length && !bankRows.length">
+      <el-tabs>
       <el-tab-pane label="库存现金日记账 (1001)">
-        <el-table :data="cashRows" v-loading="loading" border height="520">
+        <el-table :data="cashRows" border height="520">
           <el-table-column prop="date" label="日期" width="120" />
           <el-table-column prop="voucher_no" label="凭证号" width="120" />
           <el-table-column prop="summary" label="摘要" min-width="160" />
@@ -88,7 +89,7 @@ const bankEnd = computed(() => (bankRows.value.length ? bankRows.value[bankRows.
       </el-tab-pane>
 
       <el-tab-pane label="银行存款日记账 (1002)">
-        <el-table :data="bankRows" v-loading="loading" border height="520">
+        <el-table :data="bankRows" border height="520">
           <el-table-column prop="date" label="日期" width="120" />
           <el-table-column prop="voucher_no" label="凭证号" width="120" />
           <el-table-column prop="summary" label="摘要" min-width="160" />
@@ -104,6 +105,7 @@ const bankEnd = computed(() => (bankRows.value.length ? bankRows.value[bankRows.
         </el-table>
       </el-tab-pane>
     </el-tabs>
+    </DataLoader>
 
     <el-alert
       type="success"

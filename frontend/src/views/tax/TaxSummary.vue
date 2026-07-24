@@ -170,7 +170,8 @@ function onExportPdf() {
     </el-card>
 
     <!-- KPI 卡片 -->
-    <div class="kpi-row" v-loading="loading">
+    <DataLoader :loading="loading">
+      <div class="kpi-row">
       <el-card shadow="never" class="kpi">
         <div class="kpi-label">本期进项税额</div>
         <div class="kpi-value">{{ formatNumber(summary?.input_tax ?? 0) }}</div>
@@ -193,7 +194,8 @@ function onExportPdf() {
         <div class="kpi-value">{{ formatNumber(ytdInput) }}</div>
         <div class="kpi-unit">元</div>
       </el-card>
-    </div>
+      </div>
+    </DataLoader>
 
     <!-- 明细 + 趋势 -->
     <div class="grid">

@@ -8,7 +8,8 @@
       <span class="text-muted">默认显示「待审批」</span>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="req_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
@@ -39,6 +40,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 采购申请单详情弹窗（含打印） -->
     <el-dialog v-model="detailVisible" title="采购申请单" width="900px" :close-on-click-modal="false" class="detail-dialog">

@@ -771,16 +771,16 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
 
     <!-- 主表格 -->
     <div class="table-wrap">
-      <el-table
-        v-loading="loading"
-        :data="filteredRows"
-        border
-        stripe
-        size="small"
-        height="100%"
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
-        @row-click="onRowClick"
-      >
+      <DataLoader :loading="loading" :is-empty="!filteredRows.length" :empty-description="'暂无进项发票'">
+        <el-table
+          :data="filteredRows"
+          border
+          stripe
+          size="small"
+          height="100%"
+          :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
+          @row-click="onRowClick"
+        >
         <el-table-column width="48" align="center">
           <template #header>
             <el-checkbox
@@ -830,10 +830,8 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
           </template>
         </el-table-column>
 
-        <template #empty>
-          <el-empty description="暂无进项发票，点击「新增」添加" :image-size="80" />
-        </template>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- 新增 / 编辑 弹窗 -->

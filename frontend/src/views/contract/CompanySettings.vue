@@ -8,7 +8,8 @@
       title="甲方（公司名称 / 法人 / 地址 / 联系方式）由本设置统一管理。所有合同、工资单、报表的甲方信息自动从此处取，无需在各单据重复填写。"
     />
 
-    <el-card v-loading="loading" header="公司信息">
+    <DataLoader :loading="loading">
+      <el-card header="公司信息">
       <el-form :model="form" label-width="120px" style="max-width: 720px">
         <el-form-item label="公司名称" required>
           <el-input v-model="form.company_name" placeholder="如：深圳市流形机器人科技有限公司" />
@@ -45,8 +46,9 @@
           <el-button @click="load">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
-  </div>
+      </el-card>
+      </DataLoader>
+    </div>
 </template>
 
 <script setup lang="ts">

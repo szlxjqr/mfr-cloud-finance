@@ -118,7 +118,8 @@ function onExportPdf() {
     />
 
     <!-- KPI 卡片 -->
-    <div class="kpi-row" v-loading="loading">
+    <DataLoader :loading="loading">
+      <div class="kpi-row">
       <el-card shadow="never" class="kpi">
         <div class="kpi-label">应税合同数</div>
         <div class="kpi-value">{{ contractCount }}</div>
@@ -134,7 +135,8 @@ function onExportPdf() {
         <div class="kpi-value">{{ formatNumber(totalTax) }}</div>
         <div class="kpi-unit">元</div>
       </el-card>
-    </div>
+      </div>
+    </DataLoader>
 
     <!-- 明细表 -->
     <el-card shadow="never" class="table-card">

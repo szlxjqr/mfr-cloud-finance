@@ -1,7 +1,8 @@
 <template>
   <div class="page">
     <!-- 资产总览卡片 -->
-    <div class="summary-cards" v-loading="summaryLoading">
+    <DataLoader :loading="summaryLoading">
+      <div class="summary-cards">
       <div class="scard">
         <div class="scard-label">资产原值合计</div>
         <div class="scard-value">{{ fmt(summary.total_original) }}</div>
@@ -18,7 +19,8 @@
         <div class="scard-label">在用 / 总数</div>
         <div class="scard-value">{{ summary.in_use_count }} / {{ summary.total_count }}</div>
       </div>
-    </div>
+      </div>
+    </DataLoader>
 
     <div class="toolbar">
       <el-input v-model="keyword" placeholder="搜索单号/名称/部门" clearable style="width: 220px" @keyup.enter="load" @clear="load" />
@@ -32,7 +34,8 @@
       <el-button type="success" @click="openDepreciate" :loading="depLoading">计提折旧</el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="asset_no" label="资产编号" width="140" />
       <el-table-column prop="name" label="资产名称" min-width="140" />
       <el-table-column prop="category" label="类别" width="110" />
@@ -86,6 +89,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 新建 / 编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑资产' : '新建资产'" width="780px" :close-on-click-modal="false">
@@ -160,7 +164,8 @@
           <el-date-picker v-model="depPeriod" type="month" value-format="YYYY-MM" placeholder="选择期间" style="width: 200px" @change="loadDepPreview" />
         </el-form-item>
       </el-form>
-      <el-table :data="depPreview" border stripe max-height="320" v-loading="depPreviewLoading">
+      <DataLoader :loading="depPreviewLoading" :is-empty="!depPreview.length">
+        <el-table :data="depPreview" border stripe max-height="320">
         <el-table-column prop="asset_no" label="资产编号" width="140" />
         <el-table-column prop="name" label="名称" min-width="120" />
         <el-table-column prop="original_value" label="原值" width="110" align="right">
@@ -176,6 +181,7 @@
           <template #default="{ row }">{{ fmt(row.net_value) }}</template>
         </el-table-column>
       </el-table>
+      </DataLoader>
       <div style="margin-top: 10px; text-align: right; color: #909399">
         本期合计折旧：<strong style="color: var(--el-color-warning)">{{ fmt(depPreviewTotal) }}</strong>
       </div>
@@ -187,13 +193,15 @@
 
     <!-- 折旧记录弹窗 -->
     <el-dialog v-model="depRecordsVisible" title="折旧记录" width="560px" :close-on-click-modal="false">
-      <el-table :data="depRecords" border stripe v-loading="depRecordsLoading" empty-text="暂无折旧记录">
+      <DataLoader :loading="depRecordsLoading" :is-empty="!depRecords.length" :empty-description="'暂无折旧记录'">
+        <el-table :data="depRecords" border stripe>
         <el-table-column prop="period" label="期间" width="120" />
         <el-table-column label="折旧额" width="140" align="right">
           <template #default="{ row }">{{ fmt(row.amount) }}</template>
         </el-table-column>
         <el-table-column prop="voucher_no" label="凭证号" />
       </el-table>
+      </DataLoader>
       <template #footer>
         <el-button @click="depRecordsVisible = false">关闭</el-button>
       </template>

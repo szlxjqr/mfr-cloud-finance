@@ -62,7 +62,8 @@ function addVoucher() {
       </div>
     </div>
 
-    <div class="card-body" v-loading="loading">
+    <DataLoader :loading="loading">
+      <div class="card-body">
       <div class="count">
         <span class="count-num">{{ total }}</span>
         <span class="count-unit">张</span>
@@ -72,7 +73,8 @@ function addVoucher() {
         <el-button @click="viewVoucher">查看凭证</el-button>
         <el-button type="primary" @click="addVoucher">新增凭证</el-button>
       </div>
-    </div>
+      </div>
+    </DataLoader>
   </div>
 </template>
 

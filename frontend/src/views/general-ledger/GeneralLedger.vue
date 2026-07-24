@@ -334,17 +334,17 @@ onMounted(() => {
 
         <!-- 数据表格 -->
         <div class="table-area">
-          <el-table
-            v-if="selectedAccount"
-            :data="displayData"
-            v-loading="loading"
-            border
-            stripe
-            size="small"
-            :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
-            style="width: 100%"
-            max-height="calc(100vh - 240px)"
-          >
+          <DataLoader :loading="loading" :is-empty="!!selectedAccount && !displayData.length">
+            <el-table
+              v-if="selectedAccount"
+              :data="displayData"
+              border
+              stripe
+              size="small"
+              :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600, fontSize: '13px' }"
+              style="width: 100%"
+              max-height="calc(100vh - 240px)"
+            >
             <el-table-column prop="period" label="期间" width="110" align="center" />
             <el-table-column label="期初借方" width="140" align="right">
               <template #default="{ row }">
@@ -392,6 +392,7 @@ onMounted(() => {
               </template>
             </el-empty>
           </div>
+          </DataLoader>
         </div>
       </div>
     </div>

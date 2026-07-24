@@ -18,7 +18,8 @@
       <el-button plain size="small" :icon="Download" :disabled="!rows.length" @click="onExportPdf">导出PDF</el-button>
     </div>
 
-    <el-table :data="rows" border stripe v-loading="loading" show-summary :summary-method="summaryMethod">
+    <DataLoader :loading="loading" :is-empty="!rows.length">
+      <el-table :data="rows" border stripe show-summary :summary-method="summaryMethod">
       <el-table-column prop="employee_name" label="员工" min-width="110" />
       <el-table-column prop="department" label="部门" width="120" />
       <el-table-column prop="period" label="工资月份" width="120" align="center" />
@@ -46,7 +47,7 @@
         </template>
       </el-table-column>
     </el-table>
-    <el-empty v-if="!loading && rows.length === 0" description="暂无工资数据" />
+    </DataLoader>
   </div>
 </template>
 

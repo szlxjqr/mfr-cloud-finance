@@ -8,7 +8,8 @@
       <el-button type="primary" @click="openCreate">新建采购申请</el-button>
     </div>
 
-    <el-table :data="list" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!list.length">
+      <el-table :data="list" border stripe>
       <el-table-column prop="req_no" label="单号" width="160" />
       <el-table-column prop="applicant" label="申请人" width="100" />
       <el-table-column prop="department" label="部门" width="110" />
@@ -43,6 +44,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <!-- 新建/编辑弹窗 -->
     <el-dialog v-model="dialogVisible" :title="editing ? '编辑采购申请' : '新建采购申请'" width="860px" :close-on-click-modal="false">

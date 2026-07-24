@@ -100,8 +100,9 @@ onMounted(() => loadData())
 
     <!-- ===== 数据表格 ===== -->
     <div class="table-area">
+      <DataLoader :loading="loading" :is-empty="!displayData.length">
       <el-table
-        :data="displayData" v-loading="loading" border stripe size="small"
+        :data="displayData" border stripe size="small"
         :header-cell-style="{ background:'#f5f7fa', color:'#303133', fontWeight:600, fontSize:'13px' }"
         style="width:100%" max-height="calc(100vh - 120px)"
       >
@@ -135,6 +136,7 @@ onMounted(() => loadData())
           </template>
         </el-table-column>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- ===== 底部合计 ===== -->

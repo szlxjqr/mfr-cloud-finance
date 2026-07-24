@@ -93,16 +93,16 @@ onMounted(loadData)
 
     <!-- 余额表 -->
     <div class="table-area">
-      <el-table
-        :data="filtered"
-        v-loading="loading"
-        border
-        stripe
-        size="small"
-        :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
-        style="width: 100%"
-        max-height="calc(100vh - 180px)"
-      >
+      <DataLoader :loading="loading" :is-empty="!filtered.length">
+        <el-table
+          :data="filtered"
+          border
+          stripe
+          size="small"
+          :header-cell-style="{ background: '#f5f7fa', color: '#303133', fontWeight: 600 }"
+          style="width: 100%"
+          max-height="calc(100vh - 180px)"
+        >
         <el-table-column prop="code" label="科目编码" width="120" align="center" fixed />
         <el-table-column prop="name" label="科目名称" min-width="180" fixed />
         <el-table-column label="类别" width="84" align="center">
@@ -132,6 +132,7 @@ onMounted(loadData)
           </el-table-column>
         </el-table-column>
       </el-table>
+      </DataLoader>
     </div>
 
     <!-- 合计 -->

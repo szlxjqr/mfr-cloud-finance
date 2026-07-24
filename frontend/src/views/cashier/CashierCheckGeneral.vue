@@ -84,7 +84,8 @@ const allOk = computed(() => rows.value.every((r) => r.ok))
       </div>
     </el-card>
 
-    <el-table :data="rows" v-loading="loading" border>
+    <DataLoader :loading="loading" :is-empty="!rows.length">
+      <el-table :data="rows" border>
       <el-table-column prop="code" label="科目编码" width="120" />
       <el-table-column prop="name" label="科目名称" min-width="140" />
       <el-table-column label="日记账余额(流水)" width="180" align="right">
@@ -106,6 +107,7 @@ const allOk = computed(() => rows.value.every((r) => r.ok))
         </template>
       </el-table-column>
     </el-table>
+    </DataLoader>
 
     <el-alert
       type="info"

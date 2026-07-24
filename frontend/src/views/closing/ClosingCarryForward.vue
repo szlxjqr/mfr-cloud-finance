@@ -84,7 +84,8 @@ const hasData = computed(() => expenseRows.value.length > 0 || revenueRows.value
     <template v-else>
       <!-- 结转分录 1：损益费用/成本 → 本年利润 -->
       <el-card shadow="never" style="margin-bottom: 12px;" header="结转分录（一）：结转成本费用">
-        <el-table :data="expenseRows" v-loading="loading" border>
+        <DataLoader :loading="loading" :is-empty="!expenseRows.length">
+          <el-table :data="expenseRows" border>
           <el-table-column label="方向" width="90" align="center">
             <template #default><el-tag type="danger">借</el-tag></template>
           </el-table-column>
@@ -94,6 +95,7 @@ const hasData = computed(() => expenseRows.value.length > 0 || revenueRows.value
             <template #default="{ row }">{{ row.amount.toFixed(2) }}</template>
           </el-table-column>
         </el-table>
+        </DataLoader>
         <div style="margin-top: 8px; color: #606266; font-size: 13px;">
           对应贷方：<b>本年利润 (3103)</b> ｜ 金额
           <b style="color: #f56c6c;">{{ expenseTotal.toFixed(2) }}</b>
@@ -102,16 +104,18 @@ const hasData = computed(() => expenseRows.value.length > 0 || revenueRows.value
 
       <!-- 结转分录 2：本年利润 → 损益收入 -->
       <el-card shadow="never" style="margin-bottom: 12px;" header="结转分录（二）：结转收入">
-        <el-table :data="revenueRows" v-loading="loading" border>
-          <el-table-column label="方向" width="90" align="center">
-            <template #default><el-tag type="success">贷</el-tag></template>
-          </el-table-column>
-          <el-table-column prop="code" label="科目编码" width="120" />
-          <el-table-column prop="name" label="科目名称" min-width="160" />
-          <el-table-column label="本期发生额" width="160" align="right">
-            <template #default="{ row }">{{ row.amount.toFixed(2) }}</template>
-          </el-table-column>
-        </el-table>
+        <DataLoader :loading="loading" :is-empty="!revenueRows.length">
+          <el-table :data="revenueRows" border>
+            <el-table-column label="方向" width="90" align="center">
+              <template #default><el-tag type="success">贷</el-tag></template>
+            </el-table-column>
+            <el-table-column prop="code" label="科目编码" width="120" />
+            <el-table-column prop="name" label="科目名称" min-width="160" />
+            <el-table-column label="本期发生额" width="160" align="right">
+              <template #default="{ row }">{{ row.amount.toFixed(2) }}</template>
+            </el-table-column>
+          </el-table>
+        </DataLoader>
         <div style="margin-top: 8px; color: #606266; font-size: 13px;">
           对应借方：<b>本年利润 (3103)</b> ｜ 金额
           <b style="color: #67c23a;">{{ revenueTotal.toFixed(2) }}</b>

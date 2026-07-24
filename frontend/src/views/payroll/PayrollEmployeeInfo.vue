@@ -15,7 +15,8 @@
       <span class="tip">工资模块视角的员工档案（新增 / 编辑在「人员管理」）</span>
     </div>
 
-    <el-table :data="rows" border stripe v-loading="loading">
+    <DataLoader :loading="loading" :is-empty="!rows.length">
+      <el-table :data="rows" border stripe>
       <el-table-column prop="employee_no" label="工号" width="110" />
       <el-table-column prop="name" label="姓名" width="120" />
       <el-table-column prop="department" label="部门" min-width="120" />
@@ -37,7 +38,7 @@
       </el-table-column>
       <el-table-column prop="username" label="登录账号" width="140" />
     </el-table>
-    <el-empty v-if="!loading && rows.length === 0" description="暂无员工档案" />
+    </DataLoader>
   </div>
 </template>
 
