@@ -112,10 +112,10 @@
         <div class="linked-header">
           <span class="linked-title">采购申请细项（来源采购单：<strong>{{ editingRow?.purchase_requisition_id ? '#' + editingRow.purchase_requisition_id : '-' }}</strong>）</span>
           <div class="header-actions">
-            <el-button type="primary" size="small" @click="openAddInvoice">
-              <AppIcon name="Plus"/>增加发票
+            <el-button type="primary" size="small" @click="openUploadToPool">
+              <AppIcon name="Upload" />上传发票
             </el-button>
-            <span class="text-muted">点细项行末尾的「挂发票」把已增加的发票挂到具体细项</span>
+            <span class="text-muted">点细项行末尾的「挂发票」从发票池选择发票入账</span>
           </div>
         </div>
         <el-table :data="editPurchaseItems" border stripe size="small">
@@ -201,6 +201,9 @@
       :initial-item-id="attachInitialItemId"
       @attached="onAttachDone"
     />
+
+    <!-- 上传发票到池（点击「增加发票」触发，统一入口，先入发票池再挂接） -->
+    <UploadToInboxDialog v-model="uploadVisible" @saved="onUploadSaved" />
 
     <!-- 挂发票入口已迁至「我的报销」页（MyReimburse.vue）——此处不重复 -->
 
@@ -413,6 +416,7 @@ import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 import { purchaseApi } from '@/api/purchase'
 import type { PurchaseItem } from '@/types/purchase'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
+import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
 
@@ -452,6 +456,17 @@ const editItemInvoiceCount = ref<Map<number, number>>(new Map())
 const attachVisible = ref(false)
 const attachBill = ref<ReimbursementBill | null>(null)
 const attachInitialItemId = ref<number | null>(null)
+
+// 上传发票到池（统一组件）
+const uploadVisible = ref(false)
+
+function openUploadToPool() {
+  uploadVisible.value = true
+}
+
+function onUploadSaved() {
+  ElMessage.success('发票已暂存到发票池，可在挂发票中选择并入单')
+}
 
 // 审批弹窗
 const approveDialogVisible = ref(false)
@@ -909,17 +924,6 @@ function removeDetail(idx: number) {
     return
   }
   invoiceForm.details.splice(idx, 1)
-}
-
-function openAddInvoice() {
-  if (!editingId.value) {
-    ElMessage.warning('请先保存报销单')
-    return
-  }
-  Object.assign(invoiceForm, emptyInvoiceForm())
-  invoiceForm.reimbursement_bill_id = editingId.value
-  resetRecognizeState()
-  invoiceDialogVisible.value = true
 }
 
 async function submitInvoice() {

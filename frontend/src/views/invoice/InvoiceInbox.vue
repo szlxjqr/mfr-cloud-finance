@@ -1,16 +1,7 @@
 <template>
   <div class="inbox">
     <div class="toolbar">
-      <el-upload
-        class="uploader"
-        :auto-upload="false"
-        :show-file-list="false"
-        :on-change="onPick"
-        multiple
-        accept=".pdf,.ofd,.png,.jpg,.jpeg"
-      >
-        <el-button type="primary" :loading="uploading">批量上传并识别</el-button>
-      </el-upload>
+      <el-button type="primary" :loading="uploading" @click="uploadDialogVisible = true">批量上传并识别</el-button>
       <el-input
         v-model="keyword"
         placeholder="搜索文件名/销售方/税号"
@@ -27,16 +18,7 @@
       <el-button @click="load">刷新</el-button>
     </div>
 
-    <!-- 拖拽上传区 -->
-    <div
-      class="dropzone"
-      :class="{ dragover }"
-      @dragover.prevent="dragover = true"
-      @dragleave.prevent="dragover = false"
-      @drop.prevent="onDrop"
-    >
-      拖拽发票文件到此处（PDF / OFD / 图片），自动 OCR + 结构化
-    </div>
+    <!-- 拖拽上传已由统一 UploadToInboxDialog 组件接管 -->
 
     <BatchActionBar :selected-count="selectedRows.length" @clear="clearSelection">
       <el-button type="danger" plain size="small" :disabled="!selectedRows.length" @click="batchRemove">批量删除</el-button>
@@ -125,22 +107,27 @@
         <el-button type="primary" @click="confirmVerify">记录结果</el-button>
       </template>
     </el-dialog>
+
+    <!-- 统一上传弹窗 -->
+    <UploadToInboxDialog v-model="uploadDialogVisible" @saved="onUploadInboxSaved" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { inboxApi } from '@/api/inboxApi'
-import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
+import type { ParsedInvoice } from '@/utils/invoiceParser'
 import type { InvoiceInbox } from '@/types/invoice'
 
 const rows = ref<InvoiceInbox[]>([])
 const loading = ref(false)
 const uploading = ref(false)
+const uploadDialogVisible = ref(false)
 const keyword = ref('')
 const statusFilter = ref<string | undefined>(undefined)
-const dragover = ref(false)
+// dragover 现已由统一上传组件接管
 
 const tableRef = ref()
 const selectedRows = ref<InvoiceInbox[]>([])
@@ -208,45 +195,9 @@ function verifyTag(s: string): 'success' | 'danger' | 'warning' {
   return ({ real: 'success', fake: 'danger', abnormal: 'warning' }[s] || 'info') as 'success' | 'danger' | 'warning'
 }
 
-// 解析 + 上传（批量识别核心）：解析失败也上传原文件（置 pending）
-async function handleFiles(files: File[]) {
-  uploading.value = true
-  let ok = 0
-  for (const f of files) {
-    let json = ''
-    try {
-      const parsed = await parseInvoiceFile(f)
-      json = JSON.stringify(parsed)
-    } catch (e) {
-      console.warn('解析失败，仅上传原文件', f.name, e)
-    }
-    try {
-      const res = await inboxApi.upload(f, json)
-      if (res.data?.duplicated) {
-        // P1 去重：与箱中已有同票重复，后端直接返回已有记录、未重复落盘
-        ElMessage.warning(`「${f.name}」与发票箱已有记录重复，已跳过`)
-      } else {
-        ok++
-      }
-    } catch (e: any) {
-      ElMessage.error((e?.response?.data?.detail || '上传失败') + '：' + f.name)
-    }
-  }
-  uploading.value = false
-  if (ok) ElMessage.success(`已上传并识别 ${ok} 张`)
+function onUploadInboxSaved() {
   load()
-}
-
-function onPick(_: any, fileList: any[]) {
-  // el-upload 的 on-change：仅取本次新增文件
-  const files = (fileList as any[]).map((f) => f.raw).filter(Boolean) as File[]
-  if (files.length) handleFiles(files)
-}
-
-function onDrop(e: DragEvent) {
-  dragover.value = false
-  const files = Array.from(e.dataTransfer?.files || [])
-  if (files.length) handleFiles(files)
+  ElMessage.success('文件已存入发票池')
 }
 
 function openLink(row: InvoiceInbox) {

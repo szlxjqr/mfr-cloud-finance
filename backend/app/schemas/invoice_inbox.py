@@ -33,10 +33,11 @@ class InvoiceInboxUpdate(BaseModel):
 
 
 class InvoiceInboxLink(BaseModel):
-    """挂接到业务单：reimburse(报销单) / purchase(采购申请)。"""
+    """挂接到业务单：reimburse(报销单) / purchase(采购申请)，可选绑定采购细项。"""
 
     doc_type: str  # reimburse | purchase
     doc_id: int
+    purchase_requisition_item_id: Optional[int] = None  # 可选：绑定到具体采购细项
 
 
 class InvoiceInboxVerify(BaseModel):

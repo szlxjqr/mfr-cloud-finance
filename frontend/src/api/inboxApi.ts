@@ -22,11 +22,12 @@ export const inboxApi = {
   update: (id: number, extractedJson: string) =>
     http.put<InvoiceInbox>(`/invoice-inbox/${id}`, { extracted_json: extractedJson }),
 
-  // 挂接到业务单：reimburse(报销单) / purchase(采购申请)
-  link: (id: number, docType: string, docId: number) =>
+  // 挂接到业务单：reimburse(报销单) / purchase(采购申请)，可选绑定采购细项
+  link: (id: number, docType: string, docId: number, itemId?: number) =>
     http.post<InvoiceInbox>(`/invoice-inbox/${id}/link`, {
       doc_type: docType,
       doc_id: docId,
+      purchase_requisition_item_id: itemId,
     }),
 
   // P1 查验结果登记

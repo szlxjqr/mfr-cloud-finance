@@ -192,6 +192,9 @@ def link_inbox(iid: int, payload: s.InvoiceInboxLink, db: Session = Depends(get_
         if not bill:
             raise HTTPException(status_code=404, detail="报销单不存在")
         inv.reimbursement_bill_id = payload.doc_id
+        # 取报销单关联的采购单（若有），给正式发票也挂上采购单关联
+        if bill.purchase_requisition_id:
+            inv.purchase_requisition_id = bill.purchase_requisition_id
     elif payload.doc_type == "purchase":
         pr = db.get(pm.PurchaseRequisition, payload.doc_id)
         if not pr:
@@ -199,6 +202,10 @@ def link_inbox(iid: int, payload: s.InvoiceInboxLink, db: Session = Depends(get_
         inv.purchase_requisition_id = payload.doc_id
     else:
         raise HTTPException(status_code=400, detail="doc_type 仅支持 reimburse / purchase")
+
+    # 绑定采购细项（可选）
+    if payload.purchase_requisition_item_id is not None:
+        inv.purchase_requisition_item_id = payload.purchase_requisition_item_id
 
     # 明细行（来自 ParsedInvoice.items）
     for it in (data.get("items") or []):
