@@ -91,6 +91,13 @@
           <el-table-column prop="invoice_type" label="类型" width="120" />
           <el-table-column prop="no" label="发票号码" width="120" />
           <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
+          <el-table-column label="附件" width="60" align="center">
+            <template #default="{ row }">
+              <el-tooltip :content="row.attachment_path ? '点击行可预览附件' : '该发票未归档电子文件'" placement="top">
+                <AppIcon :name="row.attachment_path ? 'Document' : 'WarningFilled'" :class="row.attachment_path ? 'attach-ok' : 'attach-missing'" />
+              </el-tooltip>
+            </template>
+          </el-table-column>
           <el-table-column label="金额/税额/合计" width="180" align="right">
             <template #default="{ row }">
               ¥{{ formatNum(row.total_amount) }}
@@ -253,6 +260,10 @@ const isPdf = computed(() => {
 
 function onInvoiceRowClick(row: any) {
   // 没有 attachment_path 也允许打开预览（弹窗会显示"未归档"提示）
+  if (!row.attachment_path) {
+    ElMessage.warning('该发票未归档电子文件，无法预览')
+    return
+  }
   previewInvoiceId.value = row.id
   previewInvoiceNo.value = row.no || ''
   previewInvoiceAttachment.value = row.attachment_path || null
@@ -483,5 +494,13 @@ async function confirmLink() {
   text-align: center;
   color: var(--el-text-color-secondary);
   padding: 24px;
+}
+.attach-ok {
+  color: #67c23a;
+  font-size: 16px;
+}
+.attach-missing {
+  color: #e6a23c;
+  font-size: 16px;
 }
 </style>
