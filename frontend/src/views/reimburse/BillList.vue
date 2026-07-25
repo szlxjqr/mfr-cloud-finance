@@ -133,10 +133,7 @@
           <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
           <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
           <el-table-column label="数量" prop="quantity" width="60" align="center" />
-          <el-table-column label="单价" width="90" align="right">
-            <template #default="{ row }">¥{{ formatMoney(row.unit_price) }}</template>
-          </el-table-column>
-          <el-table-column label="金额" width="100" align="right">
+          <el-table-column label="预算金额" width="100" align="right">
             <template #default="{ row }">¥{{ formatMoney(row.amount) }}</template>
           </el-table-column>
           <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
