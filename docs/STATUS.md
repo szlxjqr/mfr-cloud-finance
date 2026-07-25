@@ -23,7 +23,7 @@
 |---|---|
 | 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
 | Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
-| 当前分支 | `main`（HEAD: `dd65822` feat 凭证状态机反向+手工录入 / fix 构建转绿 / gitignore 工具产物） |
+| 当前分支 | `main`（HEAD: `9570e55` docs STATUS 收口 + tesseract 离线化(方案A) + 凭证状态机/手工凭证落地，已 push 同步 origin/main） |
 | 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
 | 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25（凭证状态机+手工录入落地、前端构建转绿）
-- **Git HEAD**：`dd65822`（main；已 push 到 GitHub 远程）
+- **最后更新**：2026-07-25（凭证状态机+手工凭证落地、OCR 离线化方案A、前端构建转绿、push 同步 origin/main）
+- **Git HEAD**：`9570e55`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -345,6 +345,13 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 27. 上线前全面检查完成（本报告同级目录 `deliverables/gstack/pre-launch-check-checkout-2026-07-24.md`）：🟢 条件 Go，0 🔴 阻塞项，2 🟠 建议上线前修复（部署配置/CORS域名），5 🟡 后续迭代。
   - 28. STATUS.md 全篇更新：移除沙箱/SSH/CloudStudio 残留，补充发票识别工具进度表，命令改为本机路径。`__init__.py` 补充 `InvoiceInbox` 导出。
 - **对应提交**：`b9f09ec`（发票宽松解析）、`69fb574`（发票识别工具P0）
+- **（2026-07-25 上午）push 复查 + 收口**：
+  - 29. 老板本机 `git push origin main` 成功；复查确认本地 main == origin/main（`9570e55`），0 ahead/0 behind，无遗留提交。
+  - 30. 手工凭证反转核验：`458682f` 的 `create_manual_voucher` 用 `source_type='手工'`/`source_no=None`，与业务单联动凭证的 `(source_type,source_no)` 幂等键完全隔离；借贷前后端双校验、默认「未审核」不进账簿——守住「业务驱动账务」灵魂，原否决候选 B 的根因未触发。
+  - 31. OCR 离线化(方案A, `724b25b`) 复查干净：`tesseract.js@^5.1.1` 随 npm 发（wasm 引擎进 `frontend/public/tesseract/`）；字库 chi_sim/eng 由 `npm run setup:ocr` 拉到 `public/tesseract/lang/`（gitignore），OCR 运行时零联网。
+  - 32. 后端 39 pytest 全绿，账套/凭证/联动逻辑无回归；DB/`.env`/`.auth_secret` 仍正确未跟踪。
+  - 33. **仓库卫生决策拍板（长期约定）**：保留 `frontend/node_modules` 整体进库现状——`.gitignore` 第 3 行 `!frontend/node_modules/` 是**故意的反忽略**（注释「便于新任务 clone 即构建」），为绕过沙箱 `npm install` 联网拉不到包；占跟踪文件 ~98%（`.git`=71M）。**此反忽略规则不得删除，今后复查看到大量 node_modules 直接认可是设计选择**。DB/密钥忽略纪律照旧不放松。
+  - 34. 修复 STATUS.md §2 头部 HEAD 指针滞后（原 `dd65822` → 真实 `9570e55`），维护记录「Git HEAD」同步刷新。
   - 29. B 方案基础设施：design-tokens.css（增量令牌：图表色板/业务状态色/间距/字号/圆角/阴影/动效/层级）+ 6 全局组件（main.ts 注册）；KpiTile/StatusTag 等初版（提交 228a773）。
   - 30. B 方案第1-2步：19 文件 37 处 #409eff 换 var(--el-color-primary)；样板页套用 StatusTag/BatchActionBar/KpiTile（提交 e2402ae）。
   - 31. 暖色浅底全局：侧栏 #001529 深海军蓝→浅色科技风；KpiTile 数字上色（珊瑚橙#D85A30/暖绿#639922/金黄#EF9F27）；design-tokens 图表色板转暖亮（提交 45fd58f）。
