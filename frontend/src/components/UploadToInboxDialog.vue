@@ -7,22 +7,26 @@
     :close-on-click-modal="false"
     @open="onOpen"
   >
-    <!-- 拖拽上传区（支持多文件/文件夹） -->
-    <div class="upload-zone" :class="{ dragover }" @dragover.prevent="dragover = true" @dragleave.prevent="dragover = false" @drop.prevent="onDrop">
-      <el-upload
-        ref="uploadRef"
-        :auto-upload="false"
-        :show-file-list="false"
-        :on-change="onFileChange"
+    <!-- 拖拽上传区（原生 input 避免 el-upload multiple 不生效的问题） -->
+    <div
+      class="native-zone"
+      :class="{ dragover }"
+      @click="fileInput?.click()"
+      @dragover.prevent="dragover = true"
+      @dragleave.prevent="dragover = false"
+      @drop.prevent="onDrop"
+    >
+      <input
+        ref="fileInput"
+        type="file"
         multiple
         accept=".pdf,.ofd,.png,.jpg,.jpeg"
-        drag
-        class="inline-upload"
-      >
-        <AppIcon name="UploadFilled" class="upload-icon" />
-        <div class="upload-text">点击上传或拖拽发票文件到此处</div>
-        <div class="upload-tip">支持 PDF / OFD / 图片（最多 20 个文件）</div>
-      </el-upload>
+        style="display:none"
+        @change="onInputChange"
+      />
+      <AppIcon name="UploadFilled" class="upload-icon" />
+      <div class="upload-text">点击上传或拖拽发票文件到此处</div>
+      <div class="upload-tip">支持 PDF / OFD / 图片（最多 20 个文件）</div>
     </div>
 
     <!-- 已选文件列表 -->
@@ -121,6 +125,7 @@ const emit = defineEmits<{
 
 // ======== 状态 ========
 const dragover = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 const pendingFiles = ref<{ file: File; name: string; status: string }[]>([])
 const processing = ref(false)
 const processedCount = ref(0)
@@ -165,32 +170,35 @@ function onOpen() {
   editVisible.value = false
 }
 
-// ======== 文件处理 ========
-function onFileChange(file: any) {
-  if (pendingFiles.value.length >= 20) {
-    ElMessage.warning('最多上传 20 个文件')
-    return
+// ======== 文件处理（原生 input 多选 + 拖拽多选） ========
+function addFiles(files: FileList | File[]) {
+  const arr = Array.from(files)
+  for (const f of arr) {
+    if (pendingFiles.value.length >= 20) {
+      ElMessage.warning('最多上传 20 个文件')
+      break
+    }
+    const low = f.name.toLowerCase()
+    if (!low.match(/\.(pdf|ofd|png|jpg|jpeg)$/)) continue
+    // 避免重复添加同名文件
+    if (pendingFiles.value.some((pf) => pf.name === f.name)) continue
+    pendingFiles.value.push({ file: f, name: f.name, status: 'pending' })
   }
-  if (!file?.raw) return
-  pendingFiles.value.push({ file: file.raw, name: file.name || 'unknown', status: 'pending' })
-  // 点选按钮也立即触发 OCR（与拖拽行为一致）
-  if (!processing.value) startParsing()
+  if (!processing.value && pendingFiles.value.length) startParsing()
+}
+
+function onInputChange(e: Event) {
+  const files = (e.target as HTMLInputElement).files
+  if (!files || !files.length) return
+  addFiles(files)
+  // 清空 value 以便同一文件重新选取
+  ;(e.target as HTMLInputElement).value = ''
 }
 
 function onDrop(e: DragEvent) {
   dragover.value = false
-  const files = Array.from(e.dataTransfer?.files || [])
-  files.forEach((f) => {
-    if (pendingFiles.value.length >= 20) return
-    const low = f.name.toLowerCase()
-    if (!low.match(/\.(pdf|ofd|png|jpg|jpeg)$/)) return
-    pendingFiles.value.push({ file: f, name: f.name, status: 'pending' })
-  })
-  if (pendingFiles.value.length >= 20) {
-    ElMessage.warning('最多上传 20 个文件')
-  }
-  // 自动启动解析
-  if (!processing.value) startParsing()
+  const files = e.dataTransfer?.files
+  if (files && files.length) addFiles(files)
 }
 
 function removeFile(idx: number) {
@@ -311,15 +319,23 @@ async function confirmAll() {
 </script>
 
 <style scoped>
-.upload-zone {
+.native-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 140px;
+  border: 2px dashed var(--el-border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all .2s;
   margin-bottom: 12px;
+  background: var(--el-fill-color-lighter);
 }
-.upload-zone.dragover .inline-upload {
+.native-zone:hover,
+.native-zone.dragover {
   border-color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
-}
-.inline-upload {
-  width: 100%;
 }
 .upload-icon {
   font-size: 40px;
