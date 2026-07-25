@@ -140,7 +140,9 @@
       <div v-if="previewLoading" class="preview-loading">
         <AppIcon name="Loading" class="spin" /> 正在加载附件...
       </div>
-      <embed v-else-if="previewBlobUrl && isPdf" :src="previewBlobUrl" type="application/pdf" class="preview-embed" />
+      <!-- PDF：用 pdfjs 渲染到 canvas（Safari 兼容） -->
+      <canvas v-else-if="previewBlobUrl && isPdf" ref="pdfCanvasRef" class="preview-canvas" />
+      <!-- 图片：el-image 直接显示（Safari 支持 blob:// URL 图片） -->
       <el-image
         v-else-if="previewBlobUrl"
         :src="previewBlobUrl"
@@ -184,6 +186,12 @@ import { ElMessage } from 'element-plus'
 import http from '@/utils/request'
 import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
+import * as pdfjs from 'pdfjs-dist'
+
+// pdfjs worker 配置（Safari 没有内置 PDF 渲染，必须用 pdfjs）
+// Vite 8 支持 ?url 导入；dev 和 build 都可用
+import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 import type { Invoice } from '@/types/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
 import type { PurchaseItem } from '@/types/purchase'
@@ -300,13 +308,22 @@ async function loadPreviewBlob(id: number) {
     URL.revokeObjectURL(previewBlobUrl.value)
     previewBlobUrl.value = null
   }
+  // 先拉取附件 blob（走 axios → 带 Authorization header）
   try {
     const res = await http.get<Blob>(`/invoices/${id}/attachment`, { responseType: 'blob' })
-    // 必须给 Blob 指定真实 MIME（PDF / 图片），否则浏览器默认按 application/octet-stream 触发下载
     const ct = (res.headers && (res.headers['content-type'] as string)) || guessMime(previewInvoiceAttachment.value)
     const raw = res.data
     const blob = raw instanceof Blob ? new Blob([raw], { type: ct }) : new Blob([raw as any], { type: ct })
-    previewBlobUrl.value = URL.createObjectURL(blob)
+    const blobUrl = URL.createObjectURL(blob)
+
+    // PDF → 用 pdfjs 渲染到 canvas（Safari 兼容）；图片 → blob URL
+    if (isPdf.value && ct.includes('pdf')) {
+      // 异步渲染 PDF 第一页
+      renderPdfToCanvas(blobUrl)
+      previewBlobUrl.value = blobUrl // 仅用于标识"加载中"
+    } else {
+      previewBlobUrl.value = blobUrl
+    }
   } catch (e: any) {
     if (e?.response?.status === 401) {
       previewError.value = '会话已过期，请重新登录'
@@ -315,6 +332,30 @@ async function loadPreviewBlob(id: number) {
     }
   } finally {
     previewLoading.value = false
+  }
+}
+
+const pdfCanvasRef = ref<HTMLCanvasElement | null>(null)
+
+async function renderPdfToCanvas(url: string) {
+  try {
+    const pdf = await pdfjs.getDocument(url).promise
+    const page = await pdf.getPage(1)
+    // 按弹窗宽度设置缩放（~780px 内容区）
+    const containerWidth = 760
+    const viewport = page.getViewport({ scale: 1 })
+    const scale = containerWidth / viewport.width
+    const scaledViewport = page.getViewport({ scale })
+    const canvas = pdfCanvasRef.value
+    if (!canvas) return
+    canvas.width = scaledViewport.width
+    canvas.height = scaledViewport.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise
+  } catch (e) {
+    console.warn('pdfjs 渲染失败', e)
+    previewError.value = 'PDF 渲染失败，请下载后使用系统预览查看'
   }
 }
 
@@ -593,6 +634,12 @@ async function confirmLink() {
   height: 60vh;
   border: none;
   background: #f5f7fa;
+}
+.preview-canvas {
+  max-width: 100%;
+  display: block;
+  margin: 0 auto;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 .preview-image {
   max-width: 100%;
