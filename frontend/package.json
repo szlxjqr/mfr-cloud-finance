@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "copy:pdfjs": "node scripts/copy-pdfjs-assets.mjs",
+    "setup:ocr": "node scripts/fetch-tesseract-lang.mjs",
     "build": "vue-tsc -b && npm run copy:pdfjs && vite build",
     "preview": "vite preview"
   },

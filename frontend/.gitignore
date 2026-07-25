@@ -16,6 +16,11 @@ dist-ssr
 public/cmaps/
 public/standard_fonts/
 
+# tesseract 离线 OCR：worker + wasm 核心随构建发布（入库）；
+# 中文字库（chi_sim/eng .traineddata.gz）体积大，由 `npm run setup:ocr`
+# 一次性拉取到 public/tesseract/lang/，不入库（见 scripts/fetch-tesseract-lang.mjs）
+public/tesseract/lang/
+
 # 发票解析离线回归测试现场编译产物（由 tests/invoice_accuracy.mjs 生成）
 .invoice-test-build/
 

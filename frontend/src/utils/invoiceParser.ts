@@ -111,9 +111,19 @@ async function renderPageToCanvas(
 }
 
 // 使用 tesseract 识别图片/画布文字（PNG 与 PDF 兜底共用）
+// 离线化：worker / wasm 核心 / 中文字库均置于 public/tesseract/ 随构建发布，
+// 不再从 CDN（jsdelivr）拉取，OCR 运行时零联网。
+// 字库需先执行 `npm run setup:ocr`（scripts/fetch-tesseract-lang.mjs）拉取一次。
+const TESS_WORKER_PATH = '/tesseract/worker.min.js'
+const TESS_CORE_PATH = '/tesseract/core/tesseract-core.wasm.js'
+const TESS_LANG_PATH = '/tesseract/lang/'
+
 async function ocrToText(input: File | HTMLCanvasElement): Promise<string> {
   const Tesseract = await import('tesseract.js')
   const worker = await Tesseract.createWorker('chi_sim+eng', 1, {
+    workerPath: TESS_WORKER_PATH,
+    corePath: TESS_CORE_PATH,
+    langPath: TESS_LANG_PATH,
     logger: () => {},
   })
   try {
