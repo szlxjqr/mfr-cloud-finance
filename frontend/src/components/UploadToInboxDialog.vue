@@ -99,9 +99,35 @@
       </template>
     </el-dialog>
 
+    <!-- 入池结果面板（确认后展示，用户看完手动关） -->
+    <div v-if="showResult" class="result-panel">
+      <el-result :title="resultSummary" :sub-title="'明细如下：'" icon="success">
+        <template #extra>
+          <el-table :data="resultItems" border stripe size="small" height="300">
+            <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
+            <el-table-column label="结果" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag v-if="row.status === '成功'" size="small" type="success">成功</el-tag>
+                <el-tag v-else-if="row.status === '重复'" size="small" type="warning">重复</el-tag>
+                <el-tag v-else size="small" type="danger">失败</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="detail" label="说明" min-width="250" show-overflow-tooltip />
+          </el-table>
+          <div class="result-actions">
+            <el-button @click="resetAndClose">关闭</el-button>
+            <el-button v-if="resultItems.some(i => i.status === '失败')" type="primary" @click="showResult = false; saving = false">
+              返回重新上传
+            </el-button>
+          </div>
+        </template>
+      </el-result>
+    </div>
+
     <template #footer>
-      <el-button @click="$emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :disabled="!recognizedInvoices.length || processing" :loading="saving" @click="confirmAll">
+      <el-button v-if="!showResult" @click="$emit('update:modelValue', false)">取消</el-button>
+      <el-button v-else @click="resetAndClose">关闭</el-button>
+      <el-button v-if="!showResult" type="primary" :disabled="!recognizedInvoices.length || processing" :loading="saving" @click="confirmAll">
         全部暂存到发票池（{{ recognizedInvoices.length }} 张）
       </el-button>
     </template>
@@ -145,6 +171,16 @@ interface RecognizedRow {
 
 const recognizedInvoices = ref<RecognizedRow[]>([])
 
+// 入池结果面板
+interface ResultItem {
+  fileName: string
+  status: '成功' | '重复' | '失败'
+  detail: string
+}
+const showResult = ref(false)
+const resultItems = ref<ResultItem[]>([])
+const resultSummary = ref('')
+
 // 编辑状态
 const editVisible = ref(false)
 const editingIndex = ref(-1)
@@ -168,6 +204,9 @@ function onOpen() {
   processedCount.value = 0
   saving.value = false
   editVisible.value = false
+  showResult.value = false
+  resultItems.value = []
+  resultSummary.value = ''
 }
 
 // ======== 文件处理（原生 input 多选 + 拖拽多选） ========
@@ -292,28 +331,45 @@ function confirmEdit() {
   ElMessage.success('已更新')
 }
 
-// ======== 确认入池 ========
+// ======== 确认入池（逐条上传 → 展示结果面板） ========
 async function confirmAll() {
   saving.value = true
-  let ok = 0
-  let fail = 0
+  const items: ResultItem[] = []
   for (const row of recognizedInvoices.value) {
     try {
       const ej = JSON.stringify(row.parsed || {})
-      await inboxApi.upload(row.file, ej)
-      ok++
-    } catch (e: any) {
-      if (e?.response?.status === 409) {
-        ok++ // 已存在视为成功（不重复入池）
+      const res = await inboxApi.upload(row.file, ej)
+      if (res.data?.duplicated || res.status === 409) {
+        items.push({ fileName: row.fileName, status: '重复', detail: '发票箱中已存在同号码发票' })
       } else {
-        fail++
-        console.error('入池失败', row.fileName, e)
+        items.push({ fileName: row.fileName, status: '成功', detail: '已入发票池，可在挂发票中使用' })
+      }
+    } catch (e: any) {
+      // 后端 409 也可能走 catch（取决于响应拦截器对 409 的处理）
+      if (e?.response?.status === 409) {
+        items.push({ fileName: row.fileName, status: '重复', detail: '发票箱中已存在同号码发票' })
+      } else {
+        const msg = e?.response?.data?.detail || '请求失败'
+        items.push({ fileName: row.fileName, status: '失败', detail: msg })
       }
     }
   }
+  resultItems.value = items
+  const ok = items.filter((i) => i.status === '成功').length
+  const dup = items.filter((i) => i.status === '重复').length
+  const fail = items.filter((i) => i.status === '失败').length
+  const parts = [`${ok} 张成功`]
+  if (dup) parts.push(`${dup} 张重复`)
+  if (fail) parts.push(`${fail} 张失败`)
+  resultSummary.value = `入库完毕：${parts.join('，')}`
+  showResult.value = true
   saving.value = false
-  ElMessage.success(`入库完成：成功 ${ok} 张${fail ? `，失败 ${fail} 张` : ''}`)
   emit('saved')
+}
+
+function resetAndClose() {
+  showResult.value = false
+  resultItems.value = []
   emit('update:modelValue', false)
 }
 </script>
@@ -422,5 +478,14 @@ async function confirmAll() {
   font-size: 12px;
   color: #909399;
   margin-top: 6px;
+}
+.result-panel {
+  min-height: 300px;
+}
+.result-actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 </style>
