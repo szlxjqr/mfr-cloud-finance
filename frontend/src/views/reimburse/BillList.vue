@@ -107,6 +107,41 @@
         </el-form-item>
       </el-form>
 
+      <!-- 采购申请细项（编辑模式：列出所有细项，每行"挂发票"按钮直达） -->
+      <div v-if="editing && editingId && editPurchaseItems.length" class="purchase-items">
+        <div class="linked-header">
+          <span class="linked-title">采购申请细项（来源采购单：<strong>{{ editingRow?.purchase_requisition_id ? '#' + editingRow.purchase_requisition_id : '-' }}</strong>）</span>
+          <span class="text-muted">点细项行末尾的「挂发票」直达该细项的发票挂载</span>
+        </div>
+        <el-table :data="editPurchaseItems" border stripe size="small">
+          <el-table-column label="序号" width="55" align="center">
+            <template #default="{ $index }">{{ $index + 1 }}</template>
+          </el-table-column>
+          <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
+          <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
+          <el-table-column label="数量" prop="quantity" width="60" align="center" />
+          <el-table-column label="单价" width="90" align="right">
+            <template #default="{ row }">¥{{ formatMoney(row.unit_price) }}</template>
+          </el-table-column>
+          <el-table-column label="金额" width="100" align="right">
+            <template #default="{ row }">¥{{ formatMoney(row.amount) }}</template>
+          </el-table-column>
+          <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
+          <el-table-column label="已挂" width="80" align="center">
+            <template #default="{ row }">
+              <span :class="{ 'has-invoices': (editItemInvoiceCount.get(row.id) || 0) > 0 }">
+                {{ editItemInvoiceCount.get(row.id) || 0 }} 张
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" align="center" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="success" size="small" @click="openAttachFromEdit(row.id)">挂发票</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
       <!-- 已关联发票（编辑模式或保存后可见） -->
       <div v-if="editing && editingId" class="linked-invoices">
         <div class="linked-header">
@@ -159,6 +194,14 @@
         <el-button type="primary" @click="save">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 挂发票弹窗（编辑弹窗里点采购细项行的"挂发票"触发） -->
+    <AttachInvoiceDialog
+      v-model="attachVisible"
+      :bill="attachBill"
+      :initial-item-id="attachInitialItemId"
+      @attached="onAttachDone"
+    />
 
     <!-- 挂发票入口已迁至「我的报销」页（MyReimburse.vue）——此处不重复 -->
 
@@ -370,6 +413,7 @@ import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 import { purchaseApi } from '@/api/purchase'
 import type { PurchaseItem } from '@/types/purchase'
+import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
 
@@ -395,11 +439,20 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
+const editingRow = ref<ReimbursementBill | null>(null)
 const previewBillNo = ref<string | null>(null)
 const linkedInvoices = ref<Invoice[]>([])
 const linkedTableKey = ref(0)
 // 采购细项 id → 名称映射（openEdit 拉取来源采购单的 items 时填充，供"已关联发票"表"对应细项"列展示）
 const itemNameMap = ref<Record<number, string>>({})
+// 编辑模式下当前报销单对应的采购细项（含每条已挂计数）
+const editPurchaseItems = ref<PurchaseItem[]>([])
+const editItemInvoiceCount = ref<Map<number, number>>(new Map())
+
+// 挂发票弹窗（编辑弹窗里点细项行的"挂发票"按钮触发）
+const attachVisible = ref(false)
+const attachBill = ref<ReimbursementBill | null>(null)
+const attachInitialItemId = ref<number | null>(null)
 
 // 审批弹窗
 const approveDialogVisible = ref(false)
@@ -516,6 +569,11 @@ function toNum(v: any): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function formatMoney(v: any): string {
+  const n = toNum(v)
+  return n.toFixed(2)
+}
+
 function invoiceSubtotal(inv: Invoice): number {
   return (inv.details || []).reduce((sum, d) => sum + toNum(d.amount), 0)
 }
@@ -562,19 +620,62 @@ async function openEdit(row: ReimbursementBill) {
   editing.value = true
   editingId.value = row.id
   previewBillNo.value = row.bill_no ?? null
+  editingRow.value = row
   dialogVisible.value = true
   loadLinkedInvoices()
-  // 采购报销且有关联采购单 → 加载细项名称映射（供已关联表显示）
+  // 采购报销且有关联采购单 → 加载细项 + 已挂统计（供编辑弹窗的"采购申请细项"区）
+  editPurchaseItems.value = []
+  editItemInvoiceCount.value = new Map()
   if (row.purchase_requisition_id) {
     try {
       const res = await purchaseApi.get(row.purchase_requisition_id)
       const items = (res.data.items || []) as PurchaseItem[]
+      editPurchaseItems.value = items
       const map: Record<number, string> = {}
       items.forEach((it: PurchaseItem) => { if (it.id) map[it.id] = it.item_name })
       itemNameMap.value = map
+      const linkedRes = await invoiceApi.list({ reimbursement_bill_id: row.id })
+      const counts = new Map<number, number>()
+      ;(linkedRes.data || []).forEach((inv: Invoice) => {
+        if (inv.purchase_requisition_item_id) {
+          counts.set(inv.purchase_requisition_item_id, (counts.get(inv.purchase_requisition_item_id) || 0) + 1)
+        }
+      })
+      editItemInvoiceCount.value = counts
     } catch {
-      // 非关键异常，静默
+      // 非关键异常
     }
+  }
+}
+
+// 从编辑弹窗里"采购申请细项"表的某行点"挂发票"按钮触发
+function openAttachFromEdit(itemId: number) {
+  if (!editingId.value) return
+  // 构造 attachBill：用当前表单的最新数据（编辑后未保存的字段也带上）
+  attachBill.value = {
+    ...(form as any),
+    id: editingId.value,
+    bill_no: previewBillNo.value,
+  } as ReimbursementBill
+  attachInitialItemId.value = itemId
+  attachVisible.value = true
+}
+
+async function onAttachDone() {
+  // 关联成功后：刷新已挂发票表 + 各细项已挂计数
+  await loadLinkedInvoices()
+  if (!editingId.value) return
+  try {
+    const linkedRes = await invoiceApi.list({ reimbursement_bill_id: editingId.value })
+    const counts = new Map<number, number>()
+    ;(linkedRes.data || []).forEach((inv: Invoice) => {
+      if (inv.purchase_requisition_item_id) {
+        counts.set(inv.purchase_requisition_item_id, (counts.get(inv.purchase_requisition_item_id) || 0) + 1)
+      }
+    })
+    editItemInvoiceCount.value = counts
+  } catch {
+    // 非关键
   }
 }
 
@@ -904,7 +1005,10 @@ onMounted(load)
   margin-left: 4px;
 }
 
-/* 已关联发票 */
+/* 采购申请细项 + 已关联发票 */
+.purchase-items {
+  margin-top: 16px;
+}
 .linked-invoices {
   margin-top: 16px;
   padding-top: 16px;
@@ -915,6 +1019,10 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+.has-invoices {
+  color: #67c23a;
+  font-weight: 600;
 }
 .linked-title {
   font-weight: 600;

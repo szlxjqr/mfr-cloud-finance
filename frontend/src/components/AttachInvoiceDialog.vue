@@ -149,6 +149,8 @@ import type { PurchaseItem, PurchaseReq } from '@/types/purchase'
 const props = defineProps<{
   modelValue: boolean
   bill: ReimbursementBill | null
+  /** 可选：打开时预选采购细项 id（编辑弹窗里点"挂发票"按钮传入） */
+  initialItemId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -239,6 +241,11 @@ async function loadPurchaseContext(purchaseReqId: number, billId: number) {
 
     showItemStep.value = items.length > 0
     if (!showItemStep.value) loadUnlinked()
+    // 应用外部传入的预选细项（编辑弹窗里点"挂发票"传入）
+    if (showItemStep.value && props.initialItemId && items.some((it) => it.id === props.initialItemId)) {
+      selectedItemId.value = props.initialItemId
+      loadUnlinked()
+    }
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '加载来源采购单失败')
     loadUnlinked()
