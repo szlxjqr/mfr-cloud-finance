@@ -302,7 +302,10 @@ async function loadPreviewBlob(id: number) {
   }
   try {
     const res = await http.get<Blob>(`/invoices/${id}/attachment`, { responseType: 'blob' })
-    const blob = res.data instanceof Blob ? res.data : new Blob([res.data as any])
+    // 必须给 Blob 指定真实 MIME（PDF / 图片），否则浏览器默认按 application/octet-stream 触发下载
+    const ct = (res.headers && (res.headers['content-type'] as string)) || guessMime(previewInvoiceAttachment.value)
+    const raw = res.data
+    const blob = raw instanceof Blob ? new Blob([raw], { type: ct }) : new Blob([raw as any], { type: ct })
     previewBlobUrl.value = URL.createObjectURL(blob)
   } catch (e: any) {
     if (e?.response?.status === 401) {
@@ -313,6 +316,19 @@ async function loadPreviewBlob(id: number) {
   } finally {
     previewLoading.value = false
   }
+}
+
+function guessMime(path: string | null | undefined): string {
+  if (!path) return 'application/octet-stream'
+  const ext = path.toLowerCase().split('.').pop() || ''
+  const map: Record<string, string> = {
+    pdf: 'application/pdf',
+    ofd: 'application/ofd',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+  }
+  return map[ext] || 'application/octet-stream'
 }
 
 function closePreview() {
