@@ -159,7 +159,7 @@ git push origin main
 - [x] 凭证状态机前端入口：voucher.ts + VoucherList 审核/记账按钮（接后端 audit/post）。2026-07-24 完成。
 - [x] 发票箱去重(P1) + OCR 兜底验证。2026-07-24 完成。
 - [x] 凭证反审核/反记账逆向 + 手工凭证录入：已落地（commit `458682f`）。独立 `source_type='手工'`/`source_no=None` 不污染业务单幂等链路，维持"业务驱动账务"灵魂；状态机 audit/post/unaudit/unpost 全带守卫。`Voucher.vue` 由占位改为可用手工录入表单（原"暂不开手工凭证"拍板已改为开放独立手工入口）。
-- [ ] tesseract 离线化（wasm/字库本地化，免首次联网）：WIP 已就（worker+wasm 核心 22MB 置 `frontend/public/tesseract/`、字库由 `npm run setup:ocr` 拉取并 gitignore），**待老板定 A(引擎入库)/B(全 gitignore+拉取)**；相关文件（public/tesseract/、scripts/fetch-tesseract-lang.mjs、invoiceParser.ts 离线路径、.gitignore/package.json OCR 行）暂留工作区未提交。
+- [x] tesseract 离线化（wasm/字库本地化，免首次联网）：已落地（**方案A**，commit `724b25b`）。识别引擎（tesseract-core*.wasm + worker.min.js，~22MB）随库发布于 `frontend/public/tesseract/`；中文字库由 `npm run setup:ocr`（scripts/fetch-tesseract-lang.mjs）一次性拉取到 `public/tesseract/lang/`（gitignore，不入库）。invoiceParser.ts 改离线路径指向 `/tesseract/`，OCR 运行时零联网。
 
 ---
 
@@ -355,3 +355,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 36. 设计文档集（AICoding）：高层架构设计/系统设计/部署设计/安全设计/UserStory 五份核心文档（共 ~1975 行，提交 7f17772）；UI Designer 全面审计 + 设计系统草案（提交 86cd29f）；发票识别 PRD + 架构文档。
   - 37. STATUS.md 本次收口：HEAD 69fb574→abcbd50，补 B 方案/组件全量/暖色浅底/凭证状态机/OCR/测试补全 等进度与决策；设计文档集（5 架构 + 生命周期 18 篇 + PRD + UI 审计）均已落地，**设计工作收口**。代码类下一步（OCR 离线化/反审核/手工凭证）待老板找其他专家评估后定。
   - 38. 2026-07-25 收尾：① 提交凭证状态机反向+手工录入（commit `458682f`，12 文件，对应 §6 ②③ 原待评估项已落地）；② 本会话修复前端构建 19 处 TS 错误（commit `36caae8`）——含 InvoiceInbox.vue(225) `res?.duplicated` 真运行时 bug（前端拦截器返回整个 response 不解包 `.data`，且 types/invoice.ts 的 InvoiceInbox 缺 duplicated 字段 → 改为 `res.data?.duplicated` + 补类型），另删 18 处死代码未用导入；`npm run build` 已转绿（0 错误，vite 1.09s）。③ chore gitignore 工具目录(.workbuddy/)与产物目录(deliverables/)（commit `dd65822`）。④ 发票识别(tesseract)离线化 WIP 已就，待老板定「引擎入库 A / 全 gitignore+拉取 B」（§6 ① 仍待定）。HEAD abcbd50→dd65822。
+  - 39. 2026-07-25 续：老板拍板 tesseract 离线化 **方案A**（commit `724b25b`，11 文件，~22MB 入仓）。识别引擎（tesseract-core*.wasm + worker.min.js）随构建发布于 `frontend/public/tesseract/`；中文字库（chi_sim/eng .traineddata.gz）由 `npm run setup:ocr`（scripts/fetch-tesseract-lang.mjs）一次性拉取到 `public/tesseract/lang/`，已 gitignore 不入库；invoiceParser.ts 改离线路径指向 `/tesseract/`，OCR 运行时零联网。§6 ① 收口。注：本会话全部 5 个提交（458682f/36caae8/dd65822/0c106c3/724b25b）均落本地 main、未 push——沙箱到 github.com:443 网络超时（清代理+绕沙箱仍 timed out），老板本机终端 `git push origin main` 即可。HEAD dd65822→724b25b。
