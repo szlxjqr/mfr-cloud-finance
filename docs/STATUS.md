@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25 17:01+（发票搜索加金额智能筛选，已 push 同步 origin/main）
-- **Git HEAD**：`40c6d55`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **最后更新**：2026-07-25 17:08+（发票行点击预览电子图片，已 push 同步 origin/main）
+- **Git HEAD**：`9670ab2`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -377,3 +377,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 51. 2026-07-25 16:49+：老板要求隐藏「上传发票」按钮，把「增加发票」搬到「采购申请细项」section header 右侧。落地：① 删「采购申请细项」section header 的 el-upload「上传发票」按钮 + 相关 upload state/handlers + InvoiceRecognizeDialog 组件实例 + onUploadFilePicked/onUploadConfirm 函数 + .upload-btn CSS（−88 行）；② 删「已关联发票」section header 的「增加发票」按钮（功能上移）；③ 「采购申请细项」section header 右侧新增「增加发票」按钮（`@click=openAddInvoice`，复用现有 `invoiceDialogVisible` 弹窗）。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `4fa4f86`，已 push origin/main。
   - 52. 2026-07-25 16:54+：老板要求挂发票弹窗的已选细项提示栏增加预算金额。修：AttachInvoiceDialog.vue 提示栏加「· 预算金额 ¥xxx」；新增 `selectedItemAmount` computed 从 `purchaseItems` 按 `selectedItemId` 查找对应 `amount`。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `2406b69`，已 push origin/main。
   - 53. 2026-07-25 17:01+：老板要求挂发票弹窗增加金额智能筛选——默认按已选细项预算 ±30% 过滤；发票搜索框加手动输入金额按 ±30% 过滤。落地：① 搜索框区加 `el-input-number`「含税金额(选填)」+ `el-switch`「按预算自动筛 ±30%」（默认开启）；② 新增 `amountMatchTarget` computed（优先级：手动金额 > 预算金额）和 `isNearTarget` helper；③ 新增 `filteredInvoices` computed（unlinked ∩ 金额差 ≤ 30%），替换原 `:data='unlinkedInvoices'`；④ 金额列在差 ≤ 30% 的发票尾打绿色「匹配」标签。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `40c6d55`，已 push origin/main。
+  - 54. 2026-07-25 17:08+：老板要求挂发票弹窗的发票行点击预览电子图片。落地：① 后端 `invoice.py` 新增 `GET /invoices/{iid}/attachment`（FileResponse，未归档返 404）；② 前端 `AttachInvoiceDialog.vue` 发票表格加 `@row-click` + cursor:pointer；③ 新增预览 `el-dialog`（`append-to-body` 避免嵌套）；④ PDF/OFD 用 iframe 内嵌渲染，图片用 `el-image`（带 zoom + 错误兜底），未归档显示提示。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `9670ab2`，已 push origin/main。
