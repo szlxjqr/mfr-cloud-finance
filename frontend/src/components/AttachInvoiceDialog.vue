@@ -491,9 +491,10 @@ async function loadUnlinked() {
     if (invoiceKeyword.value.trim()) params.keyword = invoiceKeyword.value.trim()
     const res = await invoiceApi.list(params)
     unlinkedInvoices.value = (res.data || []).map((inv) => {
-      const totalAmount = inv.details.reduce((s, d) => s + toNum(d.amount), 0)
+      // 含税金额 = 价税合计（每行 detail.total 之和）
+      const totalWithTax = inv.details.reduce((s, d) => s + toNum(d.total), 0)
       const totalTax = inv.details.reduce((s, d) => s + toNum(d.tax), 0)
-      return { ...inv, total_amount: totalAmount, total_tax: totalTax }
+      return { ...inv, total_amount: totalWithTax, total_tax: totalTax }
     })
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '加载未关联发票失败')
