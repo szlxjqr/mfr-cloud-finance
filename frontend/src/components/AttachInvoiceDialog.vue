@@ -152,14 +152,24 @@
           </div>
         </template>
       </el-image>
-      <!-- 无附件（历史遗留发票或未归档）—— 引导用户去发票箱补传 -->
+      <!-- 无附件（历史遗留发票或未归档）—— 直接上传替换，无需跳转 -->
       <div v-else class="preview-empty">
         <AppIcon name="Document" class="empty-icon" />
         <div class="empty-title">该发票未归档电子文件</div>
-        <div class="empty-desc">可能是早期数据未同步附件。如需预览，请到「发票箱」重新上传该发票后再次关联。</div>
-        <el-button type="primary" @click="goToInbox">
-          <AppIcon name="Upload" />前往发票箱归档
-        </el-button>
+        <div class="empty-desc">点击下方按钮，选择发票原文件（PDF / 图片）直接上传附件，上传后即可预览。</div>
+        <div class="empty-actions">
+          <el-upload
+            :show-file-list="false"
+            accept=".pdf,.ofd,.png,.jpg,.jpeg"
+            :http-request="onUploadAttach"
+            :disabled="uploadingAttach"
+          >
+            <el-button type="primary" :loading="uploadingAttach">
+              <AppIcon name="Upload" />上传替换附件
+            </el-button>
+          </el-upload>
+          <el-button @click="goToInbox">前往发票箱</el-button>
+        </div>
       </div>
     </div>
   </el-dialog>
@@ -280,6 +290,24 @@ const router = useRouter()
 function goToInbox() {
   previewVisible.value = false
   router.push('/invoice/inbox')
+}
+
+// 无附件发票：直接上传替换附件
+const uploadingAttach = ref(false)
+async function onUploadAttach(options: any) {
+  const file = options.file as File
+  if (!previewInvoiceId.value || !file) return
+  uploadingAttach.value = true
+  try {
+    await invoiceApi.uploadAttachment(previewInvoiceId.value, file)
+    ElMessage.success('附件已上传，可关闭弹窗后重新点击查看')
+    // 把本地 attachment 置为非空，让弹窗立即切换显示（重开预览时后端已更新）
+    previewInvoiceAttachment.value = '__uploaded__'
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '上传失败')
+  } finally {
+    uploadingAttach.value = false
+  }
 }
 
 // ======== 监听：bill 变化或打开时重置 ========
@@ -485,6 +513,11 @@ async function confirmLink() {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   margin-left: 4px;
+}
+.empty-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
 }
 .preview-wrap {
   min-height: 480px;
