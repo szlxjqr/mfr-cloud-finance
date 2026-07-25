@@ -66,10 +66,12 @@
           </el-table-column>
         </el-table>
       </DataLoader>
-      <div v-if="selectedItemId" class="item-selected-hint">
-        已选细项：<strong>{{ itemNameMap[selectedItemId] || ('#' + selectedItemId) }}</strong>
-        <span v-if="(itemInvoiceCount.get(selectedItemId) || 0) > 0" class="muted">（已挂 {{ itemInvoiceCount.get(selectedItemId) }} 张，可继续追加）</span>
-      </div>
+    </div>
+
+    <!-- 已选细项提示（独立于 .item-step，无论是否预选都会显示，让用户清楚当前要挂到哪条细项） -->
+    <div v-if="selectedItemId" class="item-selected-hint">
+      已选细项：<strong>{{ itemNameMap[selectedItemId] || ('#' + selectedItemId) }}</strong>
+      <span v-if="(itemInvoiceCount.get(selectedItemId) || 0) > 0" class="muted">（已挂 {{ itemInvoiceCount.get(selectedItemId) }} 张，可继续追加）</span>
     </div>
 
     <!-- 四、发票选择（仅当选择了细项或无来源采购单时显示） -->
