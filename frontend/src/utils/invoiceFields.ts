@@ -275,7 +275,7 @@ export function extractLineItems(norm: string): ParsedLineItem[] {
     if (!name) continue
 
     // 主规则：金额 税率% 税额（取最后一组，规避跨锚点单价泄漏）
-    const triples = [...seg.matchAll(/([\d,]+\.\d{2})\s+(\d{1,2})\s*%\s+([\d,]+\.\d{2})/g)]
+    const triples = [...seg.matchAll(/(-?[\d,]+\.\d{2})\s+(\d{1,2})\s*%\s+(-?[\d,]+\.\d{2})/g)]
     let amount: number | undefined
     let tax: number | undefined
     let rate: number | undefined
@@ -285,7 +285,7 @@ export function extractLineItems(norm: string): ParsedLineItem[] {
       tax = parseMoney(last[3])
       rate = Number(last[2])
     } else {
-      const decs = [...seg.matchAll(/[\d,]+\.\d{2}/g)].map((x) => parseMoney(x[0]))
+      const decs = [...seg.matchAll(/-?[\d,]+\.\d{2}/g)].map((x) => parseMoney(x[0]))
       if (decs.length < 2) continue
       amount = decs[decs.length - 2]
       tax = decs[decs.length - 1]
@@ -295,6 +295,20 @@ export function extractLineItems(norm: string): ParsedLineItem[] {
     items.push({ name, amount: round2(amount || 0), tax: round2(tax || 0), taxRate: rate })
   }
   return items
+}
+
+/** 提取「合计」行数据（合计不含税金额、合计税额、价税合计）。
+ *  京东等优惠发票有额外负号行，合计行为权威来源。
+ *  返回 { summaryAmount, summaryTax, summaryTotal }，找不到时全部为 undefined。 */
+function extractSummaryLine(norm: string): { summaryAmount?: number; summaryTax?: number; summaryTotal?: number } {
+  // 找「合计」或「小计」标签后的数字区域
+  const m = norm.match(/[合小]计[\s\S]{0,80}?(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})(?:\s+(-?[\d,]+\.\d{2}))?/)
+  if (!m) return {}
+  const r: { summaryAmount?: number; summaryTax?: number; summaryTotal?: number } = {}
+  r.summaryAmount = parseMoney(m[1])
+  r.summaryTax = parseMoney(m[2])
+  if (m[3] !== undefined) r.summaryTotal = parseMoney(m[3])
+  return r
 }
 
 // 开票项目（*xxx* 形式，取首个）。
@@ -349,19 +363,43 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     result.sellerTaxNo = taxNos[taxNos.length - 1]
   }
 
-  // 5. 明细行 + 价税合计
+  // 5. 明细行 + 合计行校验 + 价税合计
   const items = extractLineItems(norm)
   result.items = items
   if (items.length > 0) {
-    const tax = round2(items.reduce((s, it) => s + it.tax, 0))
-    result.tax = tax
-    const total = extractTotal(norm)
-    if (total !== undefined) {
-      result.total = total
-      result.amount = round2(total - tax)
+    const itemAmount = round2(items.reduce((s, it) => s + it.amount, 0))
+    const itemTax = round2(items.reduce((s, it) => s + it.tax, 0))
+
+    // 优先用合计行数据（权威来源，京东优惠发票有负号明细）
+    const sl = extractSummaryLine(norm)
+    const summaryAmount = sl.summaryAmount
+    const summaryTax = sl.summaryTax
+    const summaryTotal = sl.summaryTotal
+
+    // 合计行数据齐全 → 优先用
+    if (summaryAmount !== undefined && summaryTax !== undefined) {
+      result.amount = summaryAmount
+      result.tax = summaryTax
+      // 校验：items 加总与合计行差 ≤ 0.02 时认为一致，否则说明明细行有误（如负号被吞）
+      if (Math.abs(itemAmount - summaryAmount) > 0.02) {
+        // 仅警告，不动数据
+      }
     } else {
-      result.amount = round2(items.reduce((s, it) => s + it.amount, 0))
-      result.total = round2((result.amount || 0) + tax)
+      result.amount = itemAmount
+      result.tax = itemTax
+    }
+
+    // 价税合计：合计行 > extractTotal > 推算
+    if (summaryTotal !== undefined) {
+      result.total = summaryTotal
+    } else {
+      const total = extractTotal(norm)
+      if (total !== undefined) {
+        result.total = total
+        if (result.amount === undefined) result.amount = round2(total - (result.tax || 0))
+      } else {
+        result.total = round2((result.amount || 0) + (result.tax || 0))
+      }
     }
     // 税率取首个明细的（如一致）
     const rates = [...new Set(items.map((it) => it.taxRate).filter((r) => r !== undefined))] as number[]
