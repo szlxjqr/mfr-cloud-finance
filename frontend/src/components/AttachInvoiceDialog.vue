@@ -136,9 +136,9 @@
     append-to-body
   >
     <div v-if="previewInvoiceId" class="preview-wrap">
-      <iframe v-if="isPdf" :src="previewSrc" class="preview-iframe" />
+      <iframe v-if="previewHasAttachment && isPdf" :src="previewSrc" class="preview-iframe" />
       <el-image
-        v-else
+        v-else-if="previewHasAttachment"
         :src="previewSrc"
         :preview-src-list="[previewSrc]"
         fit="contain"
@@ -152,13 +152,22 @@
           </div>
         </template>
       </el-image>
-      <div v-if="!previewSrc" class="preview-error">该发票未归档电子文件</div>
+      <!-- 无附件（历史遗留发票或未归档）—— 引导用户去发票箱补传 -->
+      <div v-else class="preview-empty">
+        <AppIcon name="Document" class="empty-icon" />
+        <div class="empty-title">该发票未归档电子文件</div>
+        <div class="empty-desc">可能是早期数据未同步附件。如需预览，请到「发票箱」重新上传该发票后再次关联。</div>
+        <el-button type="primary" @click="goToInbox">
+          <AppIcon name="Upload" />前往发票箱归档
+        </el-button>
+      </div>
     </div>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
@@ -250,6 +259,7 @@ const previewSrc = computed(() => {
   // vite dev 时代理 /api → 8521；生产由后端同源托管
   return `/api/invoices/${previewInvoiceId.value}/attachment`
 })
+const previewHasAttachment = computed(() => !!previewInvoiceAttachment.value)
 const previewTitle = computed(() =>
   previewInvoiceId.value ? `发票预览 #${previewInvoiceNo.value || previewInvoiceId.value}` : '发票预览',
 )
@@ -259,15 +269,17 @@ const isPdf = computed(() => {
 })
 
 function onInvoiceRowClick(row: any) {
-  // 没有 attachment_path 也允许打开预览（弹窗会显示"未归档"提示）
-  if (!row.attachment_path) {
-    ElMessage.warning('该发票未归档电子文件，无法预览')
-    return
-  }
+  // 无论有无附件都打开预览弹窗：弹窗内根据 attachment 显示对应内容（PDF/图）或引导
   previewInvoiceId.value = row.id
   previewInvoiceNo.value = row.no || ''
   previewInvoiceAttachment.value = row.attachment_path || null
   previewVisible.value = true
+}
+
+const router = useRouter()
+function goToInbox() {
+  previewVisible.value = false
+  router.push('/invoice/inbox')
 }
 
 // ======== 监听：bill 变化或打开时重置 ========
@@ -494,6 +506,29 @@ async function confirmLink() {
   text-align: center;
   color: var(--el-text-color-secondary);
   padding: 24px;
+}
+.preview-empty {
+  text-align: center;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.empty-icon {
+  font-size: 56px;
+  color: #c0c4cc;
+}
+.empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+.empty-desc {
+  font-size: 13px;
+  color: #909399;
+  max-width: 480px;
+  line-height: 1.5;
 }
 .attach-ok {
   color: #67c23a;
