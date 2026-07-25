@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25 15:00+（编辑报销单弹窗加采购细项表，每行挂发票按钮直达；本地提交领先 origin/main 1，待 push）
-- **Git HEAD**：`5b4c926`（main；本地领先 origin/main 1，沙箱到 github.com:443 间歇性超时待老板本机 push）
+- **最后更新**：2026-07-25 15:32+（挂发票弹窗预选 item 时不再展示细项表，已 push 同步 origin/main）
+- **Git HEAD**：`753399d`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -369,3 +369,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 43. 2026-07-25 14:00+：老板要求「挂发票时弹出采购细项，选择一个细项，再挂发票」。落地：① `Invoice` 模型加 `purchase_requisition_item_id`(FK→采购明细项，可空)，数据库迁移补列；② schema/API 同步：`batch_link`/`link` 接口接受可选 `purchase_requisition_item_id`，`unlink` 清空；③ `BillList.vue` 挂发票弹窗改造——采购报销且有来源采购单时，先弹出采购细项表格（单选用 `highlight-current-row`），选择后再展示未关联发票列表；确认时 `batchLink` 携带 `selectedItemId` 绑定每张发票到该细项；④ 已关联发票表增加「对应细项」列，`itemNameMap` 映射显示细项名称；⑤ 非采购报销/无来源采购单的报销单保持原样（直挂发票，不走细项步骤）。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `9074b86`，已 push origin/main。
   - 44. 2026-07-25 14:20+：老板反馈挂发票"业务流程错误"——入口在「报销审批」列表（只摘要不完整），应显示采购报销单完整内容（或采购申请单）并针对每条采购项挂发票。落地：① 新增 `frontend/src/components/AttachInvoiceDialog.vue` 复用组件——首屏显示报销单完整字段（单号/申请人/部门/金额/事由/状态/日期）+ 来源采购单完整字段（单号/申请人/部门/预计金额/状态/事由）+ 采购细项表格（含已挂计数）+ 发票选择区；② `MyReimburse.vue` 操作列新增「挂发票」按钮（打开前先拉取最新详情以确保已挂统计准确）；③ `BillList.vue` 移除挂发票入口（仅保留编辑/审批流，业务流改正）；④ `itemNameMap` 仍保留在 `BillList.vue` 给"已关联发票"表的「对应细项」列使用。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `08464d2`，已 push origin/main。
   - 45. 2026-07-25 15:00+：老板反馈编辑报销单弹窗需在"已关联发票"位置列出所有采购申请细项，每行末尾"挂发票"按钮直达挂载弹窗。落地：① `AttachInvoiceDialog.vue` 加 `initialItemId` prop，打开时自动预选细项；② `BillList.vue` 编辑弹窗在「已关联发票」上方新增「采购申请细项」表格（序号/物品/规格/数量/单价/金额/供应商/已挂计数），每行末尾「挂发票」按钮 → 调 `AttachInvoiceDialog` 预选该 item；③ 关联成功后实时刷新已挂计数与已关联发票表（`onAttachDone` 重拉 `linkedInvoices` 与 `editItemInvoiceCount`）；④ 新增 `editingRow` state 持有原始 `ReimbursementBill` 用于渲染来源采购单 id 提示。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `5b4c926`，本地领先 origin/main 1（沙箱到 github.com:443 间歇性超时），待老板本机 `git push origin main` 同步。
+  - 46. 2026-07-25 15:32+：老板反馈挂发票弹窗「已选细项」与上一页（编辑弹窗的细项表）重复。修：AttachInvoiceDialog 模板条件加 `&& !props.initialItemId`——从编辑弹窗点细项行进入时（`initialItemId` 有值）不展示整个细项表格，只显示「已选细项：xxx」+ 发票选择区；从「我的报销」点「挂发票」进入时（`initialItemId` 为空）行为不变，仍展示细项表供选择。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `753399d`，已 push origin/main。
