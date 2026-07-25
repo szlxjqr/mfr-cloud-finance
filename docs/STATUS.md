@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25 午后（挂发票弹窗加采购细项选择步骤，已 push 同步 origin/main）
-- **Git HEAD**：`9074b86`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **最后更新**：2026-07-25 14:20+（挂发票入口迁「我的报销」，弹窗升级显示完整内容，已 push 同步 origin/main）
+- **Git HEAD**：`08464d2`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -367,3 +367,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 41. 2026-07-25 午后：老板截图反馈「我的采购」页操作列按钮应为「报销」而非「付款」。修改 `frontend/src/views/purchase/MyPurchase.vue` 所有用户可见「付款」文案为「报销」（按钮文字、弹窗标题、确认按钮、成功/失败提示），共 6 处；**行为未变**，底层仍调用 `purchaseApi.pay(row.id)` 生成凭证。`vue-tsc` 类型检查通过。提交 `c83cfcc`，已 push origin/main（0/0 同步）。
   - 42. 2026-07-25 晚：老板拍板「我的采购」报销按钮**真正联动**——按报销后采购申请单转为报销申请单，确认后进入报销审批，审批完才付款（付款仅账务调整、不实际打款）。落地：① 后端 `POST /api/reimbursements/from-purchase/{rid}`——幂等（同采购单已转则返回 409 含原单号），预填申请人/部门/金额(=expected_amount)/事由/采购报销，状态置「待审批」待审批，并写入 `purchase_requisition_id` 关联来源；② 报销单模型加 `purchase_requisition_id`(FK→purchase_requisitions.id) + `pay_date`，采购单模型补 `pay_date`（**修复 pay_bill/pay_req 设 `obj.pay_date` 但两模型均无该列、点击付款会 500 的潜藏 bug**）；③ 数据库迁移 `_ensure_reimbursement_bills_columns`/`_ensure_purchase_columns` 补新列；④ 前端「我的采购」报销按钮改调 `reimburseApi.fromPurchase`，确认后 `router.push('/reimburse/bill')` 进入报销审批，并兼容 409 跳转；⑤ 新增回归测试 `tests/test_from_purchase.py`（直接调路由函数：转换字段映射→幂等 409→审批通过→付款全流程，顺带验证 pay_date 修复），后端 pytest 40 passed（原 39 + 1）。`vue-tsc` + `vite build --outDir dist-verify` 均通过。提交 `9159335`（+ `eb08ef0` STATUS 更新），本对话中已一并通过 `9074b86` push 至 origin/main。
   - 43. 2026-07-25 14:00+：老板要求「挂发票时弹出采购细项，选择一个细项，再挂发票」。落地：① `Invoice` 模型加 `purchase_requisition_item_id`(FK→采购明细项，可空)，数据库迁移补列；② schema/API 同步：`batch_link`/`link` 接口接受可选 `purchase_requisition_item_id`，`unlink` 清空；③ `BillList.vue` 挂发票弹窗改造——采购报销且有来源采购单时，先弹出采购细项表格（单选用 `highlight-current-row`），选择后再展示未关联发票列表；确认时 `batchLink` 携带 `selectedItemId` 绑定每张发票到该细项；④ 已关联发票表增加「对应细项」列，`itemNameMap` 映射显示细项名称；⑤ 非采购报销/无来源采购单的报销单保持原样（直挂发票，不走细项步骤）。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `9074b86`，已 push origin/main。
+  - 44. 2026-07-25 14:20+：老板反馈挂发票"业务流程错误"——入口在「报销审批」列表（只摘要不完整），应显示采购报销单完整内容（或采购申请单）并针对每条采购项挂发票。落地：① 新增 `frontend/src/components/AttachInvoiceDialog.vue` 复用组件——首屏显示报销单完整字段（单号/申请人/部门/金额/事由/状态/日期）+ 来源采购单完整字段（单号/申请人/部门/预计金额/状态/事由）+ 采购细项表格（含已挂计数）+ 发票选择区；② `MyReimburse.vue` 操作列新增「挂发票」按钮（打开前先拉取最新详情以确保已挂统计准确）；③ `BillList.vue` 移除挂发票入口（仅保留编辑/审批流，业务流改正）；④ `itemNameMap` 仍保留在 `BillList.vue` 给"已关联发票"表的「对应细项」列使用。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `08464d2`，已 push origin/main。
