@@ -44,9 +44,10 @@
       </el-table-column>
       <el-table-column prop="submit_date" label="提交日期" width="110" />
       <el-table-column prop="approve_date" label="审批日期" width="110" />
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button link type="success" @click="openAttachInvoice(row)">挂发票</el-button>
           <el-button
             v-if="row.status === '已通过'"
             link
@@ -75,6 +76,13 @@
       </template>
     </el-dialog>
     <InvoiceRecognizeDialog v-model:visible="recognizeVisible" @confirm="onInvoiceConfirm" />
+
+    <!-- 挂发票弹窗：显示完整报销单 + 来源采购单 + 细项选择 + 发票选择 -->
+    <AttachInvoiceDialog
+      v-model="attachVisible"
+      :bill="attachBill"
+      @attached="onAttached"
+    />
   </div>
 </template>
 
@@ -86,6 +94,7 @@ import type { ReimbursementBill } from '@/types/reimburse'
 import BillDetail from './BillDetail.vue'
 import TravelBillDetail from './TravelBillDetail.vue'
 import InvoiceRecognizeDialog from '@/components/InvoiceRecognizeDialog.vue'
+import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 
 const loading = ref(false)
 const list = ref<ReimbursementBill[]>([])
@@ -94,6 +103,10 @@ const statusFilter = ref('')
 const detailVisible = ref(false)
 const currentBill = ref<ReimbursementBill | null>(null)
 const recognizeVisible = ref(false)
+
+// 挂发票弹窗状态
+const attachVisible = ref(false)
+const attachBill = ref<ReimbursementBill | null>(null)
 
 const billType = (b: ReimbursementBill) => b.bill_type || '采购报销'
 const detailTitle = computed(() =>
@@ -130,6 +143,28 @@ async function openDetail(row: ReimbursementBill) {
     detailVisible.value = true
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '加载详情失败')
+  }
+}
+
+// 打开挂发票弹窗前先拉取最新详情（含关联发票），确保弹窗内"已挂"统计准确
+async function openAttachInvoice(row: ReimbursementBill) {
+  try {
+    const res = await reimburseApi.get(row.id)
+    attachBill.value = res.data
+    attachVisible.value = true
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载报销单失败')
+  }
+}
+
+function onAttached(payload: { billId: number; itemId: number | null; invoiceIds: number[] }) {
+  // 关联成功后刷新列表的"发票"列（计数与金额），并同步当前详情对象
+  const bill = list.value.find((b) => b.id === payload.billId)
+  if (bill && currentBill.value && currentBill.value.id === payload.billId) {
+    // 详情对象上的 invoices 计数刷新交给详情页逻辑（下次打开再拉），这里只刷列表缩略
+    load()
+  } else if (bill) {
+    load()
   }
 }
 

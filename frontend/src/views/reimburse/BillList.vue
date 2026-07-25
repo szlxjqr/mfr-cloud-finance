@@ -43,7 +43,6 @@
       <el-table-column label="操作" width="300" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="success" @click="openLinkInvoices(row)">挂发票</el-button>
           <el-button
             v-for="act in transformActions(row)"
             :key="act.action"
@@ -161,67 +160,7 @@
       </template>
     </el-dialog>
 
-    <!-- 挂发票弹窗 -->
-    <el-dialog v-model="linkDialogVisible" title="挂发票" width="900px" :close-on-click-modal="false">
-      <div v-if="linkingBill" class="link-summary">
-        <span>报销单：<strong>{{ linkingBill.bill_no || linkingBill.id }}</strong></span>
-        <span>申请人：{{ linkingBill.applicant }}</span>
-        <span>当前已挂：{{ summaryMap[linkingBill.id]?.invoice_count || 0 }} 张</span>
-      </div>
-
-      <!-- 采购细项选择（仅采购报销且有来源采购单时显示） -->
-      <div v-if="showItemStep" class="item-step">
-        <div class="item-step-title">请选择对应的采购细项：</div>
-        <DataLoader :loading="itemLoading" :is-empty="!purchaseItems.length">
-          <el-table
-            :data="purchaseItems"
-            border stripe size="small"
-            highlight-current-row
-            height="200"
-            @current-change="onItemRowChange"
-          >
-            <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
-            <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
-            <el-table-column label="数量" prop="quantity" width="60" align="center" />
-            <el-table-column label="金额" width="100" align="right">
-              <template #default="{ row }">¥{{ row.amount?.toFixed(2) || '0.00' }}</template>
-            </el-table-column>
-            <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
-          </el-table>
-        </DataLoader>
-        <div v-if="selectedItemId" class="item-selected-hint">
-          已选细项：<strong>{{ itemNameMap[selectedItemId] || ('#' + selectedItemId) }}</strong>，请在下方选择要挂载的发票
-        </div>
-      </div>
-
-      <template v-if="!showItemStep || selectedItemId">
-        <div class="link-toolbar">
-          <el-input v-model="invoiceKeyword" placeholder="搜索销方/发票号" clearable style="width: 220px" @input="debounceLoadUnlinked" />
-          <span class="text-muted">仅显示未关联报销单的发票</span>
-        </div>
-
-        <DataLoader :loading="invoiceLoading" :is-empty="!unlinkedInvoices.length">
-          <el-table :data="unlinkedInvoices" border stripe height="360" @selection-change="handleSelectionChange">
-          <el-table-column type="selection" width="48" align="center" />
-          <el-table-column prop="invoice_date" label="开票日期" width="110" />
-          <el-table-column prop="invoice_type" label="类型" width="120" />
-          <el-table-column prop="no" label="发票号码" width="120" />
-          <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
-          <el-table-column label="金额/税额/合计" width="180" align="right">
-            <template #default="{ row }">
-              ¥{{ row.total_amount?.toFixed(2) || '0.00' }}
-              <span class="tax-hint">（税 ¥{{ row.total_tax?.toFixed(2) || '0.00' }}）</span>
-            </template>
-          </el-table-column>
-        </el-table>
-        </DataLoader>
-      </template>
-
-      <template #footer>
-        <el-button @click="linkDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="(showItemStep && !selectedItemId) || selectedInvoiceIds.length === 0" @click="confirmLink">关联 {{ selectedInvoiceIds.length }} 张发票</el-button>
-      </template>
-    </el-dialog>
+    <!-- 挂发票入口已迁至「我的报销」页（MyReimburse.vue）——此处不重复 -->
 
     <!-- 增加发票弹窗（支持上传识别 + 人工核实） -->
     <el-dialog v-model="invoiceDialogVisible" title="增加发票" width="780px" :close-on-click-modal="false">
@@ -422,7 +361,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, computed, nextTick } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reimburseApi } from '@/api/reimburse'
 import { invoiceApi } from '@/api/invoice'
@@ -459,6 +398,8 @@ const editingId = ref<number | null>(null)
 const previewBillNo = ref<string | null>(null)
 const linkedInvoices = ref<Invoice[]>([])
 const linkedTableKey = ref(0)
+// 采购细项 id → 名称映射（openEdit 拉取来源采购单的 items 时填充，供"已关联发票"表"对应细项"列展示）
+const itemNameMap = ref<Record<number, string>>({})
 
 // 审批弹窗
 const approveDialogVisible = ref(false)
@@ -712,112 +653,7 @@ async function remove(row: ReimbursementBill) {
   load()
 }
 
-/* ============ 挂发票 ============ */
-const linkDialogVisible = ref(false)
-const linkingBill = ref<ReimbursementBill | null>(null)
-const unlinkedInvoices = ref<(Invoice & { total_amount?: number; total_tax?: number })[]>([])
-const invoiceKeyword = ref('')
-const invoiceLoading = ref(false)
-const selectedInvoiceIds = ref<number[]>([])
-let invoiceTimer: ReturnType<typeof setTimeout> | null = null
-
-// 采购细项选择
-const purchaseItems = ref<PurchaseItem[]>([])
-const showItemStep = ref(false)
-const selectedItemId = ref<number | null>(null)
-const itemNameMap = ref<Record<number, string>>({})
-const itemLoading = ref(false)
-
-async function openLinkInvoices(row: ReimbursementBill) {
-  linkingBill.value = row
-  linkDialogVisible.value = true
-  invoiceKeyword.value = ''
-  selectedInvoiceIds.value = []
-  selectedItemId.value = null
-  purchaseItems.value = []
-  showItemStep.value = false
-  // 采购报销且有来源采购单 → 弹出采购细项选择
-  if (row.purchase_requisition_id) {
-    await loadPurchaseItems(row.purchase_requisition_id)
-  } else {
-    await nextTick()
-    loadUnlinked()
-  }
-}
-
-function debounceLoadUnlinked() {
-  if (invoiceTimer) clearTimeout(invoiceTimer)
-  invoiceTimer = setTimeout(() => loadUnlinked(), 300)
-}
-
-async function loadUnlinked() {
-  invoiceLoading.value = true
-  try {
-    const params: { keyword?: string; unlinked: boolean } = { unlinked: true }
-    if (invoiceKeyword.value.trim()) params.keyword = invoiceKeyword.value.trim()
-    const res = await invoiceApi.list(params)
-    unlinkedInvoices.value = res.data.map((inv) => {
-      const totalAmount = inv.details.reduce((s, d) => s + (d.amount || 0), 0)
-      const totalTax = inv.details.reduce((s, d) => s + (d.tax || 0), 0)
-      return { ...inv, total_amount: totalAmount, total_tax: totalTax }
-    })
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '加载未关联发票失败')
-  } finally {
-    invoiceLoading.value = false
-  }
-}
-
-function handleSelectionChange(rows: Invoice[]) {
-  selectedInvoiceIds.value = rows.map((r) => r.id)
-}
-
-async function loadPurchaseItems(purchaseReqId: number) {
-  itemLoading.value = true
-  try {
-    const res = await purchaseApi.get(purchaseReqId)
-    const items = res.data.items || []
-    purchaseItems.value = items
-    // 构建名称映射（供"已关联"表与选中提示使用）
-    const map: Record<number, string> = {}
-    items.forEach((it: PurchaseItem) => {
-      if (it.id) map[it.id] = it.item_name
-    })
-    itemNameMap.value = map
-    showItemStep.value = items.length > 0
-    if (!showItemStep.value) {
-      // 没有细项时降级直挂
-      await nextTick()
-      loadUnlinked()
-    }
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '加载采购细项失败')
-    showItemStep.value = false
-  } finally {
-    itemLoading.value = false
-  }
-}
-
-function onItemRowChange(item: PurchaseItem) {
-  selectedItemId.value = item?.id ?? null
-  if (selectedItemId.value) {
-    selectedInvoiceIds.value = []
-    loadUnlinked()
-  }
-}
-
-async function confirmLink() {
-  if (!linkingBill.value || selectedInvoiceIds.value.length === 0) return
-  if (showItemStep.value && !selectedItemId.value) return
-  try {
-    await invoiceApi.batchLink(selectedInvoiceIds.value, linkingBill.value.id, selectedItemId.value ?? undefined)
-    ElMessage.success(`已关联 ${selectedInvoiceIds.value.length} 张发票`)
-    linkDialogVisible.value = false
-    load()
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '关联发票失败')
-  }
-}
+/* ============ 挂发票入口已迁至 MyReimburse.vue（AttachInvoiceDialog 复用组件） ============ */
 
 /* ============ 增加发票（上传识别） ============ */
 const invoiceDialogVisible = ref(false)
@@ -1061,37 +897,6 @@ onMounted(load)
 .text-muted {
   color: var(--el-text-color-secondary);
   font-size: 13px;
-}
-.link-summary {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 12px;
-  padding: 10px 12px;
-  background: #f5f7fa;
-  border-radius: 4px;
-}
-.link-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.item-step {
-  margin-bottom: 12px;
-}
-.item-step-title {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 8px;
-}
-.item-selected-hint {
-  margin-top: 8px;
-  padding: 6px 12px;
-  background: #e6f7ff;
-  border: 1px solid #91d5ff;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #333;
 }
 .tax-hint {
   color: var(--el-text-color-secondary);
