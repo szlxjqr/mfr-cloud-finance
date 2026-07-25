@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25 15:38+（编辑报销单弹窗加「上传发票」按钮，已 push 同步 origin/main）
-- **Git HEAD**：`4b2a71c`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **最后更新**：2026-07-25 16:21+（挂发票弹窗去掉「来源采购单」section，已 push 同步 origin/main）
+- **Git HEAD**：`f0853f3`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -371,3 +371,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 45. 2026-07-25 15:00+：老板反馈编辑报销单弹窗需在"已关联发票"位置列出所有采购申请细项，每行末尾"挂发票"按钮直达挂载弹窗。落地：① `AttachInvoiceDialog.vue` 加 `initialItemId` prop，打开时自动预选细项；② `BillList.vue` 编辑弹窗在「已关联发票」上方新增「采购申请细项」表格（序号/物品/规格/数量/单价/金额/供应商/已挂计数），每行末尾「挂发票」按钮 → 调 `AttachInvoiceDialog` 预选该 item；③ 关联成功后实时刷新已挂计数与已关联发票表（`onAttachDone` 重拉 `linkedInvoices` 与 `editItemInvoiceCount`）；④ 新增 `editingRow` state 持有原始 `ReimbursementBill` 用于渲染来源采购单 id 提示。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `5b4c926`，本地领先 origin/main 1（沙箱到 github.com:443 间歇性超时），待老板本机 `git push origin main` 同步。
   - 46. 2026-07-25 15:32+：老板反馈挂发票弹窗「已选细项」与上一页（编辑弹窗的细项表）重复。修：AttachInvoiceDialog 模板条件加 `&& !props.initialItemId`——从编辑弹窗点细项行进入时（`initialItemId` 有值）不展示整个细项表格，只显示「已选细项：xxx」+ 发票选择区；从「我的报销」点「挂发票」进入时（`initialItemId` 为空）行为不变，仍展示细项表供选择。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `753399d`，已 push origin/main。
   - 47. 2026-07-25 15:38+：老板要求把发票箱的按钮复制一个放到编辑报销单红框位置。落地：① `InvoiceRecognizeDialog.vue` 加 `initialFile` prop，打开时自动解析传入的文件（避免重复选文件）；② `BillList.vue` 编辑弹窗"采购申请细项"section header 加 el-upload 包裹的「上传发票」按钮（与发票箱"批量上传并识别"视觉一致）；③ 选中文件后弹识别弹窗，确认填入时通过 `invoiceApi.create` 创建正式发票（`reimbursement_bill_id=当前单`，识别明细写入 `details`），自动挂到当前报销单，刷新已关联表 + 各细项已挂计数；④ 提示用户「可点击细项行「挂发票」分配到具体细项」完成分配。`vue-tsc -b` + `vite build --outDir dist-verify` + pytest 40 passed。提交 `4b2a71c`，已 push origin/main。
+  - 48. 2026-07-25 16:21+：老板反馈挂发票弹窗红框内「来源采购单（采购报销的依据）」section 与编辑弹窗的细项表重复。修：删 `AttachInvoiceDialog.vue` 模板的整个来源采购单 section + 只服务于该 section 的 `purchase` ref / `.purchase-context` CSS / `PurchaseReq` 类型导入。`vue-tsc -b` + `vite build --outDir dist-verify` 通过（−34 行）。提交 `f0853f3`，已 push origin/main。
