@@ -24,16 +24,15 @@ http.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
-// 响应拦截器：401 未登录 / 过期自动清除凭据并跳登录页
+// 响应拦截器：401 未登录 / 过期自动清除凭据并跳登录页，强制刷新关闭所有弹窗
 http.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error?.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      if (location.hash !== '#/login') {
-        location.hash = '#/login'
-      }
+      window.location.href = '/#/login'
+      window.location.reload()
     }
     return Promise.reject(error)
   },
