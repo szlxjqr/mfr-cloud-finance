@@ -1,5 +1,6 @@
 // 一次性拉取 tesseract 中文字库到 public/tesseract/lang/，使 OCR 运行时零联网。
-// 字库来自 @tesseract.js-data（与依赖的 tesseract.js 5.x 同源）。
+// 字库来自 tesseract.js 官方默认托管 tessdata.projectnaptha.com（与 tesseract.js 5.x 同源）；
+// 注：原 jsdelivr 的 @tesseract.js-data 包已不可用（元数据 502 / 文件 400），故改走官方宿主。
 // 用法：node scripts/fetch-tesseract-lang.mjs  （需联网一次；产物不入库，见 .gitignore）
 import { createWriteStream } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
@@ -11,7 +12,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = resolve(__dirname, '../public/tesseract/lang')
 // @tesseract.js-data 提供的训练数据（.traineddata.gz）
 const FILES = ['chi_sim.traineddata.gz', 'eng.traineddata.gz']
-const BASE = 'https://cdn.jsdelivr.net/npm/@tesseract.js-data@1.0.0'
+const BASE = 'https://tessdata.projectnaptha.com/4.0.0'
 
 function fetchWithRedirect(url, dest, redirects = 0) {
   return new Promise((resolve, reject) => {
