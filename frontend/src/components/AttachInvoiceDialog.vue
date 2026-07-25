@@ -140,7 +140,7 @@
       <div v-if="previewLoading" class="preview-loading">
         <AppIcon name="Loading" class="spin" /> 正在加载附件...
       </div>
-      <iframe v-else-if="previewBlobUrl && isPdf" :src="previewBlobUrl" class="preview-iframe" />
+      <embed v-else-if="previewBlobUrl && isPdf" :src="previewBlobUrl" type="application/pdf" class="preview-embed" />
       <el-image
         v-else-if="previewBlobUrl"
         :src="previewBlobUrl"
@@ -583,6 +583,12 @@ async function confirmLink() {
   justify-content: center;
 }
 .preview-iframe {
+  width: 100%;
+  height: 60vh;
+  border: none;
+  background: #f5f7fa;
+}
+.preview-embed {
   width: 100%;
   height: 60vh;
   border: none;
