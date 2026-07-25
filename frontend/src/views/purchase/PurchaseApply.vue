@@ -74,9 +74,6 @@
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" />
         </el-form-item>
-        <el-form-item label="上传发票">
-          <el-button type="success" plain size="small" @click="recognizeVisible = true">🧾 识别发票并填入</el-button>
-        </el-form-item>
 
         <!-- 明细区 -->
         <el-divider content-position="left">采购明细（可一次采购多个物品 / 服务）</el-divider>
@@ -165,7 +162,6 @@
         </el-button>
       </template>
     </el-dialog>
-    <InvoiceRecognizeDialog v-model:visible="recognizeVisible" @confirm="onInvoiceConfirm" />
   </div>
 </template>
 
@@ -174,8 +170,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
 import type { PurchaseReq, PurchaseItem } from '@/types/purchase'
-import InvoiceRecognizeDialog from '@/components/InvoiceRecognizeDialog.vue'
-import type { ParsedInvoice } from '@/utils/invoiceParser'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回']
 
@@ -187,7 +181,6 @@ const dialogVisible = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
 const previewReqNo = ref<string | null>(null)
-const recognizeVisible = ref(false)
 
 const approveDialogVisible = ref(false)
 const approveAction = ref<'approve' | 'reject' | null>(null)
@@ -410,32 +403,6 @@ async function remove(row: PurchaseReq) {
 }
 
 onMounted(load)
-
-function onInvoiceConfirm(parsed: ParsedInvoice) {
-  form.reason = form.reason || `采购：${parsed.sellerName || ''}${parsed.total ? ' ' + parsed.total : ''}`
-  if (parsed.items && parsed.items.length > 0) {
-    form.items = parsed.items.map((it) => ({
-      item_name: it.name || parsed.sellerName || '',
-      spec: '',
-      quantity: it.qty || 1,
-      amount: it.amount || parsed.amount || 0,
-      supplier: parsed.sellerName || '',
-      remark: '',
-    }))
-  } else {
-    if (form.items.length === 0) form.items[0] = emptyItem()
-    if (!form.items[0]) { form.items.push(emptyItem()); form.items.pop(); form.items.push(emptyItem()) }
-    form.items[0] = {
-      item_name: parsed.item || parsed.sellerName || '采购物品',
-      spec: '',
-      quantity: 1,
-      amount: parsed.total || parsed.amount || 0,
-      supplier: parsed.sellerName || '',
-      remark: '',
-    }
-  }
-  ElMessage.success('已识别并填入采购申请，请核对明细')
-}
 </script>
 
 <style scoped>
