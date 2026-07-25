@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25 16:42+（编辑报销单细项表去单价列、金额改预算金额，已 push 同步 origin/main）
-- **Git HEAD**：`256c580`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **最后更新**：2026-07-25 16:49+（隐藏上传发票、增加发票搬到采购申请细项 header，已 push 同步 origin/main）
+- **Git HEAD**：`4fa4f86`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -374,3 +374,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 48. 2026-07-25 16:21+：老板反馈挂发票弹窗红框内「来源采购单（采购报销的依据）」section 与编辑弹窗的细项表重复。修：删 `AttachInvoiceDialog.vue` 模板的整个来源采购单 section + 只服务于该 section 的 `purchase` ref / `.purchase-context` CSS / `PurchaseReq` 类型导入。`vue-tsc -b` + `vite build --outDir dist-verify` 通过（−34 行）。提交 `f0853f3`，已 push origin/main。
   - 49. 2026-07-25 16:32+：老板反馈从编辑弹窗细项行点挂发票后，挂发票弹窗里"已选细项"提示栏空白。根因：「已选细项」提示栏被嵌在 `.item-step` 容器内，而 `.item-step` 的 `v-if` 条件含 `!props.initialItemId`，导致预选时整个 section（含提示栏）被隐藏。修：把提示栏从 `.item-step` 内挪到外，独立 `v-if="selectedItemId"`，保证从编辑弹窗预选进入时也能看到「已选细项：xxx」。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `aa711e4`，已 push origin/main。
   - 50. 2026-07-25 16:42+：老板反馈编辑报销单细项表删「单价」列，「金额」列 label 改为「预算金额」。修：删 BillList.vue 模板里的 `<el-table-column label="单价" width="90" align="right">` 整块；把 `<el-table-column label="金额" width="100" align="right">` 的 label 改为「预算金额」。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `256c580`，已 push origin/main。
+  - 51. 2026-07-25 16:49+：老板要求隐藏「上传发票」按钮，把「增加发票」搬到「采购申请细项」section header 右侧。落地：① 删「采购申请细项」section header 的 el-upload「上传发票」按钮 + 相关 upload state/handlers + InvoiceRecognizeDialog 组件实例 + onUploadFilePicked/onUploadConfirm 函数 + .upload-btn CSS（−88 行）；② 删「已关联发票」section header 的「增加发票」按钮（功能上移）；③ 「采购申请细项」section header 右侧新增「增加发票」按钮（`@click=openAddInvoice`，复用现有 `invoiceDialogVisible` 弹窗）。`vue-tsc -b` + `vite build --outDir dist-verify` 通过。提交 `4fa4f86`，已 push origin/main。
