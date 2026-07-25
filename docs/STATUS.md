@@ -23,7 +23,7 @@
 |---|---|
 | 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
 | Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
-| 当前分支 | `main`（HEAD: `9570e55` docs STATUS 收口 + tesseract 离线化(方案A) + 凭证状态机/手工凭证落地，已 push 同步 origin/main） |
+| 当前分支 | `main`（HEAD: `3892526` 采购申请单移出发票识别功能；本地领先 origin/main 2 提交待 push） |
 | 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
 | 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
@@ -307,8 +307,8 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 
 ## 11. 维护记录
 
-- **最后更新**：2026-07-25（凭证状态机+手工凭证落地、OCR 离线化方案A、前端构建转绿、push 同步 origin/main）
-- **Git HEAD**：`9570e55`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **最后更新**：2026-07-25（采购申请单移出发票识别功能、前端构建转绿、本地领先 origin/main 2 提交待 push）
+- **Git HEAD**：`3892526`（main；本地领先 origin/main 2 提交 ab65f7b + 3892526 待 push）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -363,3 +363,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 37. STATUS.md 本次收口：HEAD 69fb574→abcbd50，补 B 方案/组件全量/暖色浅底/凭证状态机/OCR/测试补全 等进度与决策；设计文档集（5 架构 + 生命周期 18 篇 + PRD + UI 审计）均已落地，**设计工作收口**。代码类下一步（OCR 离线化/反审核/手工凭证）待老板找其他专家评估后定。
   - 38. 2026-07-25 收尾：① 提交凭证状态机反向+手工录入（commit `458682f`，12 文件，对应 §6 ②③ 原待评估项已落地）；② 本会话修复前端构建 19 处 TS 错误（commit `36caae8`）——含 InvoiceInbox.vue(225) `res?.duplicated` 真运行时 bug（前端拦截器返回整个 response 不解包 `.data`，且 types/invoice.ts 的 InvoiceInbox 缺 duplicated 字段 → 改为 `res.data?.duplicated` + 补类型），另删 18 处死代码未用导入；`npm run build` 已转绿（0 错误，vite 1.09s）。③ chore gitignore 工具目录(.workbuddy/)与产物目录(deliverables/)（commit `dd65822`）。④ 发票识别(tesseract)离线化 WIP 已就，待老板定「引擎入库 A / 全 gitignore+拉取 B」（§6 ① 仍待定）。HEAD abcbd50→dd65822。
   - 39. 2026-07-25 续：老板拍板 tesseract 离线化 **方案A**（commit `724b25b`，11 文件，~22MB 入仓）。识别引擎（tesseract-core*.wasm + worker.min.js）随构建发布于 `frontend/public/tesseract/`；中文字库（chi_sim/eng .traineddata.gz）由 `npm run setup:ocr`（scripts/fetch-tesseract-lang.mjs）一次性拉取到 `public/tesseract/lang/`，已 gitignore 不入库；invoiceParser.ts 改离线路径指向 `/tesseract/`，OCR 运行时零联网。§6 ① 收口。注：本会话全部 5 个提交（458682f/36caae8/dd65822/0c106c3/724b25b）均落本地 main、未 push——沙箱到 github.com:443 网络超时（清代理+绕沙箱仍 timed out），老板本机终端 `git push origin main` 即可。HEAD dd65822→724b25b。
+  - 40. 2026-07-25 晚 收尾：老板指出**采购申请单不应有发票录入**——采购申请仅表达「要采购」意向，此时尚未发生采购、不可能有发票；发票录入/识别应归属已发生采购的「采购报销单」页。方案1 落地：① 从 `PurchaseApply.vue` 删除发票识别相关 5 处片段（上传按钮 `<el-form-item label="上传发票">`、`<InvoiceRecognizeDialog>` 弹窗、`InvoiceRecognizeDialog`/`ParsedInvoice` 两个导入、`recognizeVisible` ref、`onInvoiceConfirm` 函数），`form.reason` 手动「采购事由」文本框保留；② 核查确认「采购报销单」`BillList.vue` 本已完整实现发票能力（挂发票/增加发票弹窗 + `parseInvoiceFile` 上传识别 + `invoiceApi` 关联），无需新增代码，「移动」实质即纯删除；③ `vue-tsc` 类型检查 + `vite build` 打包均通过，无悬空引用（grep 验证 4 个删除符号 0 命中）。提交 `3892526`（仅 PurchaseApply.vue −33 行 + .gitignore 加 dist-verify）。本地领先 origin/main 2 提交（ab65f7b + 3892526）待老板本机 push。
