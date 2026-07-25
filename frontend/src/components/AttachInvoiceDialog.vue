@@ -71,6 +71,7 @@
     <!-- 已选细项提示（独立于 .item-step，无论是否预选都会显示，让用户清楚当前要挂到哪条细项） -->
     <div v-if="selectedItemId" class="item-selected-hint">
       已选细项：<strong>{{ itemNameMap[selectedItemId] || ('#' + selectedItemId) }}</strong>
+      <span class="muted">· 预算金额 ¥{{ formatNum(selectedItemAmount) }}</span>
       <span v-if="(itemInvoiceCount.get(selectedItemId) || 0) > 0" class="muted">（已挂 {{ itemInvoiceCount.get(selectedItemId) }} 张，可继续追加）</span>
     </div>
 
@@ -113,7 +114,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
@@ -159,6 +160,12 @@ const invoiceLoading = ref(false)
 const selectedInvoiceIds = ref<number[]>([])
 const linking = ref(false)
 let invoiceTimer: ReturnType<typeof setTimeout> | null = null
+
+// 当前已选细项的预算金额（用于提示栏）
+const selectedItemAmount = computed(() => {
+  const it = purchaseItems.value.find((p) => p.id === selectedItemId.value)
+  return it?.amount ?? 0
+})
 
 // ======== 监听：bill 变化或打开时重置 ========
 watch(
