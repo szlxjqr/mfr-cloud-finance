@@ -98,10 +98,9 @@
               </el-tooltip>
             </template>
           </el-table-column>
-          <el-table-column label="金额/税额/合计" width="180" align="right">
+          <el-table-column label="含税金额" width="120" align="right">
             <template #default="{ row }">
               ¥{{ formatNum(row.total_amount) }}
-              <span class="tax-hint">（税 ¥{{ formatNum(row.total_tax) }}）</span>
               <el-tag
                 v-if="amountMatchTarget && row.total_amount && isNearTarget(row.total_amount, amountMatchTarget)"
                 size="small"
