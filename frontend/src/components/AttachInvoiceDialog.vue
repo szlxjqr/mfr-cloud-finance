@@ -85,7 +85,7 @@
         <span class="text-muted">仅显示未关联报销单的发票</span>
       </div>
       <DataLoader :loading="invoiceLoading" :is-empty="!filteredInvoices.length">
-        <el-table :data="filteredInvoices" border stripe height="300" @selection-change="handleSelectionChange">
+        <el-table :data="filteredInvoices" border stripe height="300" @selection-change="handleSelectionChange" @row-click="onInvoiceRowClick" style="cursor: pointer">
           <el-table-column type="selection" width="48" align="center" />
           <el-table-column prop="invoice_date" label="开票日期" width="110" />
           <el-table-column prop="invoice_type" label="类型" width="120" />
@@ -118,6 +118,35 @@
         关联 {{ selectedInvoiceIds.length }} 张发票
       </el-button>
     </template>
+  </el-dialog>
+
+  <!-- 发票附件预览（点击发票行触发） -->
+  <el-dialog
+    v-model="previewVisible"
+    :title="previewTitle"
+    width="820px"
+    :close-on-click-modal="false"
+    append-to-body
+  >
+    <div v-if="previewInvoiceId" class="preview-wrap">
+      <iframe v-if="isPdf" :src="previewSrc" class="preview-iframe" />
+      <el-image
+        v-else
+        :src="previewSrc"
+        :preview-src-list="[previewSrc]"
+        fit="contain"
+        class="preview-image"
+        :preview-teleported="true"
+      >
+        <template #error>
+          <div class="preview-error">
+            <div>无法加载附件</div>
+            <el-link :href="previewSrc" target="_blank" type="primary">在新窗口打开</el-link>
+          </div>
+        </template>
+      </el-image>
+      <div v-if="!previewSrc" class="preview-error">该发票未归档电子文件</div>
+    </div>
   </el-dialog>
 </template>
 
@@ -202,6 +231,33 @@ const filteredInvoices = computed(() => {
   }
   return list
 })
+
+// ======== 发票附件预览（点击行触发） ========
+const previewVisible = ref(false)
+const previewInvoiceId = ref<number | null>(null)
+const previewInvoiceNo = ref('')
+const previewInvoiceAttachment = ref<string | null>(null)
+
+const previewSrc = computed(() => {
+  if (!previewInvoiceId.value) return ''
+  // vite dev 时代理 /api → 8521；生产由后端同源托管
+  return `/api/invoices/${previewInvoiceId.value}/attachment`
+})
+const previewTitle = computed(() =>
+  previewInvoiceId.value ? `发票预览 #${previewInvoiceNo.value || previewInvoiceId.value}` : '发票预览',
+)
+const isPdf = computed(() => {
+  const path = previewInvoiceAttachment.value || ''
+  return /\.(pdf|ofd)$/i.test(path)
+})
+
+function onInvoiceRowClick(row: any) {
+  // 没有 attachment_path 也允许打开预览（弹窗会显示"未归档"提示）
+  previewInvoiceId.value = row.id
+  previewInvoiceNo.value = row.no || ''
+  previewInvoiceAttachment.value = row.attachment_path || null
+  previewVisible.value = true
+}
 
 // ======== 监听：bill 变化或打开时重置 ========
 watch(
@@ -406,5 +462,26 @@ async function confirmLink() {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   margin-left: 4px;
+}
+.preview-wrap {
+  min-height: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preview-iframe {
+  width: 100%;
+  height: 60vh;
+  border: none;
+  background: #f5f7fa;
+}
+.preview-image {
+  max-width: 100%;
+  max-height: 60vh;
+}
+.preview-error {
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  padding: 24px;
 }
 </style>

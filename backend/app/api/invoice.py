@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -250,6 +251,19 @@ async def upload_attachment(iid: int, file: UploadFile = File(...), db: Session 
     db.commit()
     db.refresh(obj)
     return obj
+
+
+@router.get("/{iid}/attachment")
+def get_attachment(iid: int, db: Session = Depends(get_db)):
+    """下载发票附件（PDF/OFD/图片）供前端预览。未归档返回 404。"""
+    obj = _get_or_404(db, iid)
+    if not obj.attachment_path:
+        raise HTTPException(status_code=404, detail="该发票尚未归档电子文件")
+    path = Path(obj.attachment_path)
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="附件文件不存在")
+    # 让浏览器内嵌预览（PDF/图片），而非直接下载
+    return FileResponse(str(path), media_type="application/octet-stream", filename=path.name)
 
 
 # ================= P2: 凭证草稿 =================
