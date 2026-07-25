@@ -38,7 +38,7 @@
             link
             type="primary"
             @click="payReq(row)"
-          >付款</el-button>
+          >报销</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -132,19 +132,19 @@ function printPurchase() {
 async function payReq(row: PurchaseReq) {
   try {
     await ElMessageBox.confirm(
-      `确认对采购单「${row.req_no || ('#' + row.id)}」执行付款？系统将自动生成付款凭证。`,
-      '付款确认',
-      { type: 'warning', confirmButtonText: '确认付款', cancelButtonText: '取消' },
+      `确认对采购单「${row.req_no || ('#' + row.id)}」执行报销？系统将自动生成报销凭证。`,
+      '报销确认',
+      { type: 'warning', confirmButtonText: '确认报销', cancelButtonText: '取消' },
     )
   } catch {
     return
   }
   try {
     await purchaseApi.pay(row.id)
-    ElMessage.success('付款成功，已生成付款凭证')
+    ElMessage.success('报销成功，已生成报销凭证')
     load()
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '付款失败')
+    ElMessage.error(e?.response?.data?.detail || '报销失败')
   }
 }
 
