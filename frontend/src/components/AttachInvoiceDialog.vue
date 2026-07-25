@@ -36,34 +36,7 @@
       </table>
     </div>
 
-    <!-- 二、来源采购单完整内容（仅采购报销且有来源时显示） -->
-    <div v-if="purchase" class="bill-context purchase-context">
-      <div class="ctx-title">来源采购单（采购报销的依据）</div>
-      <table class="ctx-table">
-        <tr>
-          <td class="lbl">采购单号</td>
-          <td><strong>{{ purchase.req_no || ('#' + purchase.id) }}</strong></td>
-          <td class="lbl">申请人</td>
-          <td>{{ purchase.applicant || '-' }}</td>
-          <td class="lbl">部门</td>
-          <td>{{ purchase.department || '-' }}</td>
-        </tr>
-        <tr>
-          <td class="lbl">预计总金额</td>
-          <td>¥{{ formatNum(purchase.expected_amount) }}</td>
-          <td class="lbl">状态</td>
-          <td>{{ purchase.status || '-' }}</td>
-          <td class="lbl">归属研发</td>
-          <td>{{ purchase.is_rd_project || '否' }}</td>
-        </tr>
-        <tr v-if="purchase.reason">
-          <td class="lbl">采购事由</td>
-          <td colspan="5">{{ purchase.reason }}</td>
-        </tr>
-      </table>
-    </div>
-
-    <!-- 三、采购细项选择（仅当未预选 item 时展示整个细项表；预选时只显示已选提示，避免与编辑弹窗重复） -->
+    <!-- 二、采购细项选择（仅当未预选 item 时展示整个细项表；预选时只显示已选提示，避免与编辑弹窗重复） -->
     <div v-if="showItemStep && !props.initialItemId" class="item-step">
       <div class="step-title">③ 请选择对应的采购细项：</div>
       <DataLoader :loading="itemLoading" :is-empty="!purchaseItems.length">
@@ -144,7 +117,7 @@ import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
 import type { Invoice } from '@/types/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
-import type { PurchaseItem, PurchaseReq } from '@/types/purchase'
+import type { PurchaseItem } from '@/types/purchase'
 
 const props = defineProps<{
   modelValue: boolean
@@ -169,8 +142,7 @@ function toNum(v: any): number {
   return isFinite(n) ? n : 0
 }
 
-// ======== 来源采购单 ========
-const purchase = ref<PurchaseReq | null>(null)
+// ======== 采购细项 ========
 const purchaseItems = ref<PurchaseItem[]>([])
 const showItemStep = ref(false)
 const selectedItemId = ref<number | null>(null)
@@ -202,7 +174,6 @@ async function onOpen() {
   purchaseItems.value = []
   itemInvoiceCount.value = new Map()
   showItemStep.value = false
-  purchase.value = null
 
   if (!props.bill) return
 
@@ -224,7 +195,6 @@ async function loadPurchaseContext(purchaseReqId: number, billId: number) {
     ])
     const items: PurchaseItem[] = purchaseRes.data.items || []
     purchaseItems.value = items
-    purchase.value = purchaseRes.data
 
     const map: Record<number, string> = {}
     items.forEach((it) => { if (it.id) map[it.id] = it.item_name })
@@ -323,10 +293,6 @@ async function confirmLink() {
   background: #f8fafc;
   border: 1px solid #e4e7ed;
   border-radius: 6px;
-}
-.purchase-context {
-  background: #f0f7ff;
-  border-color: #c6ddf7;
 }
 .ctx-title {
   font-size: 13px;
