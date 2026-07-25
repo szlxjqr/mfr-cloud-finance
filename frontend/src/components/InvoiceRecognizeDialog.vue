@@ -62,7 +62,7 @@ import { ElMessage } from 'element-plus'
 import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 import { inboxApi } from '@/api/inboxApi'
 
-const props = defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean; initialFile?: File | null }>()
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
   (e: 'confirm', parsed: ParsedInvoice): void
@@ -119,12 +119,16 @@ async function saveToInbox() {
   }
 }
 
-// 每次打开重置
+// 每次打开重置（若有 initialFile 则自动解析）
 watch(() => props.visible, (v) => {
   if (v) {
     parsed.value = null
     pickedFile.value = null
     if (fileInput.value) fileInput.value.value = ''
+    if (props.initialFile) {
+      pickedFile.value = props.initialFile
+      doParse(props.initialFile)
+    }
   }
 })
 </script>

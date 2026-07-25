@@ -111,7 +111,20 @@
       <div v-if="editing && editingId && editPurchaseItems.length" class="purchase-items">
         <div class="linked-header">
           <span class="linked-title">采购申请细项（来源采购单：<strong>{{ editingRow?.purchase_requisition_id ? '#' + editingRow.purchase_requisition_id : '-' }}</strong>）</span>
-          <span class="text-muted">点细项行末尾的「挂发票」直达该细项的发票挂载</span>
+          <div class="header-actions">
+            <el-upload
+              :auto-upload="false"
+              :show-file-list="false"
+              :on-change="onUploadFilePicked"
+              accept=".pdf,.ofd,.png,.jpg,.jpeg"
+              class="upload-btn"
+            >
+              <el-button type="primary" size="small">
+                <AppIcon name="Upload" />上传发票
+              </el-button>
+            </el-upload>
+            <span class="text-muted">点细项行末尾的「挂发票」分配已上传的发票到具体细项</span>
+          </div>
         </div>
         <el-table :data="editPurchaseItems" border stripe size="small">
           <el-table-column label="序号" width="55" align="center">
@@ -201,6 +214,13 @@
       :bill="attachBill"
       :initial-item-id="attachInitialItemId"
       @attached="onAttachDone"
+    />
+
+    <!-- 上传发票弹窗（编辑弹窗里点"上传发票"触发，识别后自动挂到当前报销单） -->
+    <InvoiceRecognizeDialog
+      v-model:visible="uploadVisible"
+      :initial-file="uploadFile"
+      @confirm="onUploadConfirm"
     />
 
     <!-- 挂发票入口已迁至「我的报销」页（MyReimburse.vue）——此处不重复 -->
@@ -679,6 +699,66 @@ async function onAttachDone() {
   }
 }
 
+// ======== 上传发票（编辑弹窗"采购申请细项"区右侧按钮） ========
+const uploadVisible = ref(false)
+const uploadFile = ref<File | null>(null)
+
+function onUploadFilePicked(file: any) {
+  // el-upload on-change 回调：file.raw 是 File 对象
+  if (!file?.raw) return
+  uploadFile.value = file.raw
+  uploadVisible.value = true
+}
+
+async function onUploadConfirm(parsed: ParsedInvoice) {
+  if (!editingId.value) {
+    ElMessage.warning('请先保存报销单再上传发票')
+    return
+  }
+  try {
+    const details = (parsed.items || []).map((it) => ({
+      biz_type: null,
+      item: it.name || parsed.item || '',
+      qty: it.qty ?? 1,
+      amount: it.amount ?? parsed.amount ?? 0,
+      tax_rate: it.taxRate ?? parsed.taxRate ?? 0,
+      tax: it.tax ?? 0,
+      total: (it.amount ?? parsed.amount ?? 0) + (it.tax ?? 0),
+    }))
+    // 若没有明细行，构造一条汇总行（避免详情为空导致金额为 0）
+    if (!details.length) {
+      details.push({
+        biz_type: null,
+        item: parsed.item || '',
+        qty: 1,
+        amount: parsed.amount ?? 0,
+        tax_rate: parsed.taxRate ?? 0,
+        tax: parsed.tax ?? 0,
+        total: parsed.total ?? 0,
+      })
+    }
+    const payload: InvoiceCreatePayload = {
+      invoice_type: parsed.type || '增值税专用发票',
+      code: parsed.code || null,
+      no: parsed.no || `TEMP-${Date.now()}`,
+      invoice_date: parsed.date || null,
+      buyer_name: parsed.buyerName || '深圳市流形机器人科技有限公司',
+      seller_name: parsed.sellerName || '',
+      seller_tax_no: parsed.sellerTaxNo || null,
+      certify: 'none',
+      reimbursement_bill_id: editingId.value,
+      details,
+    }
+    await invoiceApi.create(payload)
+    ElMessage.success('已上传并关联到本单，可点击细项行「挂发票」分配到具体细项')
+    uploadVisible.value = false
+    uploadFile.value = null
+    await onAttachDone()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '上传失败')
+  }
+}
+
 async function save() {
   const payload: Record<string, unknown> = { ...form }
   if (payload.amount === '' || payload.amount === null) payload.amount = null
@@ -1008,6 +1088,17 @@ onMounted(load)
 /* 采购申请细项 + 已关联发票 */
 .purchase-items {
   margin-top: 16px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.upload-btn {
+  display: inline-flex;
+}
+.upload-btn :deep(.el-upload) {
+  display: inline-flex;
 }
 .linked-invoices {
   margin-top: 16px;
