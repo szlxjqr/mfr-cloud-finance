@@ -122,6 +122,11 @@
           <el-table-column prop="invoice_code" label="发票编码" width="150" show-overflow-tooltip />
           <el-table-column prop="no" label="发票号码" width="110" />
           <el-table-column prop="seller_name" label="销方名称" min-width="120" show-overflow-tooltip />
+          <el-table-column label="对应细项" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ itemNameMap[row.purchase_requisition_item_id] || (row.purchase_requisition_item_id ? '#' + row.purchase_requisition_item_id : '—') }}
+            </template>
+          </el-table-column>
           <el-table-column label="不含税金额" width="95" align="right">
             <template #default="{ row }">
               ¥{{ invoiceSubtotal(row).toFixed(2) }}
@@ -164,30 +169,57 @@
         <span>当前已挂：{{ summaryMap[linkingBill.id]?.invoice_count || 0 }} 张</span>
       </div>
 
-      <div class="link-toolbar">
-        <el-input v-model="invoiceKeyword" placeholder="搜索销方/发票号" clearable style="width: 220px" @input="debounceLoadUnlinked" />
-        <span class="text-muted">仅显示未关联报销单的发票</span>
+      <!-- 采购细项选择（仅采购报销且有来源采购单时显示） -->
+      <div v-if="showItemStep" class="item-step">
+        <div class="item-step-title">请选择对应的采购细项：</div>
+        <DataLoader :loading="itemLoading" :is-empty="!purchaseItems.length">
+          <el-table
+            :data="purchaseItems"
+            border stripe size="small"
+            highlight-current-row
+            height="200"
+            @current-change="onItemRowChange"
+          >
+            <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
+            <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
+            <el-table-column label="数量" prop="quantity" width="60" align="center" />
+            <el-table-column label="金额" width="100" align="right">
+              <template #default="{ row }">¥{{ row.amount?.toFixed(2) || '0.00' }}</template>
+            </el-table-column>
+            <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
+          </el-table>
+        </DataLoader>
+        <div v-if="selectedItemId" class="item-selected-hint">
+          已选细项：<strong>{{ itemNameMap[selectedItemId] || ('#' + selectedItemId) }}</strong>，请在下方选择要挂载的发票
+        </div>
       </div>
 
-      <DataLoader :loading="invoiceLoading" :is-empty="!unlinkedInvoices.length">
-        <el-table :data="unlinkedInvoices" border stripe height="360" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="48" align="center" />
-        <el-table-column prop="invoice_date" label="开票日期" width="110" />
-        <el-table-column prop="invoice_type" label="类型" width="120" />
-        <el-table-column prop="no" label="发票号码" width="120" />
-        <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
-        <el-table-column label="金额/税额/合计" width="180" align="right">
-          <template #default="{ row }">
-            ¥{{ row.total_amount?.toFixed(2) || '0.00' }}
-            <span class="tax-hint">（税 ¥{{ row.total_tax?.toFixed(2) || '0.00' }}）</span>
-          </template>
-        </el-table-column>
-      </el-table>
-      </DataLoader>
+      <template v-if="!showItemStep || selectedItemId">
+        <div class="link-toolbar">
+          <el-input v-model="invoiceKeyword" placeholder="搜索销方/发票号" clearable style="width: 220px" @input="debounceLoadUnlinked" />
+          <span class="text-muted">仅显示未关联报销单的发票</span>
+        </div>
+
+        <DataLoader :loading="invoiceLoading" :is-empty="!unlinkedInvoices.length">
+          <el-table :data="unlinkedInvoices" border stripe height="360" @selection-change="handleSelectionChange">
+          <el-table-column type="selection" width="48" align="center" />
+          <el-table-column prop="invoice_date" label="开票日期" width="110" />
+          <el-table-column prop="invoice_type" label="类型" width="120" />
+          <el-table-column prop="no" label="发票号码" width="120" />
+          <el-table-column prop="seller_name" label="销方名称" show-overflow-tooltip />
+          <el-table-column label="金额/税额/合计" width="180" align="right">
+            <template #default="{ row }">
+              ¥{{ row.total_amount?.toFixed(2) || '0.00' }}
+              <span class="tax-hint">（税 ¥{{ row.total_tax?.toFixed(2) || '0.00' }}）</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        </DataLoader>
+      </template>
 
       <template #footer>
         <el-button @click="linkDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="selectedInvoiceIds.length === 0" @click="confirmLink">关联 {{ selectedInvoiceIds.length }} 张发票</el-button>
+        <el-button type="primary" :disabled="(showItemStep && !selectedItemId) || selectedInvoiceIds.length === 0" @click="confirmLink">关联 {{ selectedInvoiceIds.length }} 张发票</el-button>
       </template>
     </el-dialog>
 
@@ -397,6 +429,8 @@ import { invoiceApi } from '@/api/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
 import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
+import { purchaseApi } from '@/api/purchase'
+import type { PurchaseItem } from '@/types/purchase'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
 
@@ -582,13 +616,25 @@ async function openCreate() {
   }
 }
 
-function openEdit(row: ReimbursementBill) {
+async function openEdit(row: ReimbursementBill) {
   Object.assign(form, emptyForm(), row)
   editing.value = true
   editingId.value = row.id
   previewBillNo.value = row.bill_no ?? null
   dialogVisible.value = true
   loadLinkedInvoices()
+  // 采购报销且有关联采购单 → 加载细项名称映射（供已关联表显示）
+  if (row.purchase_requisition_id) {
+    try {
+      const res = await purchaseApi.get(row.purchase_requisition_id)
+      const items = (res.data.items || []) as PurchaseItem[]
+      const map: Record<number, string> = {}
+      items.forEach((it: PurchaseItem) => { if (it.id) map[it.id] = it.item_name })
+      itemNameMap.value = map
+    } catch {
+      // 非关键异常，静默
+    }
+  }
 }
 
 async function save() {
@@ -675,13 +721,28 @@ const invoiceLoading = ref(false)
 const selectedInvoiceIds = ref<number[]>([])
 let invoiceTimer: ReturnType<typeof setTimeout> | null = null
 
+// 采购细项选择
+const purchaseItems = ref<PurchaseItem[]>([])
+const showItemStep = ref(false)
+const selectedItemId = ref<number | null>(null)
+const itemNameMap = ref<Record<number, string>>({})
+const itemLoading = ref(false)
+
 async function openLinkInvoices(row: ReimbursementBill) {
   linkingBill.value = row
   linkDialogVisible.value = true
   invoiceKeyword.value = ''
   selectedInvoiceIds.value = []
-  await nextTick()
-  loadUnlinked()
+  selectedItemId.value = null
+  purchaseItems.value = []
+  showItemStep.value = false
+  // 采购报销且有来源采购单 → 弹出采购细项选择
+  if (row.purchase_requisition_id) {
+    await loadPurchaseItems(row.purchase_requisition_id)
+  } else {
+    await nextTick()
+    loadUnlinked()
+  }
 }
 
 function debounceLoadUnlinked() {
@@ -711,10 +772,45 @@ function handleSelectionChange(rows: Invoice[]) {
   selectedInvoiceIds.value = rows.map((r) => r.id)
 }
 
+async function loadPurchaseItems(purchaseReqId: number) {
+  itemLoading.value = true
+  try {
+    const res = await purchaseApi.get(purchaseReqId)
+    const items = res.data.items || []
+    purchaseItems.value = items
+    // 构建名称映射（供"已关联"表与选中提示使用）
+    const map: Record<number, string> = {}
+    items.forEach((it: PurchaseItem) => {
+      if (it.id) map[it.id] = it.item_name
+    })
+    itemNameMap.value = map
+    showItemStep.value = items.length > 0
+    if (!showItemStep.value) {
+      // 没有细项时降级直挂
+      await nextTick()
+      loadUnlinked()
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载采购细项失败')
+    showItemStep.value = false
+  } finally {
+    itemLoading.value = false
+  }
+}
+
+function onItemRowChange(item: PurchaseItem) {
+  selectedItemId.value = item?.id ?? null
+  if (selectedItemId.value) {
+    selectedInvoiceIds.value = []
+    loadUnlinked()
+  }
+}
+
 async function confirmLink() {
   if (!linkingBill.value || selectedInvoiceIds.value.length === 0) return
+  if (showItemStep.value && !selectedItemId.value) return
   try {
-    await invoiceApi.batchLink(selectedInvoiceIds.value, linkingBill.value.id)
+    await invoiceApi.batchLink(selectedInvoiceIds.value, linkingBill.value.id, selectedItemId.value ?? undefined)
     ElMessage.success(`已关联 ${selectedInvoiceIds.value.length} 张发票`)
     linkDialogVisible.value = false
     load()
@@ -979,6 +1075,23 @@ onMounted(load)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+.item-step {
+  margin-bottom: 12px;
+}
+.item-step-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.item-selected-hint {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: #e6f7ff;
+  border: 1px solid #91d5ff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #333;
 }
 .tax-hint {
   color: var(--el-text-color-secondary);

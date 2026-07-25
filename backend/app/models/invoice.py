@@ -50,6 +50,10 @@ class Invoice(Base):
     purchase_requisition: Mapped[Optional["PurchaseRequisition"]] = relationship(
         "PurchaseRequisition",
     )
+    # 关联采购细项：采购类发票挂到采购申请单的某一条明细上（与采购单平行）
+    purchase_requisition_item_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("purchase_requisition_items.id"), nullable=True, index=True
+    )
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 归档附件路径（PDF/OFD）
     route_info: Mapped[Optional[str]] = mapped_column(String(100))  # 路线（火车票/机票用）
     traveler: Mapped[Optional[str]] = mapped_column(String(100))  # 旅客姓名（火车票/机票用）

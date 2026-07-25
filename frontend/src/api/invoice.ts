@@ -17,13 +17,19 @@ export const invoiceApi = {
 
   remove: (id: number) => http.delete(`/invoices/${id}`),
 
-  link: (invoiceId: number, billId: number) =>
-    http.post<Invoice>(`/invoices/${invoiceId}/link/${billId}`),
+  link: (invoiceId: number, billId: number, itemId?: number) =>
+    http.post<Invoice>(`/invoices/${invoiceId}/link/${billId}`, null, {
+      params: { purchase_requisition_item_id: itemId },
+    }),
 
   unlink: (invoiceId: number) => http.post<Invoice>(`/invoices/${invoiceId}/unlink`),
 
-  batchLink: (invoiceIds: number[], billId: number) =>
-    http.post('/invoices/batch-link', { invoice_ids: invoiceIds, bill_id: billId }),
+  batchLink: (invoiceIds: number[], billId: number, itemId?: number) =>
+    http.post('/invoices/batch-link', {
+      invoice_ids: invoiceIds,
+      bill_id: billId,
+      purchase_requisition_item_id: itemId,
+    }),
 
   uploadAttachment: (invoiceId: number, file: File) => {
     const form = new FormData()

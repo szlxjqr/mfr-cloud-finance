@@ -158,12 +158,18 @@ def delete_invoice(iid: int, db: Session = Depends(get_db)):
 
 # ================= P1: 关联报销单 =================
 @router.post("/{iid}/link/{bid}", response_model=s.InvoiceRead)
-def link_invoice(iid: int, bid: int, db: Session = Depends(get_db)):
+def link_invoice(
+    iid: int,
+    bid: int,
+    purchase_requisition_item_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
     obj = _get_or_404(db, iid)
     bill = db.get(rm.ReimbursementBill, bid)
     if not bill:
         raise HTTPException(status_code=404, detail="报销单不存在")
     obj.reimbursement_bill_id = bid
+    obj.purchase_requisition_item_id = purchase_requisition_item_id
     db.commit()
     db.refresh(obj)
     return obj
@@ -173,13 +179,19 @@ def link_invoice(iid: int, bid: int, db: Session = Depends(get_db)):
 def unlink_invoice(iid: int, db: Session = Depends(get_db)):
     obj = _get_or_404(db, iid)
     obj.reimbursement_bill_id = None
+    obj.purchase_requisition_item_id = None
     db.commit()
     db.refresh(obj)
     return obj
 
 
 @router.post("/batch-link")
-def batch_link_invoices(invoice_ids: List[int], bill_id: int, db: Session = Depends(get_db)):
+def batch_link_invoices(
+    invoice_ids: List[int],
+    bill_id: int,
+    purchase_requisition_item_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
     bill = db.get(rm.ReimbursementBill, bill_id)
     if not bill:
         raise HTTPException(status_code=404, detail="报销单不存在")
@@ -188,6 +200,7 @@ def batch_link_invoices(invoice_ids: List[int], bill_id: int, db: Session = Depe
         obj = db.get(m.Invoice, iid)
         if obj:
             obj.reimbursement_bill_id = bill_id
+            obj.purchase_requisition_item_id = purchase_requisition_item_id
             updated += 1
     db.commit()
     return {"ok": True, "updated": updated}

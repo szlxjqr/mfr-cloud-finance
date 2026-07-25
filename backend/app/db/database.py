@@ -98,19 +98,21 @@ def _ensure_invoice_code_column(engine) -> None:
 
 
 def _ensure_invoice_columns(engine) -> None:
-    """为已存在的 invoices 表补加「采购申请」外键列。
+    """为已存在的 invoices 表补加「采购申请 / 采购细项」外键列。
 
     SQLite 的 create_all 只会建缺失的表、不会给已存在的表加列，故单独处理；
-    新库由模型约束建好，跳过即可。
+    新库由模型约束建好，跳过即可。逐列独立判断，避免老库已加部分列时漏加其余列。
     """
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)
     cols = [c["name"] for c in inspector.get_columns("invoices")]
-    if "purchase_requisition_id" in cols:
-        return
-    with engine.begin() as conn:
-        conn.execute(text("ALTER TABLE invoices ADD COLUMN purchase_requisition_id INTEGER"))
+    if "purchase_requisition_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE invoices ADD COLUMN purchase_requisition_id INTEGER"))
+    if "purchase_requisition_item_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE invoices ADD COLUMN purchase_requisition_item_id INTEGER"))
 
 
 def _ensure_reimbursement_bills_columns(engine) -> None:

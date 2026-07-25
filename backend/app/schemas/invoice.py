@@ -41,6 +41,7 @@ class InvoiceBase(BaseModel):
     certify: str = "none"
     remark: Optional[str] = None
     reimbursement_bill_id: Optional[int] = None
+    purchase_requisition_item_id: Optional[int] = None
     attachment_path: Optional[str] = None
     route_info: Optional[str] = None
     traveler: Optional[str] = None
@@ -65,6 +66,7 @@ class InvoiceUpdate(BaseModel):
     certify: Optional[str] = None
     remark: Optional[str] = None
     reimbursement_bill_id: Optional[int] = None
+    purchase_requisition_item_id: Optional[int] = None
     attachment_path: Optional[str] = None
     route_info: Optional[str] = None
     traveler: Optional[str] = None

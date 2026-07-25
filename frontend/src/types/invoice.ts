@@ -27,6 +27,7 @@ export interface Invoice {
   certify: string
   remark?: string | null
   reimbursement_bill_id?: number | null
+  purchase_requisition_item_id?: number | null
   attachment_path?: string | null
   route_info?: string | null
   traveler?: string | null
@@ -67,6 +68,7 @@ export interface InvoiceCreatePayload {
   certify: string
   remark?: string | null
   reimbursement_bill_id?: number | null
+  purchase_requisition_item_id?: number | null
   attachment_path?: string | null
   route_info?: string | null
   traveler?: string | null
