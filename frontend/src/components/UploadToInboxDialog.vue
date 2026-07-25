@@ -173,6 +173,8 @@ function onFileChange(file: any) {
   }
   if (!file?.raw) return
   pendingFiles.value.push({ file: file.raw, name: file.name || 'unknown', status: 'pending' })
+  // 点选按钮也立即触发 OCR（与拖拽行为一致）
+  if (!processing.value) startParsing()
 }
 
 function onDrop(e: DragEvent) {
