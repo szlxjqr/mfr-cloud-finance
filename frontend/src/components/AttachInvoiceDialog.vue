@@ -79,11 +79,13 @@
     <template v-if="!showItemStep || selectedItemId">
       <div class="step-title">④ 选择要挂载的发票：</div>
       <div class="link-toolbar">
-        <el-input v-model="invoiceKeyword" placeholder="搜索销方/发票号" clearable style="width: 220px" @input="debounceLoadUnlinked" />
+        <el-input v-model="invoiceKeyword" placeholder="搜索销方/发票号" clearable style="width: 200px" @input="debounceLoadUnlinked" />
+        <el-input-number v-model="amountMatch" placeholder="含税金额(选填)" :min="0" :step="10" controls-position="right" style="width: 160px" />
+        <el-switch v-model="autoMatchBudget" active-text="按预算自动筛 ±30%" />
         <span class="text-muted">仅显示未关联报销单的发票</span>
       </div>
-      <DataLoader :loading="invoiceLoading" :is-empty="!unlinkedInvoices.length">
-        <el-table :data="unlinkedInvoices" border stripe height="300" @selection-change="handleSelectionChange">
+      <DataLoader :loading="invoiceLoading" :is-empty="!filteredInvoices.length">
+        <el-table :data="filteredInvoices" border stripe height="300" @selection-change="handleSelectionChange">
           <el-table-column type="selection" width="48" align="center" />
           <el-table-column prop="invoice_date" label="开票日期" width="110" />
           <el-table-column prop="invoice_type" label="类型" width="120" />
@@ -93,6 +95,12 @@
             <template #default="{ row }">
               ¥{{ formatNum(row.total_amount) }}
               <span class="tax-hint">（税 ¥{{ formatNum(row.total_tax) }}）</span>
+              <el-tag
+                v-if="amountMatchTarget && row.total_amount && isNearTarget(row.total_amount, amountMatchTarget)"
+                size="small"
+                type="success"
+                style="margin-left: 4px"
+              >匹配</el-tag>
             </template>
           </el-table-column>
         </el-table>
@@ -165,6 +173,34 @@ let invoiceTimer: ReturnType<typeof setTimeout> | null = null
 const selectedItemAmount = computed(() => {
   const it = purchaseItems.value.find((p) => p.id === selectedItemId.value)
   return it?.amount ?? 0
+})
+
+// ======== 发票筛选（金额智能匹配） ========
+// 用户在搜索框手动输入的目标金额；优先级高于"按预算自动筛"
+const amountMatch = ref<number | null>(null)
+// 是否按"已选细项预算"自动筛；默认开启
+const autoMatchBudget = ref(true)
+
+// 当前生效的匹配基准：手动金额 > 已选细项预算 > 0
+const amountMatchTarget = computed(() => {
+  if (amountMatch.value && amountMatch.value > 0) return amountMatch.value
+  if (autoMatchBudget.value && selectedItemAmount.value > 0) return selectedItemAmount.value
+  return 0
+})
+
+// 是否在 ±30% 范围内（用于打"匹配"标签）
+function isNearTarget(amount: number, target: number): boolean {
+  if (!target || !amount) return false
+  return Math.abs(amount - target) / target <= 0.3
+}
+
+// 过滤后的发票列表（unlinked + keyword + 金额匹配）
+const filteredInvoices = computed(() => {
+  let list = unlinkedInvoices.value
+  if (amountMatchTarget.value > 0) {
+    list = list.filter((inv) => isNearTarget(Number(inv.total_amount || 0), amountMatchTarget.value))
+  }
+  return list
 })
 
 // ======== 监听：bill 变化或打开时重置 ========
