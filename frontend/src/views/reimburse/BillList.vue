@@ -676,8 +676,17 @@ function openAttachFromEdit(itemId: number) {
 }
 
 async function onAttachDone() {
-  // 关联成功后：刷新已挂发票表 + 各细项已挂计数
+  // 关联成功后：刷新已挂发票表 + 各细项已挂计数 + 列表的发票数（summaryMap）
   await loadLinkedInvoices()
+  if (editingId.value) {
+    // 刷新当前编辑单据的 summaryMap（挂发票弹窗关闭后老板要看到正确的「N 张」）
+    try {
+      const res = await invoiceApi.summaryByBill(editingId.value)
+      summaryMap.value[editingId.value] = res.data
+    } catch {
+      // 非关键
+    }
+  }
   if (!editingId.value) return
   try {
     const linkedRes = await invoiceApi.list({ reimbursement_bill_id: editingId.value })
