@@ -134,24 +134,26 @@
     width="820px"
     :close-on-click-modal="false"
     append-to-body
+    @close="closePreview"
   >
     <div v-if="previewInvoiceId" class="preview-wrap">
-      <iframe v-if="previewHasAttachment && isPdf" :src="previewSrc" class="preview-iframe" />
+      <div v-if="previewLoading" class="preview-loading">
+        <AppIcon name="Loading" class="spin" /> 正在加载附件...
+      </div>
+      <iframe v-else-if="previewBlobUrl && isPdf" :src="previewBlobUrl" class="preview-iframe" />
       <el-image
-        v-else-if="previewHasAttachment"
-        :src="previewSrc"
-        :preview-src-list="[previewSrc]"
+        v-else-if="previewBlobUrl"
+        :src="previewBlobUrl"
+        :preview-src-list="[previewBlobUrl]"
         fit="contain"
         class="preview-image"
         :preview-teleported="true"
-      >
-        <template #error>
-          <div class="preview-error">
-            <div>无法加载附件</div>
-            <el-link :href="previewSrc" target="_blank" type="primary">在新窗口打开</el-link>
-          </div>
-        </template>
-      </el-image>
+      />
+      <div v-else-if="previewError" class="preview-error">
+        <AppIcon name="WarningFilled" class="error-icon" />
+        <div class="error-title">{{ previewError }}</div>
+        <div class="error-desc" v-if="previewError.includes('会话')">预览附件需要登录态，请关闭弹窗重新登录后再试。</div>
+      </div>
       <!-- 无附件（历史遗留发票或未归档）—— 直接上传替换，无需跳转 -->
       <div v-else class="preview-empty">
         <AppIcon name="Document" class="empty-icon" />
@@ -179,6 +181,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import http from '@/utils/request'
 import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
 import type { Invoice } from '@/types/invoice'
@@ -259,16 +262,15 @@ const filteredInvoices = computed(() => {
 })
 
 // ======== 发票附件预览（点击行触发） ========
+// iframe 不走 axios 拦截器 → 必须用 fetch/blob 携带 Authorization header 才能拿到附件
 const previewVisible = ref(false)
 const previewInvoiceId = ref<number | null>(null)
 const previewInvoiceNo = ref('')
 const previewInvoiceAttachment = ref<string | null>(null)
+const previewLoading = ref(false)
+const previewError = ref<string | null>(null)
+const previewBlobUrl = ref<string | null>(null)
 
-const previewSrc = computed(() => {
-  if (!previewInvoiceId.value) return ''
-  // vite dev 时代理 /api → 8521；生产由后端同源托管
-  return `/api/invoices/${previewInvoiceId.value}/attachment`
-})
 const previewHasAttachment = computed(() => !!previewInvoiceAttachment.value)
 const previewTitle = computed(() =>
   previewInvoiceId.value ? `发票预览 #${previewInvoiceNo.value || previewInvoiceId.value}` : '发票预览',
@@ -283,7 +285,45 @@ function onInvoiceRowClick(row: any) {
   previewInvoiceId.value = row.id
   previewInvoiceNo.value = row.no || ''
   previewInvoiceAttachment.value = row.attachment_path || null
+  previewError.value = null
   previewVisible.value = true
+  // 有附件时立刻拉取 blob（走 axios 拦截器 → 带 Authorization header）
+  if (previewHasAttachment.value) {
+    loadPreviewBlob(row.id)
+  }
+}
+
+async function loadPreviewBlob(id: number) {
+  previewLoading.value = true
+  previewError.value = null
+  if (previewBlobUrl.value) {
+    URL.revokeObjectURL(previewBlobUrl.value)
+    previewBlobUrl.value = null
+  }
+  try {
+    const res = await http.get<Blob>(`/invoices/${id}/attachment`, { responseType: 'blob' })
+    const blob = res.data instanceof Blob ? res.data : new Blob([res.data as any])
+    previewBlobUrl.value = URL.createObjectURL(blob)
+  } catch (e: any) {
+    if (e?.response?.status === 401) {
+      previewError.value = '会话已过期，请重新登录'
+    } else {
+      previewError.value = e?.response?.data?.detail || e?.message || '加载附件失败'
+    }
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+function closePreview() {
+  if (previewBlobUrl.value) {
+    URL.revokeObjectURL(previewBlobUrl.value)
+    previewBlobUrl.value = null
+  }
+  previewInvoiceId.value = null
+  previewInvoiceNo.value = ''
+  previewInvoiceAttachment.value = null
+  previewError.value = null
 }
 
 const router = useRouter()
@@ -301,8 +341,9 @@ async function onUploadAttach(options: any) {
   try {
     await invoiceApi.uploadAttachment(previewInvoiceId.value, file)
     ElMessage.success('附件已上传，可关闭弹窗后重新点击查看')
-    // 把本地 attachment 置为非空，让弹窗立即切换显示（重开预览时后端已更新）
-    previewInvoiceAttachment.value = '__uploaded__'
+    // 标记有附件 + 立即拉 blob 重新展示
+    previewInvoiceAttachment.value = 'just_uploaded'
+    await loadPreviewBlob(previewInvoiceId.value)
   } catch (e: any) {
     ElMessage.error(e?.response?.data?.detail || '上传失败')
   } finally {
@@ -539,6 +580,30 @@ async function confirmLink() {
   text-align: center;
   color: var(--el-text-color-secondary);
   padding: 24px;
+}
+.preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 200px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+.error-icon {
+  font-size: 40px;
+  color: #e6a23c;
+  margin-bottom: 8px;
+}
+.error-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 4px;
+}
+.error-desc {
+  font-size: 12px;
+  color: #909399;
 }
 .preview-empty {
   text-align: center;
