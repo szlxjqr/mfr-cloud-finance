@@ -82,8 +82,8 @@ def _b64url_decode(s: str):
     return json.loads(base64.urlsafe_b64decode((s + pad).encode("ascii")))
 
 
-def generate_token(username: str, role: str, employee_no: str, expire_hours: int = 24 * 30) -> str:
-    """生成自签名 Token，默认 30 天有效。"""
+def generate_token(username: str, role: str, employee_no: str, expire_hours: int = 2) -> str:
+    """生成自签名 Token，默认 2 小时有效（单用户系统，过期重登即可）。"""
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": username,
