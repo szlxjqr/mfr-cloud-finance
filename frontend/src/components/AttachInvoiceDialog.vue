@@ -63,8 +63,8 @@
       </table>
     </div>
 
-    <!-- 三、采购细项选择 -->
-    <div v-if="showItemStep" class="item-step">
+    <!-- 三、采购细项选择（仅当未预选 item 时展示整个细项表；预选时只显示已选提示，避免与编辑弹窗重复） -->
+    <div v-if="showItemStep && !props.initialItemId" class="item-step">
       <div class="step-title">③ 请选择对应的采购细项：</div>
       <DataLoader :loading="itemLoading" :is-empty="!purchaseItems.length">
         <el-table
