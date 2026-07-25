@@ -59,11 +59,14 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
+import { reimburseApi } from '@/api/reimburse'
 import type { PurchaseReq } from '@/types/purchase'
 import PurchasePrint from './PurchasePrint.vue'
 
+const router = useRouter()
 const currentUser = '沈雷'
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回']
 
@@ -132,19 +135,26 @@ function printPurchase() {
 async function payReq(row: PurchaseReq) {
   try {
     await ElMessageBox.confirm(
-      `确认对采购单「${row.req_no || ('#' + row.id)}」执行报销？系统将自动生成报销凭证。`,
-      '报销确认',
-      { type: 'warning', confirmButtonText: '确认报销', cancelButtonText: '取消' },
+      `确认将采购单「${row.req_no || ('#' + row.id)}」转为报销单？生成后请在「报销审批」中审核，审核通过后再执行付款（付款仅作账务调整，不实际打款）。`,
+      '转报销单确认',
+      { type: 'warning', confirmButtonText: '确认转换', cancelButtonText: '取消' },
     )
   } catch {
     return
   }
   try {
-    await purchaseApi.pay(row.id)
-    ElMessage.success('报销成功，已生成报销凭证')
-    load()
+    const res = await reimburseApi.fromPurchase(row.id)
+    ElMessage.success(`已生成报销单「${res.data.bill_no}」，请到报销审批中审核`)
+    router.push('/reimburse/bill')
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '报销失败')
+    const status = e?.response?.status
+    const detail = e?.response?.data?.detail || '操作失败'
+    if (status === 409) {
+      ElMessage.warning(detail + '，将跳转到报销审批列表')
+      router.push('/reimburse/bill')
+    } else {
+      ElMessage.error(detail)
+    }
   }
 }
 

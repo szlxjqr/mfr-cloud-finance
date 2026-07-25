@@ -16,4 +16,6 @@ export const reimburseApi = {
   reject: (id: number, data: { approver: string; remark?: string }) =>
     http.post<ReimbursementBill>(`/reimbursements/${id}/reject`, data),
   pay: (id: number) => http.post<ReimbursementBill>(`/reimbursements/${id}/pay`),
+  fromPurchase: (id: number) =>
+    http.post<ReimbursementBill>(`/reimbursements/from-purchase/${id}`),
 }

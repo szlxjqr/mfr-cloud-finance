@@ -77,6 +77,52 @@ def create_bill(payload: s.ReimbursementBillCreate, db: Session = Depends(get_db
     return obj
 
 
+@router.post("/from-purchase/{rid}", response_model=s.ReimbursementBillRead, status_code=201)
+def convert_from_purchase(rid: int, db: Session = Depends(get_db)):
+    """采购申请单 → 报销单：预填申请人/部门/金额/事由，状态置「待审批」待审批。
+
+    幂等：同一采购单已生成过报销单则返回 409 并提示原单号，避免重复生成。
+    生成的报销单进入独立审批流（前端 /reimburse/bill），审批通过才允许付款
+    （付款仅作账务调整，不触发真实银行付款）。
+    """
+    from app.models import purchase as pm
+
+    req = db.get(pm.PurchaseRequisition, rid)
+    if not req:
+        raise HTTPException(status_code=404, detail="采购申请单不存在")
+
+    existing = db.scalar(
+        select(m.ReimbursementBill).where(
+            m.ReimbursementBill.purchase_requisition_id == rid
+        )
+    )
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"该采购申请单已生成报销单「{existing.bill_no}」，请勿重复操作",
+        )
+
+    reason = req.reason
+    if not reason:
+        reason = f"采购报销：{req.item_name or req.req_no or ''}".strip()
+
+    obj = m.ReimbursementBill(
+        bill_no=gen_bill_no(db),
+        applicant=req.applicant,
+        department=req.department,
+        amount=req.expected_amount or 0,
+        reason=reason,
+        status="待审批",
+        submit_date=date.today(),
+        bill_type="采购报销",
+        purchase_requisition_id=rid,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 @router.get("/{bid}", response_model=s.ReimbursementBillRead)
 def get_bill(bid: int, db: Session = Depends(get_db)):
     stmt = (

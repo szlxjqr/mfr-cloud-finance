@@ -5,7 +5,7 @@ from typing import Optional
 
 from typing import List
 
-from sqlalchemy import Date, Numeric, String, Text
+from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -28,6 +28,12 @@ class ReimbursementBill(Base):
     approve_remark: Mapped[Optional[str]] = mapped_column(Text)  # 审批意见
     attachment_path: Mapped[Optional[str]] = mapped_column(String(500))  # 附件路径
     remark: Mapped[Optional[str]] = mapped_column(Text)  # 备注
+
+    # 采购报销场景：关联来源采购申请单（便于回溯与去重）
+    purchase_requisition_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("purchase_requisitions.id"), nullable=True
+    )  # 关联来源采购申请单
+    pay_date: Mapped[Optional[date]] = mapped_column(Date)  # 实际付款日期（仅账务调整，不触发真实付款）
 
     # 报销类型与差旅专属字段：采购报销无需填写差旅字段，差旅报销填写出差人/地点/起止
     bill_type: Mapped[str] = mapped_column(

@@ -140,6 +140,11 @@ def _ensure_reimbursement_bills_columns(engine) -> None:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_start DATE"))
         if "travel_end" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_end DATE"))
+        # 采购报销场景：关联来源采购申请单 + 实际付款日期
+        if "purchase_requisition_id" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN purchase_requisition_id INTEGER"))
+        if "pay_date" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN pay_date DATE"))
 
 
 def _ensure_purchase_columns(engine) -> None:
@@ -154,6 +159,9 @@ def _ensure_purchase_columns(engine) -> None:
             conn.execute(text("UPDATE purchase_requisitions SET is_rd_project = '否' WHERE is_rd_project IS NULL"))
         if "rd_project_code" not in cols:
             conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN rd_project_code VARCHAR(100)"))
+        # 实际付款日期（付款动作仅作账务调整，不触发真实付款）
+        if "pay_date" not in cols:
+            conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN pay_date DATE"))
 
 
 def _ensure_employees_columns(engine) -> None:

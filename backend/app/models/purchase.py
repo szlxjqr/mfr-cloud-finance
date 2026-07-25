@@ -39,6 +39,8 @@ class PurchaseRequisition(Base):
     rd_project_code: Mapped[Optional[str]] = mapped_column(String(100))  # 研发项目编码
     remark: Mapped[Optional[str]] = mapped_column(Text)  # 备注
 
+    pay_date: Mapped[Optional[date]] = mapped_column(Date)  # 实际付款日期（仅账务调整，不触发真实付款）
+
     items: Mapped[List["PurchaseRequisitionItem"]] = relationship(
         "PurchaseRequisitionItem",
         back_populates="req",
