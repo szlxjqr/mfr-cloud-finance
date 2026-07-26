@@ -3,3 +3,6 @@ uvicorn[standard]>=0.24.0
 pydantic>=2.0.0
 sqlalchemy>=2.0.0
 python-multipart>=0.0.6
+# 万能对话框（方案 B）：财务 app 作为 MCP 工具执行方，暴露业务工具供 WorkBuddy 连接器消费。
+# 注意：mcp SDK 要求 Python >= 3.10，本机后端 venv 已升到 3.13.x。
+mcp>=1.28.0

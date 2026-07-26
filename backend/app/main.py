@@ -48,7 +48,14 @@ from app.models import code_counter as code_counter_model  # noqa: F401 注册�
 async def lifespan(app: FastAPI):
     # 启动时初始化数据库表（业务模型就绪后自动生效）
     init_db()
-    yield
+    # 启动 MCP（Streamable HTTP）会话管理器：streamable_http_app() 自身不带 lifespan，
+    # 必须在此显式启动其任务组，否则请求会报 "Task group is not initialized"。
+    mgr = _build_mcp_app_session_manager()
+    if mgr is not None:
+        async with mgr.run():
+            yield
+    else:
+        yield
 
 
 app = FastAPI(title="智慧经营 API", version="1.0.0", lifespan=lifespan)
@@ -116,6 +123,25 @@ app.include_router(fixed_asset.router, prefix="/api", dependencies=_AUTH_DEP)
 def health_check():
     return {"message": "智慧经营 API", "status": "ok"}
 
+
+# ── 万能对话框（方案 B）：把采购/报销/发票 16 个业务工具暴露为 MCP 服务，
+#    挂在 /mcp（无状态 Streamable HTTP），供 WorkBuddy 以自定义连接器（type: http）消费。
+#    鉴权由 build_asgi_app 内部按 MCP_AUTH_TOKEN 环境变量控制（未设则本地放行）。
+#    FastMCP 的 streamable_http_app 内部消息端点在根 "/"，
+#    故此处用 app.mount("/mcp", ...) 挂载后，对外端点恰好是 /mcp（不双重前缀）。
+from app.services.ai.mcp_server import build_asgi_app as _build_mcp_app
+from app.services.ai.mcp_server import get_session_manager as _build_mcp_app_session_manager
+
+# 注意：Streamable HTTP 端点挂在 "/mcp/"（带尾斜杠）。
+# 不带斜杠的 "/mcp" 会被 Starlette 重定向到 "/mcp/"，MCP 客户端跟随重定向即可。
+app.mount("/mcp/", _build_mcp_app())
+
+# 便捷重定向：/mcp（无尾斜杠）-> /mcp/（307 保留方法，POST 也生效）
+from fastapi.responses import RedirectResponse
+
+@app.api_route("/mcp", methods=["GET", "POST"])
+async def _redirect_mcp_to_slash():
+    return RedirectResponse(url="/mcp/", status_code=307)
 
 # 前端构建产物托管：若 frontend/dist 存在，则由后端同源托管（Plan A 单机运行）
 # 前端用 hash 路由（createWebHashHistory），浏览器只请求 "/"，StaticFiles 直接返回 index.html，无需 history fallback

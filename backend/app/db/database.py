@@ -63,6 +63,7 @@ def init_db() -> None:
     from app.models import fixed_asset as _fixed_asset  # noqa: F401
     from app.models import code_counter as _code_counter  # noqa: F401
     from app.models import invoice_inbox as _invoice_inbox  # noqa: F401 注册发票箱模型
+    from app.models import ai_session as _ai_session  # noqa: F401 注册 AI 会话模型
 
     Base.metadata.create_all(bind=engine)
     _ensure_invoice_code_column(engine)
