@@ -11,6 +11,7 @@ import JSZip from 'jszip'
 import * as pdfjsLib from 'pdfjs-dist'
 // @ts-ignore - Vite 会将 worker 文件处理为 URL
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+import http from './request'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker
 
@@ -21,11 +22,26 @@ const STANDARD_FONT_DATA_URL = '/standard_fonts/'
 
 // 复用纯字段提取（来自 invoiceFields.ts）
 import { extractInvoiceFields, extractLineItems, validateInvoice, verifyInvoice } from './invoiceFields'
-import type { ParsedInvoice, ParsedLineItem, ValidationResult, VerifyResult } from './invoiceFields'
+import type { ParsedInvoice, ParsedLineItem, ValidationResult, InvoiceValidation } from './invoiceFields'
+// 双识别闸门（识别器① × 识别器②，一致才可信）
+import { dualRecognize } from './invoiceDual'
 export { extractInvoiceFields, extractLineItems, validateInvoice, verifyInvoice }
-export type { ParsedInvoice, ParsedLineItem, ValidationResult, VerifyResult }
+export type { ParsedInvoice, ParsedLineItem, ValidationResult, InvoiceValidation }
+export { dualRecognize }
 
 // 判断提取文本是否过空（标签与值相隔极远或字体无法解码），决定是否需要 OCR 兜底
+function attachValidation(parsed: ParsedInvoice): ParsedInvoice {
+  parsed.validation = verifyInvoice(parsed)
+  // 若自动校正了金额/价税合计，同步更新 parsed 里的对外字段，
+  // 但保留 original 供审计。
+  if (parsed.validation?.corrected) {
+    if (parsed.validation.correctedAmount !== undefined) parsed.amount = parsed.validation.correctedAmount
+    if (parsed.validation.correctedTotal !== undefined) parsed.total = parsed.validation.correctedTotal
+    if (parsed.validation.rate !== undefined) parsed.taxRate = parsed.validation.rate
+  }
+  return parsed
+}
+
 function looksEmpty(text: string): boolean {
   const hasCompany = /(公司|酒店|企业|厂|店|中心|集团|税务局|铁路)/.test(text)
   const hasLongDigit = /\d{8,}/.test(text)
@@ -49,7 +65,9 @@ export async function parseOfd(file: File): Promise<ParsedInvoice> {
       .replace(/\s+/g, ' ')
     text += plain + '\n'
   }
-  const parsed = extractInvoiceFields(text)
+  const gate = dualRecognize(text, extractInvoiceFields)
+  const parsed = attachValidation(gate.r1)
+  parsed.recognition = { consistent: gate.consistent, diffs: gate.diffs, method: gate.method }
   parsed.type = parsed.type || '电子发票'
   return parsed
 }
@@ -136,12 +154,37 @@ async function ocrToText(input: File | HTMLCanvasElement): Promise<string> {
 
 // ===== PDF 解析（文字优先，过空则 OCR 兜底）=====
 export async function parsePdf(file: File): Promise<ParsedInvoice> {
+  // 优先走后端 pypdf 抽文字层（前端 PDF.js 在某些数电票上有 leading-1 脏数据，
+  // 如 883.12 → 1997.93；后端 pypdf 抽的更干净）。后端抽到的 text 走 r1/r2 解析。
+  try {
+    // 用 base64 代替 multipart/flle upload，避免 Vite proxy 转发时丢 body
+    const buf = await file.arrayBuffer()
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)))
+    const { data } = await http.post('/invoice-inbox/extract-text', {
+      filename: file.name,
+      content_base64: b64,
+    })
+    const rawText: string = (data && data.text) || ''
+    if (rawText && rawText.trim().length >= 10) {
+      const gate = dualRecognize(rawText, extractInvoiceFields)
+      const parsed = attachValidation(gate.r1)
+      parsed.recognition = { consistent: gate.consistent, diffs: gate.diffs, method: gate.method }
+      parsed.type = parsed.type || '增值税专用发票'
+      return parsed
+    }
+  } catch (e) {
+    console.warn('后端抽文字层失败，回退 PDF.js：', e)
+  }
+
+  // 回退：前端 PDF.js 抽文字
   const buf = await file.arrayBuffer()
   const rawText = await extractPdfText(buf)
 
   // 文字足够则直接用文字解析
   if (!looksEmpty(rawText)) {
-    const parsed = extractInvoiceFields(rawText)
+    const gate = dualRecognize(rawText, extractInvoiceFields)
+    const parsed = attachValidation(gate.r1)
+    parsed.recognition = { consistent: gate.consistent, diffs: gate.diffs, method: gate.method }
     parsed.type = parsed.type || '增值税专用发票'
     return parsed
   }
@@ -162,7 +205,9 @@ export async function parsePdf(file: File): Promise<ParsedInvoice> {
       console.warn('PDF 第', i, '页渲染失败', e)
     }
   }
-  const parsed = extractInvoiceFields(ocrText)
+  const gate = dualRecognize(ocrText, extractInvoiceFields)
+  const parsed = attachValidation(gate.r1)
+  parsed.recognition = { consistent: gate.consistent, diffs: gate.diffs, method: gate.method }
   parsed.type = parsed.type || '增值税专用发票'
   return parsed
 }
@@ -170,7 +215,9 @@ export async function parsePdf(file: File): Promise<ParsedInvoice> {
 // ===== PNG / JPG 解析（OCR）=====
 export async function parsePng(file: File): Promise<ParsedInvoice> {
   const text = await ocrToText(file)
-  const parsed = extractInvoiceFields(text)
+  const gate = dualRecognize(text, extractInvoiceFields)
+  const parsed = attachValidation(gate.r1)
+  parsed.recognition = { consistent: gate.consistent, diffs: gate.diffs, method: gate.method }
   parsed.type = parsed.type || '增值税专用发票'
   return parsed
 }

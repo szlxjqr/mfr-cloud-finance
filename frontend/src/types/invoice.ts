@@ -43,7 +43,7 @@ export interface InvoiceInbox {
   source: string // upload | box
   duplicated?: boolean // P1 去重：本次上传与箱中已有同票重复时置 true
   extracted_json?: string | null
-  status: string // pending | recognized | linked | error
+  status: string // pending | recognized | reviewed | needs_review | linked | error
   linked_doc_type?: string | null // reimburse | purchase
   linked_doc_id?: number | null
   verify_result?: string | null // none | real | fake | abnormal

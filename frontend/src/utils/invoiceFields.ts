@@ -25,6 +25,26 @@ export interface ParsedLineItem {
   tax: number
 }
 
+export interface InvoiceValidation {
+  /** 公式核对是否通过（核心三数自洽） */
+  passed: boolean
+  /** 推导出的标准 VAT 税率（%），如 13 */
+  rate?: number
+  /** 原始推导税率（未吸附标准率），用于定位 leading-1 等异常 */
+  derivedRate?: number
+  /** 是否自动校正了 leading-1 等 OCR 脏值 */
+  corrected: boolean
+  /** 校正后最终值 */
+  correctedAmount?: number
+  correctedTotal?: number
+  /** 校正前原始值（用于审计） */
+  original?: { amount?: number; total?: number }
+  /** 不通过时的简要说明 */
+  message?: string
+  /** 所有警告/提示 */
+  warnings: string[]
+}
+
 export interface ParsedInvoice {
   type?: string
   code?: string
@@ -42,6 +62,11 @@ export interface ParsedInvoice {
   items?: ParsedLineItem[]
   account?: string
   rawText?: string
+  // 双识别闸门结论（由 invoiceDual.dualRecognize 注入）：
+  // consistent=false 时后端置 needs_review 隔离，不自动信任。
+  recognition?: { consistent: boolean; diffs: string[]; method: string }
+  // 公式核对结论（由 invoiceParser 注入）：权威判定，抓识别错误。
+  validation?: InvoiceValidation
 }
 
 export interface ValidationResult {
@@ -50,6 +75,7 @@ export interface ValidationResult {
   parsed: ParsedInvoice
 }
 
+/** @deprecated 改用 InvoiceValidation */
 export interface VerifyResult {
   consistent: boolean
   warnings: string[]
@@ -67,10 +93,91 @@ const SUFFIX =
   '股份有限公司|有限责任公司|有限公司|总公司|分公司|子公司|集团|酒店|旅行社|中心|局|厂|店|超市|商场|医院|学校|大学|银行|证券|保险|商行|商厦|企业|研究院|学院'
 const round2 = (n: number) => Number(n.toFixed(2))
 
+// 标准 VAT 税率（%）。推导税率时吸附到最近的标准率；
+// 0% 用于免税/不征税；负数或超大值视为异常。
+const STANDARD_VAT_RATES = [0, 1, 3, 6, 9, 13]
+
+// 由税额/金额推导实际税率，并吸附到最近的标准 VAT 税率。
+// 返回 { rate: 标准率, derived: 原始推导值 }。
+// amount 必须 >0；tax>=0。容差内吸附，否则返回原始推导值。
+function deriveTaxRate(amount: number, tax: number): { rate: number; derived: number } | null {
+  if (!amount || amount <= 0) return null
+  const derived = (tax / amount) * 100
+  // 找最近标准率
+  let best = STANDARD_VAT_RATES[0]
+  let bestDiff = Math.abs(derived - best)
+  for (const r of STANDARD_VAT_RATES.slice(1)) {
+    const d = Math.abs(derived - r)
+    if (d < bestDiff) {
+      bestDiff = d
+      best = r
+    }
+  }
+  // 吸附容差：1 个百分点（如 12.5%→13%，13.5%→13%）
+  const SNAP = 1.0
+  if (bestDiff <= SNAP) return { rate: best, derived }
+  return { rate: Math.round(derived * 100) / 100, derived }
+}
+
+// 尝试校正 OCR leading-1 脏值（金额/价税合计最高位多识别一个 1）。
+// 思路：若当前 amount/total 导致推导税率偏离标准率，尝试把 amount/total 各减 10 的幂次（1000/10000…）
+// 后重算；若某组合能恢复标准率且 amount+tax≈total，则采信。
+function tryCorrectLeadingOne(
+  amount: number,
+  tax: number,
+  total: number,
+): { amount: number; total: number; rate: number; corrected: boolean } | null {
+  if (!amount || amount <= 0 || !total || total <= 0) return null
+  // 仅当推导税率明显异常才尝试校正
+  const current = deriveTaxRate(amount, tax)
+  if (!current) return null
+  // 已经标准，无需校正
+  if (STANDARD_VAT_RATES.includes(current.rate)) return null
+
+  const candidates: Array<{ amount: number; total: number }> = []
+  // 常见 leading-1 场景：千位、万位多了 1
+  for (const base of [1000, 10000, 100000]) {
+    if (amount > base) candidates.push({ amount: amount - base, total: total - base })
+    if (amount > base * 10) candidates.push({ amount: amount - base * 10, total: total - base * 10 })
+  }
+  // 也尝试只减 amount 或只减 total（防不对称脏值）
+  for (const base of [1000, 10000, 100000]) {
+    if (amount > base) candidates.push({ amount: amount - base, total })
+    if (total > base) candidates.push({ amount, total: total - base })
+  }
+
+  const TOLERANCE = 0.02
+  for (const cand of candidates) {
+    if (cand.amount <= 0 || cand.total <= 0) continue
+    const derived = deriveTaxRate(cand.amount, tax)
+    if (!derived) continue
+    if (!STANDARD_VAT_RATES.includes(derived.rate)) continue
+    const recomputed = round2(cand.amount + tax)
+    if (Math.abs(recomputed - cand.total) > TOLERANCE && Math.abs(cand.total - round2(cand.amount * (1 + derived.rate / 100))) > TOLERANCE) {
+      continue
+    }
+    return { amount: cand.amount, total: cand.total, rate: derived.rate, corrected: true }
+  }
+  return null
+}
+
 function parseMoney(s: string): number {
   const cleaned = s.replace(/[¥￥\s,]/g, '')
   const n = Number(cleaned)
   return isNaN(n) ? 0 : n
+}
+
+// 货币/金额字段永不超过 2 位小数；OCR 偶发把「单价」列识别成超长小数
+// （如 698.2300884956），属噪声。任何 ≥4 位小数的数字统一四舍五入为 2 位，
+// 既消除噪声、又不影响合法 1~3 位小数（数量 1.5 / 1.234kg）。
+// 注意：本函数只清理文本，金额/价税合计提取仍由「恰好 2 位小数」的正则约束，
+// 故 ≥4 位小数的脏值本就不会被当金额读取；此函数主要保证入库 parsed 数据干净。
+export function normalizeMoneyDecimals(s: string): string {
+  return s.replace(/(\d+\.\d{4,})/g, (_m: string, p1: string) => {
+    const n = Number(p1)
+    if (isNaN(n)) return p1
+    return (Math.round(n * 100) / 100).toFixed(2)
+  })
 }
 
 function cleanCompany(s: string): string {
@@ -88,6 +195,16 @@ function collapseCjk(t: string): string {
     out = next
   }
   return out
+}
+
+// 数电票文字层常把「每个字形」用单空格拆开（如「1 6 3 6 . 2 8」「购 买 方」），
+// 导致数字/小数点被拆散，正则 \d+.\d{2} 抓不到。仅合并「每个字符都逐字空格分隔」的
+// [\d.%] 连续串（即字形级拆开）：如 1 6 3 6 . 2 8 → 1636.28、发票号逐字空格 → 完整号码。
+// 关键：要求 run 末尾之后是「空白/结尾」而非另一个数字（负向预查 (?<!\S)），
+// 避免把「数量 1 + 金额 83.02」这类「单数字空格 + 连续数字」误拼成 183.02。
+// 汉字、字母不碰，避免把模型号 G701 与税率 13% 黏连。
+function depod(t: string): string {
+  return t.replace(/(?<![\d.%A-Za-z])([\d.%](?: [\d.%])+)(?!\S)/g, (_m: string, run: string) => run.replace(/ /g, ''))
 }
 
 // 归一标签：剥掉夹在标签里的噪音（统一社会信用代码/纳税人识别号/信息），
@@ -123,6 +240,9 @@ function normLabels(t: string): string {
     [new RegExp(`电\\s*子\\s*发\\s*票`, 'g'), '电子发票'],
   ]
   for (const [re, rep] of map) s = s.replace(re, rep)
+  // 货币符号 artifact 归一（京东等 PDF 字体子集映射异常：价税合计行的 ¥ 被抽成 ´ U+00B4 锐音符 / ¤ U+00A4 通用货币符）。
+  // 这类字符在中文发票文本中不会作为真实内容出现，归一为 ¥ 可同时修数电票分支与通用路径的同类漏抓。
+  s = s.replace(/[´¤]/g, '¥')
   return s
 }
 
@@ -201,14 +321,17 @@ function extractTaxNos(norm: string): string[] {
   return out
 }
 
-// 发票号码：标签锚定优先；其次取 20 位纯数字串（非税号）作为客票号 / 数电号。
+// 发票号码：标签锚定优先；其次取「18~22 位最长数字串」（数电票可为 19 位、且逐字空格分隔），
+// 排除紧跟 "/" 的银行账号（数电票顺序中发票号在备注银行账号之前 → 取第一个）。
 function extractInvoiceNo(norm: string, taxNos: string[]): string | undefined {
-  const labelRe = /发票号码\s*[：:]?\s*([0-9]{8,20})/
+  const labelRe = /发票号码\s*[：:]?\s*([0-9]{8,22})/
   const lm = norm.match(labelRe)
   if (lm) return lm[1]
-  const runs = [...norm.matchAll(/\d{8,20}/g)].map((x) => x[0])
+  const runs = [...norm.matchAll(/\d{18,22}/g)].map((x) => x[0])
   for (const r of runs) {
-    if (r.length === 20 && !taxNos.some((t) => t.includes(r) || r.includes(t))) return r
+    const idx = norm.indexOf(r)
+    const next = idx >= 0 && idx + r.length < norm.length ? norm[idx + r.length] : ''
+    if (next !== '/' && !taxNos.some((t) => t.includes(r) || r.includes(t))) return r
   }
   return undefined
 }
@@ -297,6 +420,33 @@ export function extractLineItems(norm: string): ParsedLineItem[] {
   return items
 }
 
+// 数电票明细行：「税率%[单位] 金额 税额」（如 13%个 883.12 114.80），可多行 → 多明细。
+// 关联最近的「*名称*」锚点作为行项目名。返回按行拆分的 ParsedLineItem[]。
+function extractEinvoiceItems(normE: string): ParsedLineItem[] {
+  const eRe = /(\d{1,2})\s*%\s*[个块台套件张只]?\s+(\d+.\d{1,2})\s+(\d+.\d{1,2})/g
+  const ms = [...normE.matchAll(eRe)]
+  if (ms.length === 0) return []
+  const anchors: { idx: number; name: string }[] = []
+  const aRe = /\*([^*]+)\*/g
+  let am: RegExpExecArray | null
+  while ((am = aRe.exec(normE))) anchors.push({ idx: am.index ?? 0, name: cleanItemName(am[0]) })
+  const items: ParsedLineItem[] = []
+  for (const m of ms) {
+    const rate = Number(m[1])
+    const amount = parseMoney(m[2])
+    const tax = parseMoney(m[3])
+    let name = ''
+    for (let i = anchors.length - 1; i >= 0; i--) {
+      if (anchors[i].idx < (m.index ?? 0)) {
+        name = anchors[i].name
+        break
+      }
+    }
+    items.push({ name: name || '*', amount: round2(amount), tax: round2(tax), taxRate: rate })
+  }
+  return items
+}
+
 /** 提取「合计」行数据（合计不含税金额、合计税额、价税合计）。
  *  京东等优惠发票有额外负号行，合计行为权威来源。
  *  返回 { summaryAmount, summaryTax, summaryTotal }，找不到时全部为 undefined。 */
@@ -318,10 +468,46 @@ function extractItem(norm: string): string | undefined {
   return undefined
 }
 
+
+// 数电票购销方：税号提取最稳，名称取「各自税号紧前」的 CJK 后缀实体；
+// 布局重排（标签挤页眉、名称甩页中）或与日期黏连时仍稳。前置日期残留（年/月/日/数字/空白）一并剥除。
+function extractEinvoiceParties(norm: string, taxNos: string[]): { buyer?: string; seller?: string } {
+  const lastEntityBefore = (taxNo: string): string | undefined => {
+    const idx = norm.indexOf(taxNo)
+    if (idx < 0) return undefined
+    // 税号前 80 字符窗口（兼容名称与税号跨行）；去尾部空白/换行后从末尾回扫名称字符，
+    // 遇 数字/字母（税号/银行账号/型号残留）即止。
+    const win = norm.slice(Math.max(0, idx - 80), idx).replace(/\s+$/, '')
+    let s = ''
+    for (let i = win.length - 1; i >= 0; i--) {
+      const ch = win[i]
+      if (/[0-9A-Za-z]/.test(ch)) break
+      s = ch + s
+      if (s.length > 40) break
+    }
+    // 去除前置日期残留（年/月/日/数字/空白/标点）
+    const cleaned = s.replace(/^[0-9年月光日时分秒.\/\-（）()\s]+/, '')
+    const name = cleanCompany(cleaned)
+    return name.length >= 4 ? name : undefined
+  }
+  const out: { buyer?: string; seller?: string } = {}
+  if (taxNos.length >= 1) {
+    const b = lastEntityBefore(taxNos[0])
+    if (b) out.buyer = b
+  }
+  if (taxNos.length >= 2) {
+    const s2 = lastEntityBefore(taxNos[1])
+    if (s2) out.seller = s2
+  }
+  return out
+}
 export function extractInvoiceFields(text: string): ParsedInvoice {
   const result: ParsedInvoice = { rawText: text }
   if (!text) return result
-  const norm = normLabels(text)
+  const norm = normLabels(normalizeMoneyDecimals(depod(text)))
+  // 数电票专用副本：不跑 normalizeMoneyDecimals（避免把粘连小数 22.5486 误圆成 22.55，
+  // 破坏「税率%[单位] 金额 税额」中税额的精确 2 位提取）。
+  const normE = normLabels(depod(text))
 
   // 1. 发票号码
   const taxNos = extractTaxNos(norm)
@@ -363,47 +549,87 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     result.sellerTaxNo = taxNos[taxNos.length - 1]
   }
 
-  // 5. 明细行 + 合计行校验 + 价税合计
+  // —— 数电票（电子发票/增值税专用发票，detail 行以「税率%[单位] 金额 税额」呈现）——
+  // 关键金额在「¥ 金额 ¥ 税额」与「价税合计（大写） ¥ 总额」两处，且逐字空格拆开。
+  // 走专用分支：避免被通用逻辑的「合计」截断、顺序错配、或 normalizeMoneyDecimals 破坏粘连小数。
+  // 判定放宽（仅服务京东这一种新格式，不误伤已有 fixture）：
+  //  · 原条件：税率带单位字（%[个块台套件张只]）→ 阿里/海利士/宝之谷/极途/拓骏成。
+  //  · 新增：京东电子发票「裸税率%」（税额黏税率、无单位字，如 76.1613%）+ ¥金额¥税额 对。
+  //    用「\d+\.\d{2}\d{1,2}%」锚定「税额.xx 直接黏 税率yy%」（无空格），避免把普通「金额 空格 税率%」(如 323.06 6%) 误拽进分支。
+  if (
+    /%\s*[个块台套件张只]/.test(normE) ||
+    (/电子发票|增值税专用发票/.test(normE) && /\d+\.\d{2}\d{1,2}%/.test(normE) && /[¥￥]\s*[\d,]+\.\d{2}\s*[¥￥]/.test(normE))
+  ) {
+    const pair = normE.match(/[¥￥]\s*([\d,]+\.\d{2})\s*[¥￥]\s*([\d,]+\.\d{2})/)
+    if (pair) {
+      result.amount = round2(parseMoney(pair[1]))
+      result.tax = round2(parseMoney(pair[2]))
+    }
+    // 价税合计：取「价税合计（大写）…」之后【最后一个】¥ 数（总额恒在末位）
+    const totM = normE.match(/价税合计[\s\S]*[¥￥]\s*([\d,]+\.\d{2})(?![\s\S]*[¥￥])/)
+    if (totM) result.total = round2(parseMoney(totM[1]))
+    else {
+      const all = [...normE.matchAll(/[¥￥]\s*([\d,]+\.\d{2})/g)].map((x) => parseMoney(x[1]))
+      if (all.length) result.total = round2(all[all.length - 1])
+    }
+    // 税率：明细「%个」优先；否则由 税额/金额 反推吸附标准 VAT
+    const rateM = normE.match(/(\d{1,2})\s*%\s*[个块台套件张只]?/)
+    let rate: number | undefined
+    if (rateM) rate = Number(rateM[1])
+    if (rate === undefined || !STANDARD_VAT_RATES.includes(rate)) {
+      const dr = deriveTaxRate(result.amount || 0, result.tax ?? 0)
+      if (dr) rate = dr.rate
+    }
+    if (rate !== undefined) result.taxRate = rate
+    // 明细行（invoice_details 粒度）：逐行「%个 金额 税额」；多行为多明细。
+    const items = extractEinvoiceItems(normE)
+    result.items = items.length
+      ? items
+      : result.amount
+        ? [{ name: '*', amount: result.amount, tax: result.tax ?? 0, taxRate: rate }]
+        : []
+    // 购销方：税号紧前反查（布局重排/名称与日期黏连仍稳），失败再退回通用逻辑
+    // 仅在能区分购买方/销售方两个税号时才用数电票专用反查覆盖
+    // （避免京东个人票仅 1 个销售方税号时把销售方误当购买方）。
+    if (taxNos.length >= 2) {
+      const parties = extractEinvoiceParties(normE, taxNos)
+      result.buyerName = parties.buyer ?? buyerName
+      result.sellerName = parties.seller ?? sellerName
+    }
+    const item = extractItem(normE)
+    if (item) result.item = item
+    return result
+  }
+
+  // 5. 明细行 + 价税合计
   const items = extractLineItems(norm)
   result.items = items
   if (items.length > 0) {
+    // 金额/税额：恒取「所有明细行求和」。
+    // 数电票多明细行（如 RGB摄像头 + 自动回充套件）按行取首两小数再求和，
+    // 比依赖可能误读的「合计」行更稳；京东等负号明细由明细行本身承载。
     const itemAmount = round2(items.reduce((s, it) => s + it.amount, 0))
     const itemTax = round2(items.reduce((s, it) => s + it.tax, 0))
+    result.amount = itemAmount
+    result.tax = itemTax
 
-    // 优先用合计行数据（权威来源，京东优惠发票有负号明细）
     const sl = extractSummaryLine(norm)
-    const summaryAmount = sl.summaryAmount
-    const summaryTax = sl.summaryTax
-    const summaryTotal = sl.summaryTotal
-
-    // 合计行数据齐全 → 优先用
-    if (summaryAmount !== undefined && summaryTax !== undefined) {
-      result.amount = summaryAmount
-      result.tax = summaryTax
-      // 校验：items 加总与合计行差 ≤ 0.02 时认为一致，否则说明明细行有误（如负号被吞）
-      if (Math.abs(itemAmount - summaryAmount) > 0.02) {
-        // 仅警告，不动数据
-      }
+    // 价税合计：优先「价税合计」标签后 ¥ 数（extractTotal），其次合计行，再其次推算
+    const total = extractTotal(norm)
+    if (total !== undefined) {
+      result.total = total
+    } else if (sl.summaryTotal !== undefined) {
+      result.total = sl.summaryTotal
     } else {
-      result.amount = itemAmount
-      result.tax = itemTax
+      result.total = round2(itemAmount + itemTax)
     }
-
-    // 价税合计：合计行 > extractTotal > 推算
-    if (summaryTotal !== undefined) {
-      result.total = summaryTotal
-    } else {
-      const total = extractTotal(norm)
-      if (total !== undefined) {
-        result.total = total
-        if (result.amount === undefined) result.amount = round2(total - (result.tax || 0))
-      } else {
-        result.total = round2((result.amount || 0) + (result.tax || 0))
-      }
-    }
-    // 税率取首个明细的（如一致）
+    // 税率：明细一致取之；否则由 税额/金额 反推吸附标准 VAT（更稳，规避逐字空格导致的脏 % 字符）
     const rates = [...new Set(items.map((it) => it.taxRate).filter((r) => r !== undefined))] as number[]
     if (rates.length === 1) result.taxRate = rates[0]
+    if (result.taxRate === undefined) {
+      const dr = deriveTaxRate(result.amount, result.tax)
+      if (dr) result.taxRate = dr.rate
+    }
   } else {
     const total = extractTotal(norm)
     if (total !== undefined) {
@@ -436,36 +662,84 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
   return result
 }
 
-// 校验识别结果：核心字段缺失则返回失败（发票代码在新版数电票中已取消，设为可选）。
+// 校验识别结果：只检查核心四字段（发票号/金额/税额/价税合计）。
+// 非核心字段（日期/购销方/明细名/单价/数量）缺失不影响「可入库」判定。
 export function validateInvoice(p: ParsedInvoice): ValidationResult {
   const missing: string[] = []
   if (!p.no || !/^\d{8,20}$/.test(p.no)) missing.push('发票号码')
-  if (!p.date) missing.push('开票日期')
-  if (!p.sellerName || p.sellerName.length < 4) missing.push('销售方名称')
-  if ((!p.total || p.total === 0) && (!p.amount || p.amount === 0)) missing.push('金额/价税合计')
+  if (!p.amount || p.amount <= 0) missing.push('合计金额')
+  if (p.tax === undefined || p.tax === null || p.tax < 0) missing.push('合计税额')
+  if (!p.total || p.total <= 0) missing.push('价税合计')
   return { ok: missing.length === 0, missing, parsed: p }
 }
 
-// 一致性校验：发票是权威文件，识别到的金额/税额/价税合计应原样保存；
-// 此处仅用公式「验证」是否自洽，用于提示可疑偏差，绝不覆盖已识别数据。
-// 容差 2 分：数电票税额常按「价税合计 - 金额」倒挤或四舍五入，与「金额×税率」可能有 1 分差异，属正常。
-export function verifyInvoice(p: ParsedInvoice): VerifyResult {
+// 公式核对：权威判定，抓识别错误。
+// 1. 税率由 税额/金额 推导并吸附标准 VAT 税率；
+// 2. 校验 amount+tax≈total（容差 0.02 元）且 total/(1+rate)≈amount；
+// 3. 若推导税率异常，尝试 leading-1 自动校正；
+// 4. 返回 InvoiceValidation，供 parser 写入 parsed.validation 并作为入库闸门。
+export function verifyInvoice(p: ParsedInvoice): InvoiceValidation {
   const warnings: string[] = []
-  const amount = p.amount || 0
-  const tax = p.tax || 0
-  const total = p.total || 0
+  let amount = p.amount || 0
+  let tax = p.tax ?? 0
+  let total = p.total || 0
+  let corrected = false
+  let original: { amount?: number; total?: number } | undefined
 
-  if (amount > 0 && tax > 0 && total > 0) {
-    const sum = round2(amount + tax)
-    if (Math.abs(sum - total) > 0.02) {
-      warnings.push(`价税合计 ${total} 与 金额${amount}+税额${tax}=${sum} 不一致`)
+  // 核心三数必须都识别到且为正（税额可为 0）
+  if (amount <= 0 || total <= 0) {
+    return { passed: false, corrected: false, message: '金额或价税合计未识别', warnings: ['金额、税额、价税合计必须全部识别'] }
+  }
+
+  const TOLERANCE = 0.02
+
+  // 第一步：推导税率
+  let rateInfo = deriveTaxRate(amount, tax)
+  if (!rateInfo) {
+    return { passed: false, corrected: false, message: '无法推导税率（金额无效）', warnings }
+  }
+
+  // 第二步：若税率异常，尝试 leading-1 校正
+  if (!STANDARD_VAT_RATES.includes(rateInfo.rate)) {
+    const fixed = tryCorrectLeadingOne(amount, tax, total)
+    if (fixed) {
+      original = { amount, total }
+      amount = fixed.amount
+      total = fixed.total
+      corrected = true
+      rateInfo = { rate: fixed.rate, derived: fixed.rate }
+      warnings.push(`已自动校正 leading-1 脏值：金额 ${original.amount}→${amount}，价税合计 ${original.total}→${total}`)
     }
   }
-  if (amount > 0 && tax > 0 && p.taxRate) {
-    const expect = round2((amount * p.taxRate) / 100)
-    if (Math.abs(tax - expect) > 0.02) {
-      warnings.push(`税额 ${tax} 与 金额×税率${p.taxRate}%≈${expect} 不一致`)
-    }
+
+  // 第三步：公式核对
+  const sumCheck = round2(amount + tax)
+  const divideCheck = round2(total / (1 + rateInfo.rate / 100))
+  let passed = true
+  if (Math.abs(sumCheck - total) > TOLERANCE) {
+    passed = false
+    warnings.push(`价税合计 ${total} 与 金额${amount}+税额${tax}=${sumCheck} 不一致`)
   }
-  return { consistent: warnings.length === 0, warnings }
+  if (Math.abs(divideCheck - amount) > TOLERANCE) {
+    passed = false
+    warnings.push(`价税合计 ${total}/(1+${rateInfo.rate}%)≈${divideCheck} 与 金额${amount} 不一致`)
+  }
+
+  // 税额为负直接不通过
+  if (tax < 0) {
+    passed = false
+    warnings.push('税额不能为负数')
+  }
+
+  return {
+    passed,
+    rate: rateInfo.rate,
+    derivedRate: rateInfo.derived,
+    corrected,
+    correctedAmount: corrected ? amount : undefined,
+    correctedTotal: corrected ? total : undefined,
+    original: corrected ? original : undefined,
+    message: passed ? undefined : (warnings[0] || '核心三数不自洽'),
+    warnings,
+  }
 }

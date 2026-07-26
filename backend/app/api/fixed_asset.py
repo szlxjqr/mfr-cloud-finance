@@ -98,7 +98,9 @@ def list_assets(
 @router.get("/next-no", response_model=dict)
 def next_asset_no(db: Session = Depends(get_db)):
     """新建资产前预占下一个单号（仅预览/预填）。"""
-    return {"asset_no": gen_asset_no(db)}
+    asset_no = gen_asset_no(db)
+    db.commit()  # 预占必须 commit；否则 session close 时 SQLAlchemy 会自动 rollback，计数器不递增
+    return {"asset_no": asset_no}
 
 
 @router.post("", response_model=s.FixedAssetRead, status_code=201)

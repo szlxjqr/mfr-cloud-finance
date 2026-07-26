@@ -71,7 +71,9 @@ def list_reqs(
 @router.get("/next-req-no", response_model=dict)
 def next_req_no(db: Session = Depends(get_db)):
     """新建采购申请前预占下一个单号。"""
-    return {"req_no": gen_purchase_no(db)}
+    req_no = gen_purchase_no(db)
+    db.commit()  # 预占必须 commit；否则 session close 时 SQLAlchemy 会自动 rollback，计数器不递增
+    return {"req_no": req_no}
 
 
 @router.post("", response_model=s.PurchaseReqRead, status_code=201)

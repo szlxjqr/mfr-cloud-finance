@@ -5,8 +5,10 @@ from pathlib import Path
 import logging
 
 from fastapi import Depends, FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import sys
 from app.api.auth import get_current_user
 
 from app.api import company_settings
@@ -59,6 +61,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="智慧经营 API", version="1.0.0", lifespan=lifespan)
+
+
+# 422 错误详细打印（调试用：FastAPI 在路由前校验 body 失败会返回 422）
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"[422] {request.method} {request.url.path}: {exc.errors()}", flush=True, file=sys.stderr)
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
 
 # 配置 CORS：仅允许本机前端源（同源 8521 + 开发服务器 5173）。
 # 不再使用 "*"（与 allow_credentials=True 冲突，且等价于完全开放），收紧到本地。

@@ -130,7 +130,7 @@
   <el-dialog
     v-model="previewVisible"
     :title="previewTitle"
-    width="820px"
+    width="1200px"
     :close-on-click-modal="false"
     append-to-body
     @close="closePreview"
@@ -340,15 +340,22 @@ async function renderPdfToCanvas(url: string) {
   try {
     const pdf = await pdfjs.getDocument(url).promise
     const page = await pdf.getPage(1)
-    // 按弹窗宽度设置缩放（~780px 内容区）
-    const containerWidth = 760
-    const viewport = page.getViewport({ scale: 1 })
-    const scale = containerWidth / viewport.width
-    const scaledViewport = page.getViewport({ scale })
+    // 按弹窗宽度设置缩放（~1140px 内容区，显示区域较 820px 版本放大 50% 便于阅读）
+    const containerWidth = 1140
+    const baseViewport = page.getViewport({ scale: 1 })
+    const fitScale = containerWidth / baseViewport.width
+    // HiDPI 适配：后备分辨率乘 devicePixelRatio，CSS 显示尺寸保持逻辑宽度。
+    // 否则在 Retina/高分屏上 760 个后备像素被铺到 1520 物理像素，浏览器插值放大 → 文字发虚。
+    const dpr = window.devicePixelRatio || 1
+    const renderScale = fitScale * dpr
+    const scaledViewport = page.getViewport({ scale: renderScale })
     const canvas = pdfCanvasRef.value
     if (!canvas) return
     canvas.width = scaledViewport.width
     canvas.height = scaledViewport.height
+    // 显示尺寸锁回逻辑像素，避免被 layout 拉伸导致二次模糊
+    canvas.style.width = `${containerWidth}px`
+    canvas.style.height = `${Math.round(scaledViewport.height / dpr)}px`
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise

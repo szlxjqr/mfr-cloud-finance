@@ -131,7 +131,9 @@ def salary_allocation(
 @router.get("/next-salary-no", response_model=dict)
 def next_salary_no(db: Session = Depends(get_db)):
     """新建工资单前预占下一个单号（仅预览/预填）。"""
-    return {"salary_no": gen_salary_no(db)}
+    salary_no = gen_salary_no(db)
+    db.commit()  # 预占必须 commit；否则 session close 时 SQLAlchemy 会自动 rollback，计数器不递增
+    return {"salary_no": salary_no}
 
 
 @router.get("/dept-summary", response_model=list[dict])

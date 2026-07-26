@@ -26,7 +26,7 @@
       />
       <AppIcon name="UploadFilled" class="upload-icon" />
       <div class="upload-text">点击上传或拖拽发票文件到此处</div>
-      <div class="upload-tip">支持 PDF / OFD / 图片（最多 20 个文件）</div>
+      <div class="upload-tip">支持 PDF / OFD / 图片（最多 50 个文件）</div>
     </div>
 
     <!-- 已选文件列表 -->
@@ -60,7 +60,8 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.valid" size="small" type="success">识别成功</el-tag>
+            <el-tag v-if="row.needsReview" size="small" type="warning">待复核</el-tag>
+            <el-tag v-else-if="row.valid" size="small" type="success">识别成功</el-tag>
             <el-tag v-else size="small" type="danger">解析失败</el-tag>
           </template>
         </el-table-column>
@@ -107,9 +108,10 @@
             <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
             <el-table-column label="结果" width="90" align="center">
               <template #default="{ row }">
-                <el-tag v-if="row.status === '成功'" size="small" type="success">成功</el-tag>
-                <el-tag v-else-if="row.status === '重复'" size="small" type="warning">重复</el-tag>
-                <el-tag v-else size="small" type="danger">失败</el-tag>
+            <el-tag v-if="row.status === '成功'" size="small" type="success">成功</el-tag>
+            <el-tag v-else-if="row.status === '重复'" size="small" type="warning">重复</el-tag>
+            <el-tag v-else-if="row.status === '待复核'" size="small" type="info">待复核</el-tag>
+            <el-tag v-else size="small" type="danger">失败</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="detail" label="说明" min-width="250" show-overflow-tooltip />
@@ -128,17 +130,23 @@
       <el-button v-if="!showResult" @click="$emit('update:modelValue', false)">取消</el-button>
       <el-button v-else @click="resetAndClose">关闭</el-button>
       <el-button v-if="!showResult" type="primary" :disabled="!recognizedInvoices.length || processing" :loading="saving" @click="confirmAll">
-        全部暂存到发票池（{{ recognizedInvoices.length }} 张）
+        <template v-if="reviewCount === 0 && failCount === 0">
+          确认入库（{{ poolableCount }} 张）
+        </template>
+        <template v-else>
+          确认处理（{{ poolableCount }} 张入池{{ reviewCount ? `，${reviewCount} 张待复核` : '' }}{{ failCount ? `，${failCount} 张失败` : '' }}）
+        </template>
       </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
+import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '@/utils/invoiceParser'
 import { inboxApi } from '@/api/inboxApi'
+import { invoiceApi } from '@/api/invoice'
 
 const props = defineProps<{
   modelValue: boolean
@@ -167,14 +175,20 @@ interface RecognizedRow {
   tax: number
   total: number
   valid: boolean
+  needsReview?: boolean
 }
 
 const recognizedInvoices = ref<RecognizedRow[]>([])
 
+// 动态计数：入池 / 待复核 / 解析失败
+const poolableCount = computed(() => recognizedInvoices.value.filter(canEnterPool).length)
+const reviewCount = computed(() => recognizedInvoices.value.filter((r) => r.valid && r.needsReview).length)
+const failCount = computed(() => recognizedInvoices.value.filter((r) => !r.valid).length)
+
 // 入池结果面板
 interface ResultItem {
   fileName: string
-  status: '成功' | '重复' | '失败'
+  status: '成功' | '重复' | '失败' | '待复核'
   detail: string
 }
 const showResult = ref(false)
@@ -213,8 +227,8 @@ function onOpen() {
 function addFiles(files: FileList | File[]) {
   const arr = Array.from(files)
   for (const f of arr) {
-    if (pendingFiles.value.length >= 20) {
-      ElMessage.warning('最多上传 20 个文件')
+    if (pendingFiles.value.length >= 50) {
+      ElMessage.warning('最多上传 50 个文件')
       break
     }
     const low = f.name.toLowerCase()
@@ -262,6 +276,9 @@ async function startParsing() {
     try {
       const parsed = await parseInvoiceFile(pf.file)
       pf.status = 'done'
+      const validated = validateInvoice(parsed)
+      const validationPassed = parsed.validation?.passed === true
+      const recognitionConsistent = parsed.recognition?.consistent !== false
       recognizedInvoices.value.push({
         fileName: pf.name,
         file: pf.file,
@@ -271,7 +288,10 @@ async function startParsing() {
         amount: parsed.amount ?? 0,
         tax: parsed.tax ?? 0,
         total: parsed.total ?? 0,
-        valid: !!parsed.no,
+        // 可入库：核心四字段齐全
+        valid: validated.ok,
+        // 需复核：核心字段齐全但 r1 与 r2 不一致（比对金额/税额/价税合计三项）
+        needsReview: validated.ok && !recognitionConsistent,
       })
     } catch {
       pf.status = 'fail'
@@ -320,34 +340,131 @@ function confirmEdit() {
   p.tax = editing.value.tax
   p.total = editing.value.total
   p.type = editing.value.type
+  // 人工修正后视为已确认：重置 recognition 为一致，否则 confirmAll 仍会把
+  // 该发票当成 needs_review 隔离到发票箱，导致「复核后入库仍显示待复核」。
+  p.recognition = { consistent: true, diffs: [], method: 'manual' }
+  // 用最新字段重新跑公式核对
+  p.validation = verifyInvoice(p)
+  // 人工修正只改了表头三数，明细行必须同步重建，否则正式发票/发票箱 details 仍是旧值
+  if (p.amount !== undefined && p.total !== undefined) {
+    const itemName = p.item || (p.items && p.items[0]?.name) || '费用'
+    p.items = [{
+      name: itemName,
+      qty: 1,
+      amount: p.amount,
+      tax: p.tax ?? 0,
+      taxRate: p.taxRate ?? 0,
+      total: p.total,
+    }]
+  }
   row.parsed = p
   row.no = p.no
   row.sellerName = p.sellerName
   row.amount = p.amount
   row.tax = p.tax
   row.total = p.total
-  row.valid = !!p.no
+  const validated = validateInvoice(p)
+  row.valid = validated.ok
+  // 人工修正后重新比对双识别一致性
+  row.needsReview = validated.ok && p.recognition?.consistent === false
   editVisible.value = false
   ElMessage.success('已更新')
 }
 
-// ======== 确认入池（逐条上传 → 展示结果面板） ========
+// ======== 映射：ParsedInvoice → 发票池创建负载 ========
+function round2(n: number): number {
+  return Math.round((Number(n) || 0) * 100) / 100
+}
+
+function mapToCreatePayload(p: ParsedInvoice) {
+  const details = (p.items && p.items.length)
+    ? p.items.map((it) => ({
+        biz_type: it.name || null,
+        item: it.name || null,
+        qty: it.qty ?? 1,
+        amount: it.amount ?? 0,
+        tax_rate: it.taxRate ?? 0,
+        tax: it.tax ?? 0,
+        total: round2((it.amount ?? 0) + (it.tax ?? 0)),
+      }))
+    : [{
+        biz_type: p.item || '费用',
+        item: p.item || '费用',
+        qty: 1,
+        amount: p.amount ?? 0,
+        tax_rate: p.taxRate ?? 0,
+        tax: p.tax ?? 0,
+        total: round2((p.amount ?? 0) + (p.tax ?? 0)),
+      }]
+  return {
+    invoice_type: p.type || '增值税专用发票',
+    code: p.code || null,
+    no: p.no || '',
+    invoice_date: p.date || null,
+    buyer_name: p.buyerName || null,
+    buyer_tax_no: p.buyerTaxNo || null,
+    seller_name: p.sellerName || '未知销售方',
+    seller_tax_no: p.sellerTaxNo || null,
+    account: p.account || null,
+    certify: 'none',
+    remark: '上传自动识别入库',
+    reimbursement_bill_id: null,
+    purchase_requisition_item_id: null,
+    attachment_path: null,
+    details,
+  } as any
+}
+
+// 判定一张识别结果是否「可信可入库」：核心四字段齐全 + r1 与 r2 一致。
+function canEnterPool(row: RecognizedRow): boolean {
+  if (!row.valid) return false
+  if (row.parsed?.recognition?.consistent === false) return false
+  return true
+}
+
+// ======== 确认入库（压平流程：可信发票直入发票池，可疑/失败隔离到发票箱） ========
 async function confirmAll() {
   saving.value = true
   const items: ResultItem[] = []
   for (const row of recognizedInvoices.value) {
+    const ej = JSON.stringify(row.parsed || {})
+    const poolable = canEnterPool(row)
     try {
-      const ej = JSON.stringify(row.parsed || {})
-      const res = await inboxApi.upload(row.file, ej)
-      if (res.data?.duplicated || res.status === 409) {
-        items.push({ fileName: row.fileName, status: '重复', detail: '发票箱中已存在同号码发票' })
+      if (poolable) {
+        // 核心三数自洽 + 双识别一致 → 直接写入发票池
+        const created = await invoiceApi.create(mapToCreatePayload(row.parsed!))
+        // 附件归档到发票池（失败不阻断：发票已入库）
+        try {
+          if (row.file) await invoiceApi.uploadAttachment(created.data.id, row.file)
+        } catch (e) {
+          console.warn('附件归档失败（发票已入池）', e)
+        }
+        items.push({ fileName: row.fileName, status: '成功', detail: '已入发票池，可在挂发票时使用' })
       } else {
-        items.push({ fileName: row.fileName, status: '成功', detail: '已入发票池，可在挂发票中使用' })
+        // 核心字段缺失 / 公式不自洽 / 双识别不一致 → 隔离到发票箱待复核，不污染发票池
+        const res = await inboxApi.upload(row.file, ej)
+        if (res.data?.duplicated) {
+          items.push({ fileName: row.fileName, status: '重复', detail: '发票箱中已存在同号码发票，识别结果已更新' })
+        } else {
+          const reasons: string[] = []
+          if (!row.valid) reasons.push('核心字段缺失')
+          if (row.parsed?.validation?.passed === false) reasons.push(row.parsed?.validation?.message || '核心三数不自洽')
+          if (row.parsed?.recognition?.consistent === false) reasons.push('双识别不一致')
+          items.push({
+            fileName: row.fileName,
+            status: '待复核',
+            detail: reasons.length ? `${reasons.join('；')}，已隔离到发票箱待复核` : '识别失败，已隔离到发票箱待人工补录',
+          })
+        }
       }
     } catch (e: any) {
-      // 后端 409 也可能走 catch（取决于响应拦截器对 409 的处理）
-      if (e?.response?.status === 409) {
-        items.push({ fileName: row.fileName, status: '重复', detail: '发票箱中已存在同号码发票' })
+      const status = e?.response?.status
+      if (status === 409) {
+        items.push({
+          fileName: row.fileName,
+          status: '重复',
+          detail: poolable ? '发票池中已存在同号码发票' : '发票箱中已存在同号码发票',
+        })
       } else {
         const msg = e?.response?.data?.detail || '请求失败'
         items.push({ fileName: row.fileName, status: '失败', detail: msg })
@@ -356,9 +473,11 @@ async function confirmAll() {
   }
   resultItems.value = items
   const ok = items.filter((i) => i.status === '成功').length
+  const review = items.filter((i) => i.status === '待复核').length
   const dup = items.filter((i) => i.status === '重复').length
   const fail = items.filter((i) => i.status === '失败').length
-  const parts = [`${ok} 张成功`]
+  const parts = [`${ok} 张入池`]
+  if (review) parts.push(`${review} 张待复核`)
   if (dup) parts.push(`${dup} 张重复`)
   if (fail) parts.push(`${fail} 张失败`)
   resultSummary.value = `入库完毕：${parts.join('，')}`

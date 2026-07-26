@@ -59,13 +59,14 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
+import { parseInvoiceFile, validateInvoice, verifyInvoice, type ParsedInvoice } from '@/utils/invoiceParser'
 import { inboxApi } from '@/api/inboxApi'
 
-const props = defineProps<{ visible: boolean; initialFile?: File | null }>()
+const props = defineProps<{ visible: boolean; initialFile?: File | null; editId?: number | null; initialParsed?: ParsedInvoice | null }>()
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
   (e: 'confirm', parsed: ParsedInvoice): void
+  (e: 'saved', id?: number): void
 }>()
 
 const parsed = ref<ParsedInvoice | null>(null)
@@ -104,30 +105,73 @@ function confirm() {
   emit('update:visible', false)
 }
 
-// 存入发票箱：仅存档，不回填表单
+// 存入发票箱 / 复核修正：
+// - 新建（pickedFile 有值且非编辑态）→ upload 新建记录；
+// - 编辑已有（editId 有值，来自发票箱 needs_review 复核）→ update 解除隔离。
 async function saveToInbox() {
-  if (!parsed.value || !pickedFile.value) {
-    ElMessage.warning('请先选择文件')
+  if (!parsed.value) {
+    ElMessage.warning('请先识别或选择文件')
     return
   }
+  // 人工修正后，用最新字段重新跑公式核对与合法性校验
+  const validated = validateInvoice(parsed.value)
+  if (!validated.ok) {
+    ElMessage.warning('核心字段不完整：' + validated.missing.join('、'))
+    return
+  }
+  parsed.value.validation = verifyInvoice(parsed.value)
+  // 三数不自洽时禁止保存，防止把矛盾数据落库导致明细求和显示旧值
+  if (!parsed.value.validation.passed) {
+    ElMessage.warning('金额/税额/价税合计不自洽：' + (parsed.value.validation.message || '请核对三项'))
+    return
+  }
+  // 人工修正只改了表头三数，明细行必须同步重建，否则正式发票 details 仍是旧值
+  //（含税金额 = details.total 之和）。保留原明细名称，数量默认 1。
+  if (parsed.value.amount !== undefined && parsed.value.total !== undefined) {
+    const itemName = parsed.value.item || (parsed.value.items && parsed.value.items[0]?.name) || '费用'
+    parsed.value.items = [{
+      name: itemName,
+      qty: 1,
+      amount: parsed.value.amount,
+      tax: parsed.value.tax ?? 0,
+      taxRate: parsed.value.taxRate ?? 0,
+      total: parsed.value.total,
+    }]
+  }
   try {
-    await inboxApi.upload(pickedFile.value, JSON.stringify(parsed.value))
-    ElMessage.success('已存入发票箱')
-    emit('update:visible', false)
+    if (props.editId != null) {
+      // 手工修正：标记 recognition 为一致（人工确认），后端据此置 reviewed
+      const payload = { ...parsed.value, recognition: { consistent: true, diffs: [], method: 'manual' } }
+      await inboxApi.update(props.editId, JSON.stringify(payload))
+      ElMessage.success('已复核并更新发票')
+      emit('saved', props.editId)
+      emit('update:visible', false)
+    } else if (pickedFile.value) {
+      await inboxApi.upload(pickedFile.value, JSON.stringify(parsed.value))
+      ElMessage.success('已存入发票箱')
+      emit('update:visible', false)
+    } else {
+      ElMessage.warning('请先选择文件')
+    }
   } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '存入失败')
+    ElMessage.error(e?.response?.data?.detail || '保存失败')
   }
 }
 
-// 每次打开重置（若有 initialFile 则自动解析）
+// 每次打开重置（initialFile → 自动解析；initialParsed → 编辑已有记录）
 watch(() => props.visible, (v) => {
   if (v) {
-    parsed.value = null
     pickedFile.value = null
     if (fileInput.value) fileInput.value.value = ''
-    if (props.initialFile) {
+    if (props.initialParsed) {
+      // 编辑态：直接装载已有识别结果（含 recognition 标记一并覆盖，保存时置 manual 一致）
+      const { recognition: _omit, ...rest } = props.initialParsed as any
+      parsed.value = rest as ParsedInvoice
+    } else if (props.initialFile) {
       pickedFile.value = props.initialFile
       doParse(props.initialFile)
+    } else {
+      parsed.value = null
     }
   }
 })

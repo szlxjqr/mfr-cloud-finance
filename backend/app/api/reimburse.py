@@ -61,7 +61,9 @@ def list_bills(
 @router.get("/next-bill-no", response_model=dict)
 def next_bill_no(db: Session = Depends(get_db)):
     """新建报销单前预占下一个单号（仅预览/预填，真正保存时以入库为准）。"""
-    return {"bill_no": gen_bill_no(db)}
+    bill_no = gen_bill_no(db)
+    db.commit()  # 预占必须 commit；否则 session close 时 SQLAlchemy 会自动 rollback，计数器不递增
+    return {"bill_no": bill_no}
 
 
 @router.post("", response_model=s.ReimbursementBillRead, status_code=201)

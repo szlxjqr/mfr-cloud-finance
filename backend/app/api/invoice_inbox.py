@@ -6,6 +6,8 @@
 - 挂接（link）：用 extracted_json 生成正式 invoices 表的 Invoice 记录（带报销单/采购申请外键），
   发票箱记录置 linked；正式凭证由业务单（报销/采购）既有审批→凭证流程驱动（业务驱动账务灵魂）。
 """
+import base64
+import io
 import json
 import os
 import re
@@ -13,7 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 
@@ -24,6 +26,7 @@ from app.models import purchase as pm
 from app.models import reimburse as rm
 from app.schemas import invoice_inbox as s
 from app.utils.codegen import gen_invoice_code
+from pypdf import PdfReader
 
 router = APIRouter(prefix="/invoice-inbox", tags=["invoice-inbox"])
 
@@ -57,6 +60,55 @@ def _dup_of(db: Session, seller_tax_no: Optional[str], no: Optional[str]) -> Opt
     return None
 
 
+def _refresh_linked_invoices(db: Session, no: Optional[str], extracted: dict) -> int:
+    """发票箱识别结果更新后，级联刷新同号正式发票的头字段与明细（防折扣行负数等残留旧值）。
+
+    头字段：销方/购方/日期/号码；明细用 extracted.items 重建，逻辑与 link_inbox 一致；
+    负数经 `it.get("amount") or 0` 仍为 truthy，不会被转正。返回刷新的正式发票张数。
+    """
+    if not no or not extracted:
+        return 0
+    items = extracted.get("items") or []
+    invs = db.scalars(select(inv_m.Invoice).where(inv_m.Invoice.no == no)).all()
+    refreshed = 0
+    for inv in invs:
+        # 刷新头字段（人工复核可能修正了销方/日期/号码）
+        if extracted.get("sellerName"):
+            inv.seller_name = extracted["sellerName"]
+        if extracted.get("buyerName"):
+            inv.buyer_name = extracted["buyerName"]
+        if extracted.get("sellerTaxNo"):
+            inv.seller_tax_no = extracted["sellerTaxNo"]
+        if extracted.get("buyerTaxNo"):
+            inv.buyer_tax_no = extracted["buyerTaxNo"]
+        if extracted.get("date"):
+            inv.invoice_date = _parse_date(extracted["date"])
+        if extracted.get("no"):
+            inv.no = extracted["no"]
+        # 刷新明细行
+        for d in list(inv.details):
+            db.delete(d)
+        for it in items:
+            amt = it.get("amount") or 0
+            tax = it.get("tax") or 0
+            name = it.get("name") or ""
+            inv.details.append(
+                inv_m.InvoiceDetail(
+                    biz_type=name,
+                    item=name,
+                    qty=it.get("qty") or 1,
+                    amount=amt,
+                    tax_rate=it.get("taxRate") or 0,
+                    tax=tax,
+                    total=round(amt + tax, 2),
+                )
+            )
+        refreshed += 1
+    if refreshed:
+        db.commit()
+    return refreshed
+
+
 def _safe_filename(name: str) -> str:
     return re.sub(r"[^\w\-_.\u4e00-\u9fff]", "_", name or "unknown")
 
@@ -76,6 +128,27 @@ def _ensure_dir() -> None:
     INBOX_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# 客户端无副作用：仅抽 PDF 文字层返回（前端 PDF.js 在某些数电票上 leading-1 脏数据，
+# 走后端 pypdf 抽的更干净）。前端 parsePdf 调这个端点拿 text 再走 r1/r2 解析。
+@router.post("/extract-text")
+async def extract_text(body: dict = Body(...)):
+    import sys
+    import base64
+    import io
+    filename = body.get("filename", "")
+    content_b64 = body.get("content_base64", "")
+    print(f"[extract-text] 收到请求: file={filename}, base64_len={len(content_b64)}", flush=True, file=sys.stderr)
+    if not content_b64:
+        raise HTTPException(status_code=400, detail="content_base64 为空")
+    try:
+        raw = base64.b64decode(content_b64)
+        reader = PdfReader(io.BytesIO(raw))
+        text = "\n".join((pg.extract_text() or "") for pg in reader.pages)
+        return {"text": text, "pages": len(reader.pages)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"PDF 文字层抽取失败: {e}")
+
+
 @router.post("/upload", response_model=s.InvoiceInboxRead, status_code=201)
 async def upload(
     file: UploadFile = File(...),
@@ -83,28 +156,59 @@ async def upload(
     db: Session = Depends(get_db),
 ):
     content = await file.read()
-    # ── P1 去重：同发票号码（可选税号）已在箱中存在，直接返回已有记录，不重复落盘 ──
+    # ── P1 去重：同发票号码（可选税号）已在箱中存在，更新原记录，不重复落盘 ──
     _seller = None
     _no = None
+    _consistent = True  # 双识别闸门结论：一致(可信) / 不一致(隔离待复核)
+    _validation_passed = True  # 公式核对权威判定
+    _ej: Optional[dict] = None
     if extracted_json:
         try:
             _ej = json.loads(extracted_json)
             _seller = _ej.get("sellerTaxNo")
             _no = _ej.get("no")
+            _consistent = bool((_ej.get("recognition") or {}).get("consistent", True))
+            _validation_passed = bool((_ej.get("validation") or {}).get("passed", True))
+            _is_manual = (_ej.get("recognition") or {}).get("method") == "manual"
         except Exception:
             pass
     dup = _dup_of(db, _seller, _no)
     if dup:
+        # 重复上传：用本次识别结果更新发票箱记录，并级联刷新同号正式发票明细
+        if extracted_json:
+            dup.extracted_json = extracted_json
+            dup.recognized_at = datetime.now()
+            # 双识别一致 → recognized；不一致 → needs_review（人工修正过 → reviewed）
+            if not _consistent:
+                dup.status = "needs_review"
+            elif _is_manual:
+                dup.status = "reviewed"
+            elif dup.status == "needs_review":
+                dup.status = "recognized"
+            if _ej:
+                _refresh_linked_invoices(db, _no, _ej)
         resp = s.InvoiceInboxRead.model_validate(dup)
         resp.duplicated = True
+        db.commit()
+        db.refresh(dup)
         return resp
     # 先建记录拿 id，再按 id 命名文件（避免重名覆盖）
+    if extracted_json:
+        # 双识别一致 → recognized；不一致 → needs_review（人工修正过 → reviewed）
+        if not _consistent:
+            _status = "needs_review"
+        elif _is_manual:
+            _status = "reviewed"
+        else:
+            _status = "recognized"
+    else:
+        _status = "pending"
     rec = m.InvoiceInbox(
         filename=file.filename or "unknown",
         storage_path="",
         source="upload",
         extracted_json=extracted_json,
-        status="recognized" if extracted_json else "pending",
+        status=_status,
         recognized_at=datetime.now() if extracted_json else None,
     )
     db.add(rec)
@@ -158,8 +262,36 @@ def update_inbox(iid: int, payload: s.InvoiceInboxUpdate, db: Session = Depends(
     except Exception:
         raise HTTPException(status_code=400, detail="extracted_json 不是合法 JSON")
     obj.extracted_json = payload.extracted_json
-    obj.status = "recognized"
+    # 双识别闸门 + 公式核对：
+    # - 手工修正（method='manual' 且 consistent=true）→ reviewed（已复核）
+    # - 自动一致且公式通过 → recognized（已识别）
+    # - 不一致 / 公式未过 → needs_review（隔离待复核）
+    try:
+        _rj = json.loads(payload.extracted_json) or {}
+        _recognition = _rj.get("recognition") or {}
+        _consistent = bool(_recognition.get("consistent", True))
+        _validation = _rj.get("validation") or {}
+        _validation_passed = bool(_validation.get("passed", True))
+        _is_manual = _recognition.get("method") == "manual"
+    except Exception:
+        _consistent = True
+        _validation_passed = True
+        _is_manual = False
+    if not _consistent:
+        obj.status = "needs_review"
+    elif _is_manual:
+        obj.status = "reviewed"
+    else:
+        obj.status = "recognized"
     obj.recognized_at = datetime.now()
+    db.commit()
+    db.refresh(obj)
+    # 识别结果变更后，级联刷新同号正式发票明细（自动同步，防复发）
+    try:
+        _rj = json.loads(payload.extracted_json) or {}
+        _refresh_linked_invoices(db, _rj.get("no"), _rj)
+    except Exception:
+        pass
     db.commit()
     db.refresh(obj)
     return obj

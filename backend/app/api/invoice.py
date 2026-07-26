@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -186,22 +187,25 @@ def unlink_invoice(iid: int, db: Session = Depends(get_db)):
     return obj
 
 
+class BatchLinkPayload(BaseModel):
+    """批量挂接发票请求体：与前端 JSON body 字段对齐（invoice_ids/bill_id/purchase_requisition_item_id）。"""
+
+    invoice_ids: List[int]
+    bill_id: int
+    purchase_requisition_item_id: Optional[int] = None
+
+
 @router.post("/batch-link")
-def batch_link_invoices(
-    invoice_ids: List[int],
-    bill_id: int,
-    purchase_requisition_item_id: Optional[int] = None,
-    db: Session = Depends(get_db),
-):
-    bill = db.get(rm.ReimbursementBill, bill_id)
+def batch_link_invoices(payload: BatchLinkPayload, db: Session = Depends(get_db)):
+    bill = db.get(rm.ReimbursementBill, payload.bill_id)
     if not bill:
         raise HTTPException(status_code=404, detail="报销单不存在")
     updated = 0
-    for iid in invoice_ids:
+    for iid in payload.invoice_ids:
         obj = db.get(m.Invoice, iid)
         if obj:
-            obj.reimbursement_bill_id = bill_id
-            obj.purchase_requisition_item_id = purchase_requisition_item_id
+            obj.reimbursement_bill_id = payload.bill_id
+            obj.purchase_requisition_item_id = payload.purchase_requisition_item_id
             updated += 1
     db.commit()
     return {"ok": True, "updated": updated}

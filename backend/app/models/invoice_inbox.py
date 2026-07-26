@@ -3,7 +3,7 @@
 设计要点：
 - 发票箱是"入口/暂存"：上传即浏览器解析（OCR/PDF 已在前端 invoiceParser 完成），
   原文件存盘、提取字段以 JSON 存本表；确认挂接后才生成正式 Invoice 记录（落入 invoices 表）。
-- status：pending(待识别) / recognized(已识别) / linked(已挂接) / error。
+- status：pending(待识别) / recognized(已识别) / reviewed(已复核) / needs_review(待复核) / linked(已挂接) / error。
 - linked_doc_type：reimburse(报销单) / purchase(采购申请) / null。
 - verify_result（P1 查验）：none / real / fake / abnormal。
 """

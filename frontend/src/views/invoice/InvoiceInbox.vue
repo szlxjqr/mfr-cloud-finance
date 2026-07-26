@@ -13,6 +13,8 @@
       <el-select v-model="statusFilter" placeholder="全部状态" clearable style="width: 130px" @change="load">
         <el-option label="待识别" value="pending" />
         <el-option label="已识别" value="recognized" />
+        <el-option label="已复核" value="reviewed" />
+        <el-option label="待复核" value="needs_review" />
         <el-option label="已挂接" value="linked" />
       </el-select>
       <el-button @click="load">刷新</el-button>
@@ -56,7 +58,8 @@
       </el-table-column>
       <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openLink(row)" :disabled="row.status === 'linked'">挂接</el-button>
+          <el-button size="small" @click="openLink(row)" :disabled="row.status === 'linked' || row.status === 'needs_review'">挂接</el-button>
+          <el-button v-if="row.status === 'needs_review' || row.status === 'reviewed'" size="small" :type="row.status === 'needs_review' ? 'warning' : 'info'" @click="openReview(row)">{{ row.status === 'needs_review' ? '复核' : '查看' }}</el-button>
           <el-button size="small" @click="openVerify(row)" :disabled="!row.extracted_json">查验</el-button>
           <el-button size="small" type="danger" plain @click="remove(row)">删除</el-button>
         </template>
@@ -110,12 +113,22 @@
 
     <!-- 统一上传弹窗 -->
     <UploadToInboxDialog v-model="uploadDialogVisible" @saved="onUploadInboxSaved" />
+
+    <!-- 复核弹窗（编辑已有 needs_review 记录，修正后 → update 解除隔离） -->
+    <InvoiceRecognizeDialog
+      :visible="reviewVisible"
+      :edit-id="reviewId"
+      :initial-parsed="reviewParsed"
+      @update:visible="reviewVisible = $event"
+      @saved="onReviewSaved"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
+import InvoiceRecognizeDialog from '@/components/InvoiceRecognizeDialog.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { inboxApi } from '@/api/inboxApi'
 import type { ParsedInvoice } from '@/utils/invoiceParser'
@@ -198,6 +211,32 @@ function verifyTag(s: string): 'success' | 'danger' | 'warning' {
 function onUploadInboxSaved() {
   load()
   ElMessage.success('文件已存入发票池')
+}
+
+// 复核（手工录入/修正 needs_review 记录）：打开编辑弹窗，修正后 update 解除隔离
+const reviewVisible = ref(false)
+const reviewId = ref<number | null>(null)
+const reviewParsed = ref<ParsedInvoice | null>(null)
+function openReview(row: InvoiceInbox) {
+  if (!row.extracted_json) {
+    ElMessage.warning('该记录无识别数据，无法复核')
+    return
+  }
+  try {
+    reviewParsed.value = JSON.parse(row.extracted_json) as ParsedInvoice
+  } catch {
+    ElMessage.error('识别数据损坏，无法解析')
+    return
+  }
+  reviewId.value = row.id
+  reviewVisible.value = true
+}
+function onReviewSaved() {
+  reviewVisible.value = false
+  reviewId.value = null
+  reviewParsed.value = null
+  load()
+  ElMessage.success('已复核并更新发票')
 }
 
 function openLink(row: InvoiceInbox) {

@@ -20,6 +20,8 @@ frontend/dist/
 # 虚拟环境
 .venv/
 venv/
+# 旧版 venv 备份（python 3.9 → 3.13 迁移时备份）
+backend/.venv_py39_backup/
 
 # 本地密钥与数据库文件（真实 .env 禁止入库；.env.example 可入库作为模板）
 .env
@@ -35,4 +37,8 @@ uploads/
 # 工具自身目录 / 本地产物目录（非项目源码，禁止入库）
 .workbuddy/
 deliverables/
+
+# 前端编译产物（双识别测试构建临时目录）
+frontend/.reparse-build/
+frontend/.invoice-test-build/
 
