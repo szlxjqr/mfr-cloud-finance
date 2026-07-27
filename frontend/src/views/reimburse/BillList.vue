@@ -420,6 +420,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 报销单浏览弹窗（先展示再打印） -->
+    <el-dialog
+      v-model="detailVisible"
+      title="报销单浏览"
+      width="900px"
+      :close-on-click-modal="false"
+      class="detail-dialog"
+    >
+      <ReimbursePrint v-if="detailRow" :bill="detailRow" :summary="detailSummary" />
+      <template #footer>
+        <div class="detail-footer">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button type="primary" @click="printReimbursement">打印报销单</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -435,6 +452,7 @@ import { purchaseApi } from '@/api/purchase'
 import type { PurchaseItem } from '@/types/purchase'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
+import ReimbursePrint from './ReimbursePrint.vue'
 
 const statusOptions = ['草稿', '待审批', '已通过', '已归档', '已驳回', '已支付']
 
@@ -482,6 +500,11 @@ const attachInitialItemId = ref<number | null>(null)
 
 // 上传发票到池（统一组件）
 const uploadVisible = ref(false)
+
+// 报销单浏览/预览弹窗（先展示再打印，参照采购「浏览」模式）
+const detailVisible = ref(false)
+const detailRow = ref<ReimbursementBill | null>(null)
+const detailSummary = ref<InvoiceSummary>({ amount: 0, tax: 0, total: 0, invoice_count: 0 })
 
 function openUploadToPool() {
   uploadVisible.value = true
@@ -536,7 +559,7 @@ interface InvoiceSummary {
 const summaryMap = ref<Record<number, InvoiceSummary>>({})
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject' | 'submit_finance' | 'revert' | 'pay' | 'print'
+  action: 'submit' | 'approve' | 'reject' | 'submit_finance' | 'revert' | 'pay' | 'view'
   label: string
   type: 'warning' | 'success' | 'danger' | 'primary' | 'info'
 }
@@ -559,10 +582,10 @@ function transformActions(row: ReimbursementBill): RowAction[] {
     case '已归档':
       return [
         { action: 'pay', label: '支付', type: 'success' },
-        { action: 'print', label: '打印报销单', type: 'info' },
+        { action: 'view', label: '浏览', type: 'info' },
       ]
     case '已支付':
-      return [{ action: 'print', label: '打印报销单', type: 'info' }]
+      return [{ action: 'view', label: '浏览', type: 'info' }]
     default:
       return []
   }
@@ -844,9 +867,16 @@ function moneyToChinese(n: number): string {
   return intStr + decStr
 }
 
-function printReimbursement(row: ReimbursementBill) {
-  const p = row
-  const summary = summaryMap.value[row.id] || { total: 0, amount: 0, tax: 0, invoice_count: 0 }
+function openDetail(row: ReimbursementBill) {
+  detailRow.value = row
+  detailSummary.value = summaryMap.value[row.id] || { amount: 0, tax: 0, total: 0, invoice_count: 0 }
+  detailVisible.value = true
+}
+
+function printReimbursement() {
+  const p = detailRow.value
+  if (!p) return
+  const summary = detailSummary.value || { total: 0, amount: 0, tax: 0, invoice_count: 0 }
   const budgetAmount = Number(p.amount != null ? p.amount : 0)        // 预算金额
   const invoiceTotal = Number(summary.total || 0)                      // 发票合计（含税）
   // 报销金额：优先 reimburse_amount，为空回落到发票合计（默认=发票合计）
@@ -978,8 +1008,8 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
 }
 
 async function runAction(action: RowAction['action'], row: ReimbursementBill) {
-  if (action === 'print') {
-    printReimbursement(row)
+  if (action === 'view') {
+    openDetail(row)
     return
   }
   if (action === 'approve' || action === 'reject') {
@@ -1449,5 +1479,17 @@ onMounted(load)
 }
 .recognize-error {
   margin-top: 12px;
+}
+
+/* 报销单浏览弹窗 */
+.detail-dialog :deep(.el-dialog__body) {
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-top: 10px;
+}
+.detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 </style>
