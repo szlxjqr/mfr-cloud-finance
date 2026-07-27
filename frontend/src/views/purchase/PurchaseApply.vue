@@ -362,14 +362,17 @@ function openEdit(row: PurchaseReq) {
 }
 
 function buildPayload(): Record<string, unknown> {
-  const items = (form.items || []).map((it) => ({
-    item_name: it.item_name,
-    spec: it.spec || null,
-    quantity: Number(it.quantity) || 1,
-    amount: it.amount != null ? Number(it.amount) : null,
-    supplier: it.supplier || null,
-    remark: it.remark || null,
-  }))
+  // 过滤掉没有实际内容的细项行（名称为空即视为无效）
+  const items = (form.items || [])
+    .filter((it) => it.item_name && it.item_name.trim())
+    .map((it) => ({
+      item_name: it.item_name.trim(),
+      spec: it.spec || null,
+      quantity: Number(it.quantity) || 1,
+      amount: it.amount != null ? Number(it.amount) : null,
+      supplier: it.supplier || null,
+      remark: it.remark || null,
+    }))
   const totalQty = items.reduce((s: number, it: any) => s + (it.quantity || 0), 0)
   const payload: Record<string, unknown> = {
     ...form,

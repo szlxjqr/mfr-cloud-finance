@@ -17,6 +17,9 @@ from app.services import voucher_service  # 联动：审批通过 → 自动确�
 def _build_items(db: Session, req: "m.PurchaseRequisition", items: list[s.PurchaseItemCreate]) -> None:
     """根据传入的明细列表（全量）为申请单构建采购明细。"""
     for it in items:
+        # 丢弃没有实际内容的细项（名称为空即视为无效）
+        if not it.item_name or not it.item_name.strip():
+            continue
         data = it.model_dump()
         data.pop("id", None)
         data.pop("req_id", None)
