@@ -516,6 +516,7 @@ function printPurchase() {
   const p = detail
   const rows = (p.items && p.items.length) ? p.items : []
 
+  // 金额安全格式化：兼容 number / 数字字符串 / null
   const fmtMoney = (v: any, fallback = '-'): string => {
     const n = Number(v)
     return Number.isFinite(n) ? n.toFixed(2) : fallback
@@ -663,6 +664,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
 </div>
 </body></html>`
 
+  // 使用隐藏 iframe 打印，不被浏览器弹窗拦截
   const iframe = document.createElement('iframe')
   iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;'
   document.body.appendChild(iframe)
@@ -670,8 +672,10 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
   doc.open()
   doc.write(html)
   doc.close()
+  // 等 iframe 加载完成后触发打印
   iframe.contentWindow!.focus()
   iframe.contentWindow!.print()
+  // 打印完后清理 iframe
   setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe) }, 2000)
 }
 
