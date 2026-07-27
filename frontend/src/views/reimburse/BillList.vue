@@ -191,7 +191,6 @@
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="save">保存</el-button>
-        <el-button @click="printEditing">打印报销单</el-button>
       </template>
     </el-dialog>
 
@@ -711,11 +710,6 @@ async function onAttachDone() {
   } catch {
     // 非关键
   }
-}
-
-function printEditing() {
-  if (!editingRow.value) return
-  printReimbursement(editingRow.value)
 }
 
 async function save() {
