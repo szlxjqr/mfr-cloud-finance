@@ -250,7 +250,7 @@ function moneyToChinese(n: number): string {
   box-sizing: border-box;
   background: #fff;
   color: #000;
-  font-size: 9pt;
+  font-size: 10pt;
   font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
@@ -288,11 +288,11 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-weight: 600;
   text-align: center;
   width: 78px;
-  font-size: 9pt;
+  font-size: 10pt;
 }
-.label .unit-sub { font-size: 8pt; font-weight: normal; color: #555; }
+.label .unit-sub { font-size: 9pt; font-weight: normal; color: #555; }
 
-.base-table td { font-size: 9pt; }
+.base-table td { font-size: 11pt; }
 
 .bill-no {
   word-break: break-all;
@@ -305,17 +305,17 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-family: 'Courier New', monospace;
 }
 
-.date-cell { white-space: nowrap; font-size: 9pt; text-align: center; }
+.date-cell { white-space: nowrap; font-size: 11pt; text-align: center; }
 
-.detail-table th { background: #f2f2f2; font-weight: 600; text-align: center; font-size: 9pt; }
-.detail-table td { font-size: 9pt; }
+.detail-table th { background: #f2f2f2; font-weight: 600; text-align: center; font-size: 10pt; }
+.detail-table td { font-size: 11pt; }
 .detail-table td.left { text-align: left; }
 
-.num { text-align: right; font-family: 'Courier New', monospace; font-size: 10pt; }
-.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 11pt; }
-.cn-amount { font-size: 10pt; font-weight: 600; }
+.num { text-align: right; font-family: 'Courier New', monospace; font-size: 14pt; font-weight: bold; color: #000; }
+.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 16pt; color: #000; }
+.cn-amount { font-size: 14pt; font-weight: bold; color: #000; }
 
-.summary-table .num-strong { font-size: 11pt; }
+.summary-table .num-strong { font-size: 16pt; }
 
 .empty { text-align: center; color: #999; padding: 20px; }
 

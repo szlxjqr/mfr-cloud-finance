@@ -956,7 +956,7 @@ function printReimbursement() {
     <thead><tr>
       <th style="width:40px">编号</th><th>采购内容</th>
       <th style="width:130px">发票号</th><th style="width:140px">销售方</th>
-      <th style="width:100px">开票日期</th><th style="width:110px">发票金额<br><span style="font-size:8pt;font-weight:normal;color:#555">（价税合计）</span></th>
+      <th style="width:100px">开票日期</th><th style="width:110px">发票金额<br><span style="font-size:9pt;font-weight:normal;color:#555">（价税合计）</span></th>
       <th>备注</th>
     </tr></thead>
     <tbody>${purchaseDetailRows}</tbody>
@@ -969,7 +969,7 @@ function printReimbursement() {
 <style>
 @page { size: A4; margin: 8mm 12mm; }
 body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding:0; margin:0; }
-.bill-form { width:210mm; min-height:297mm; margin:0 auto; padding:6mm 12mm; box-sizing:border-box; background:#fff; color:#000; font-size:9pt; }
+.bill-form { width:210mm; min-height:297mm; margin:0 auto; padding:6mm 12mm; box-sizing:border-box; background:#fff; color:#000; font-size:10pt; }
 .form-title { position:relative; text-align:center; border-bottom:2px solid #000; padding-bottom:8px; margin-bottom:12px; }
 .company { font-size:15pt; font-weight:bold; letter-spacing:2px; }
 .doc-type { font-size:17pt; font-weight:bold; margin-top:3px; }
@@ -977,15 +977,16 @@ body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding:0; margi
 .section-title { font-weight:bold; margin:12px 0 5px; font-size:10pt; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 .info-table td, .sign-table td, .detail-table th, .detail-table td { border:1px solid #333; padding:3px 5px; word-break:break-all; vertical-align:middle; }
-.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:9pt; }
-.detail-table td { font-size:9pt; }
+.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:10pt; }
+.detail-table td { font-size:11pt; }
 .detail-table td.left { text-align:left; }
-.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:9pt; }
-.num { text-align:right; font-family:'Courier New',monospace; font-size:10pt; }
-.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:11pt; }
-.cn-amount { font-size:10pt; font-weight:600; }
+.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:10pt; }
+.base-table td { font-size:11pt; }
+.num { text-align:right; font-family:'Courier New',monospace; font-size:14pt; font-weight:bold; color:#000; }
+.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:16pt; color:#000; }
+.cn-amount { font-size:14pt; font-weight:bold; color:#000; }
 .bill-no { word-break:break-all; text-align:center; font-family:'Courier New',monospace; font-size:12pt; font-weight:bold; letter-spacing:0.5px; color:#000; }
-.date-cell { white-space:nowrap; text-align:center; font-size:9pt; }
+.date-cell { white-space:nowrap; text-align:center; font-size:11pt; }
 .sign-table td { text-align:center; height:28px; }
 .sign-row td { height:56px; }
 .form-footer { margin-top:12px; font-size:9pt; color:#333; }
