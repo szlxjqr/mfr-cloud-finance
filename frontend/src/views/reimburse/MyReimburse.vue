@@ -31,7 +31,7 @@
           <span v-else class="text-muted">未挂票</span>
         </template>
       </el-table-column>
-      <el-table-column label="报销金额" width="120" align="right">
+      <el-table-column label="预算金额" width="120" align="right">
         <template #default="{ row }">
           {{ row.amount != null ? '¥' + Number(row.amount).toFixed(2) : '-' }}
         </template>
