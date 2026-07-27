@@ -429,7 +429,14 @@
       :close-on-click-modal="false"
       class="detail-dialog"
     >
-      <ReimbursePrint v-if="detailRow" :bill="detailRow" :summary="detailSummary" />
+      <div v-if="detailLoading" class="detail-loading">正在加载报销单…</div>
+      <ReimbursePrint
+        v-else
+        :bill="detailRow"
+        :summary="detailSummary"
+        :purchase="detailPurchase"
+        :invoices="detailInvoices"
+      />
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
@@ -449,7 +456,7 @@ import type { ReimbursementBill } from '@/types/reimburse'
 import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 import { purchaseApi } from '@/api/purchase'
-import type { PurchaseItem } from '@/types/purchase'
+import type { PurchaseItem, PurchaseReq } from '@/types/purchase'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
 import ReimbursePrint from './ReimbursePrint.vue'
@@ -503,7 +510,10 @@ const uploadVisible = ref(false)
 
 // 报销单浏览/预览弹窗（先展示再打印，参照采购「浏览」模式）
 const detailVisible = ref(false)
+const detailLoading = ref(false)
 const detailRow = ref<ReimbursementBill | null>(null)
+const detailPurchase = ref<PurchaseReq | null>(null)
+const detailInvoices = ref<Invoice[]>([])
 const detailSummary = ref<InvoiceSummary>({ amount: 0, tax: 0, total: 0, invoice_count: 0 })
 
 function openUploadToPool() {
@@ -867,10 +877,31 @@ function moneyToChinese(n: number): string {
   return intStr + decStr
 }
 
-function openDetail(row: ReimbursementBill) {
+async function openDetail(row: ReimbursementBill) {
+  detailVisible.value = true
+  detailLoading.value = true
   detailRow.value = row
   detailSummary.value = summaryMap.value[row.id] || { amount: 0, tax: 0, total: 0, invoice_count: 0 }
-  detailVisible.value = true
+  detailPurchase.value = null
+  detailInvoices.value = []
+  try {
+    const res = await reimburseApi.get(row.id)
+    const fullBill = res.data
+    detailRow.value = fullBill
+    detailInvoices.value = fullBill.invoices || []
+    if (fullBill.purchase_requisition_id) {
+      try {
+        const pRes = await purchaseApi.get(fullBill.purchase_requisition_id)
+        detailPurchase.value = pRes.data
+      } catch (e) {
+        console.warn('加载来源采购单失败', e)
+      }
+    }
+  } catch (e: any) {
+    ElMessage.warning(e?.response?.data?.detail || '详情加载失败，已展示列表数据')
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 function printReimbursement() {
@@ -897,6 +928,41 @@ function printReimbursement() {
     ? `<tr><td class="label">来源采购单</td><td colspan="5">采购单 #${p.purchase_requisition_id}</td></tr>`
     : ''
 
+  // 采购细项：按来源采购单的 items 逐行展示，并匹配已挂发票
+  const purchaseItems = detailPurchase.value?.items || []
+  const invoices = detailInvoices.value || []
+  const purchaseDetailRows = purchaseItems.length
+    ? purchaseItems.map((it, idx) => {
+        const matched = invoices.filter((inv) => inv.purchase_requisition_item_id === it.id)
+        const total = matched.reduce(
+          (s, inv) => s + (inv.details || []).reduce((ds, d) => ds + (Number(d.total) || 0), 0),
+          0,
+        )
+        return `
+      <tr>
+        <td style="text-align:center;width:40px">${idx + 1}</td>
+        <td class="left">${it.item_name || '-'}</td>
+        <td style="width:130px">${matched.map((inv) => inv.no).join(', ') || '-'}</td>
+        <td style="width:140px">${matched.map((inv) => inv.seller_name).join(', ') || '-'}</td>
+        <td style="width:100px;text-align:center;font-size:8pt">${matched.map((inv) => inv.invoice_date).filter(Boolean).join(', ') || '-'}</td>
+        <td style="width:110px" class="num">¥${total.toFixed(2)}</td>
+        <td class="left">${it.remark || '-'}</td>
+      </tr>`
+      }).join('')
+    : `<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">暂无采购细项</td></tr>`
+  const purchaseDetailSection = purchaseItems.length
+    ? `<div class="section-title">二、采购细项</div>
+  <table class="detail-table">
+    <thead><tr>
+      <th style="width:40px">编号</th><th>采购内容</th>
+      <th style="width:130px">发票号</th><th style="width:140px">销售方</th>
+      <th style="width:100px">开票日期</th><th style="width:110px">发票金额<br><span style="font-size:7pt;font-weight:normal;color:#555">（价税合计）</span></th>
+      <th>备注</th>
+    </tr></thead>
+    <tbody>${purchaseDetailRows}</tbody>
+  </table>`
+    : ''
+
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><title>报销申请单</title>
@@ -910,7 +976,10 @@ body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding:0; margi
 .unit { position:absolute; right:0; top:0; font-size:9pt; color:#333; }
 .section-title { font-weight:bold; margin:12px 0 5px; font-size:10pt; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
-.info-table td, .sign-table td { border:1px solid #333; padding:3px 5px; word-break:break-all; vertical-align:middle; }
+.info-table td, .sign-table td, .detail-table th, .detail-table td { border:1px solid #333; padding:3px 5px; word-break:break-all; vertical-align:middle; }
+.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:8pt; }
+.detail-table td { font-size:8pt; }
+.detail-table td.left { text-align:left; }
 .label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:8.5pt; }
 .num { text-align:right; font-family:'Courier New',monospace; }
 .num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:9pt; }
@@ -943,7 +1012,8 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
     <tr><td class="label">事由</td><td colspan="5">${p.reason || '-'}</td></tr>
     <tr><td class="label">备注</td><td colspan="5">${p.remark || '-'}</td></tr>
   </table>
-  <div class="section-title">二、金额汇总</div>
+  ${purchaseDetailSection}
+  <div class="section-title">三、金额汇总</div>
   <table class="info-table base-table">
     <tr>
       <td class="label">发票张数</td><td>${summary.invoice_count} 张</td>
@@ -956,10 +1026,10 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
     </tr>
     <tr>
       <td class="label">报销金额</td><td class="num num-strong" colspan="2">¥${reimburse.toFixed(2)}</td>
-      <td class="label">金额大写</td><td colspan="3">${cnAmount}</td>
+      <td class="label">金额大写</td><td colspan="2">${cnAmount}</td>
     </tr>
   </table>
-  <div class="section-title">三、审批与支付</div>
+  <div class="section-title">四、审批与支付</div>
   <table class="info-table base-table">
     <tr>
       <td class="label">状态</td><td>${p.status || '-'}</td>
@@ -973,7 +1043,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
       <td class="label">付款日期</td><td colspan="5">${p.pay_date || '-'}</td>
     </tr>
   </table>
-  <div class="section-title">四、签字栏</div>
+  <div class="section-title">五、签字栏</div>
   <table class="sign-table">
     <tr>
       <td class="label">申请人</td>

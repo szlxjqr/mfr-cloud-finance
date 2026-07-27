@@ -49,8 +49,37 @@
       </tr>
     </table>
 
-    <!-- 二、金额汇总 -->
-    <div class="section-title">二、金额汇总</div>
+    <!-- 二、采购细项 -->
+    <template v-if="hasPurchaseRows">
+      <div class="section-title">二、采购细项</div>
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th style="width: 40px">编号</th>
+            <th>采购内容</th>
+            <th style="width: 130px">发票号</th>
+            <th style="width: 140px">销售方</th>
+            <th style="width: 100px">开票日期</th>
+            <th style="width: 110px">发票金额<br><span class="unit-sub">（价税合计）</span></th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="row in purchaseRows" :key="row.idx">
+            <td style="text-align: center">{{ row.idx }}</td>
+            <td class="left">{{ row.item.item_name }}</td>
+            <td>{{ row.invoiceNos }}</td>
+            <td>{{ row.seller }}</td>
+            <td class="date-cell">{{ row.invoiceDate }}</td>
+            <td class="num">¥{{ row.total.toFixed(2) }}</td>
+            <td class="left">{{ row.item.remark || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+
+    <!-- 三、金额汇总 -->
+    <div class="section-title">三、金额汇总</div>
     <table class="info-table base-table">
       <tr>
         <td class="label">发票张数</td>
@@ -70,12 +99,12 @@
         <td class="label">报销金额</td>
         <td class="num num-strong" colspan="2">¥{{ reimburse.toFixed(2) }}</td>
         <td class="label">金额大写</td>
-        <td colspan="3">{{ cnAmount }}</td>
+        <td colspan="2">{{ cnAmount }}</td>
       </tr>
     </table>
 
-    <!-- 三、审批与支付 -->
-    <div class="section-title">三、审批与支付</div>
+    <!-- 四、审批与支付 -->
+    <div class="section-title">四、审批与支付</div>
     <table class="info-table base-table">
       <tr>
         <td class="label">状态</td>
@@ -95,8 +124,8 @@
       </tr>
     </table>
 
-    <!-- 四、签字栏 -->
-    <div class="section-title">四、签字栏</div>
+    <!-- 五、签字栏 -->
+    <div class="section-title">五、签字栏</div>
     <table class="sign-table">
       <tr>
         <td class="label">申请人</td>
@@ -121,6 +150,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ReimbursementBill } from '@/types/reimburse'
+import type { PurchaseReq, PurchaseItem } from '@/types/purchase'
+import type { Invoice } from '@/types/invoice'
 
 interface InvoiceSummary {
   amount: number
@@ -132,6 +163,8 @@ interface InvoiceSummary {
 const props = defineProps<{
   bill: ReimbursementBill
   summary?: InvoiceSummary
+  purchase?: PurchaseReq | null
+  invoices?: Invoice[]
 }>()
 
 const p = computed(() => props.bill)
@@ -144,6 +177,38 @@ const reimburse = computed(() =>
   p.value.reimburse_amount != null ? Number(p.value.reimburse_amount) : invoiceTotal.value,
 )
 const cnAmount = computed(() => moneyToChinese(reimburse.value))
+
+interface PurchaseRow {
+  idx: number
+  item: PurchaseItem
+  invoices: Invoice[]
+  invoiceNos: string
+  seller: string
+  invoiceDate: string
+  total: number
+}
+
+const purchaseRows = computed<PurchaseRow[]>(() => {
+  const items = props.purchase?.items || []
+  const invoices = props.invoices || []
+  return items.map((it, idx) => {
+    const matched = invoices.filter((inv) => inv.purchase_requisition_item_id === it.id)
+    const total = matched.reduce(
+      (s, inv) => s + (inv.details || []).reduce((ds, d) => ds + (Number(d.total) || 0), 0),
+      0,
+    )
+    return {
+      idx: idx + 1,
+      item: it,
+      invoices: matched,
+      invoiceNos: matched.map((inv) => inv.no).join(', ') || '-',
+      seller: matched.map((inv) => inv.seller_name).join(', ') || '-',
+      invoiceDate: matched.map((inv) => inv.invoice_date).filter(Boolean).join(', ') || '-',
+      total,
+    }
+  })
+})
+const hasPurchaseRows = computed(() => purchaseRows.value.length > 0)
 
 // 金额大写（人民币）
 function moneyToChinese(n: number): string {
@@ -254,12 +319,23 @@ function moneyToChinese(n: number): string {
 table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 
 .info-table td,
-.sign-table td {
+.sign-table td,
+.detail-table th,
+.detail-table td {
   border: 1px solid #333;
   padding: 3px 5px;
   word-break: break-all;
   vertical-align: middle;
 }
+
+.detail-table th {
+  background: #f2f2f2;
+  font-weight: 600;
+  text-align: center;
+  font-size: 8pt;
+}
+.detail-table td { font-size: 8pt; }
+.detail-table td.left { text-align: left; }
 
 .label {
   background: #f2f2f2;
