@@ -43,9 +43,8 @@
           <th style="width: 40px">序号</th>
           <th>物品 / 服务名称</th>
           <th style="width: 120px">规格 / 型号</th>
-          <th style="width: 60px">数量</th>
-          <th style="width: 90px">单价(元)</th>
-          <th style="width: 100px">预算金额(元)</th>
+          <th style="width: 70px">数量</th>
+          <th style="width: 120px">预算金额(元)</th>
           <th style="width: 130px">建议供应商</th>
           <th>备注</th>
         </tr>
@@ -55,14 +54,13 @@
           <td>{{ idx + 1 }}</td>
           <td class="left">{{ it.item_name }}</td>
           <td class="left">{{ it.spec || '-' }}</td>
-          <td>{{ it.quantity }}</td>
-          <td class="num">{{ it.unit_price != null ? it.unit_price.toFixed(2) : '-' }}</td>
+          <td style="text-align:center">{{ it.quantity }}</td>
           <td class="num">{{ (it.amount ?? 0).toFixed(2) }}</td>
           <td class="left">{{ it.supplier || '-' }}</td>
           <td class="left">{{ it.remark || '-' }}</td>
         </tr>
         <tr v-if="!rows.length">
-          <td colspan="8" class="empty">暂无采购明细</td>
+          <td colspan="7" class="empty">暂无采购明细</td>
         </tr>
       </tbody>
     </table>
@@ -300,7 +298,10 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   word-break: break-all;
   line-height: 1.2;
   text-align: center;
-  font-size: 8.5pt;
+  font-size: 12pt;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: #000;
   font-family: 'Courier New', monospace;
 }
 

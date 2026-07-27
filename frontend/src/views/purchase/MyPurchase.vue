@@ -212,12 +212,11 @@ function printPurchase() {
         <td class="left">${it.item_name}</td>
         <td class="left">${it.spec || '-'}</td>
         <td style="text-align:center">${it.quantity}</td>
-        <td class="num">${fmtMoney(it.unit_price)}</td>
         <td class="num">${fmtMoney(it.amount ?? 0, '0.00')}</td>
         <td class="left">${it.supplier || '-'}</td>
         <td class="left">${it.remark || '-'}</td>
       </tr>`).join('')
-    : `<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">暂无采购明细</td></tr>`
+    : `<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">暂无采购明细</td></tr>`
 
   const html = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -254,7 +253,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
   <div class="section-title">一、基本信息</div>
   <table class="info-table base-table">
     <tr>
-      <td class="label">申请单号</td><td class="bill-no" style="word-break:break-all;text-align:center;font-family:'Courier New',monospace;font-size:8.5pt">${p.req_no || '-'}</td>
+      <td class="label">申请单号</td><td class="bill-no" style="word-break:break-all;text-align:center;font-family:'Courier New',monospace;font-size:12pt;font-weight:bold;letter-spacing:0.5px;color:#000">${p.req_no || '-'}</td>
       <td class="label">申请日期</td><td style="white-space:nowrap;text-align:center;font-size:8pt">${p.submit_date || '-'}</td>
       <td class="label">申请人</td><td>${p.applicant || '-'}</td>
     </tr>
@@ -270,7 +269,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
   <table class="detail-table">
     <thead><tr>
       <th style="width:40px">序号</th><th>物品/服务名称</th><th style="width:120px">规格/型号</th>
-      <th style="width:60px">数量</th><th style="width:90px">单价(元)</th><th style="width:100px">预算金额(元)</th>
+      <th style="width:70px">数量</th><th style="width:120px">预算金额(元)</th>
       <th style="width:130px">建议供应商</th><th>备注</th>
     </tr></thead>
     <tbody>${detailRows}</tbody>
