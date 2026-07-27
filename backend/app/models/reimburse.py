@@ -21,7 +21,7 @@ class ReimbursementBill(Base):
     department: Mapped[Optional[str]] = mapped_column(String(100))  # 部门
     amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))  # 报销金额
     reason: Mapped[Optional[str]] = mapped_column(Text)  # 事由
-    status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回/已支付
+    status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回/已归档/已支付
     submit_date: Mapped[Optional[date]] = mapped_column(Date)  # 提交日期
     approve_date: Mapped[Optional[date]] = mapped_column(Date)  # 审批日期
     approver: Mapped[Optional[str]] = mapped_column(String(100))  # 审批人

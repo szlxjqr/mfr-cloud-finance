@@ -15,5 +15,6 @@ export const purchaseApi = {
     http.post<PurchaseReq>(`/purchases/${id}/approve`, data),
   reject: (id: number, data: { approver: string; remark?: string }) =>
     http.post<PurchaseReq>(`/purchases/${id}/reject`, data),
+  revert: (id: number) => http.post<PurchaseReq>(`/purchases/${id}/revert`),
   pay: (id: number) => http.post<PurchaseReq>(`/purchases/${id}/pay`),
 }

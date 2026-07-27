@@ -418,7 +418,7 @@ import type { PurchaseItem } from '@/types/purchase'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
 
-const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
+const statusOptions = ['草稿', '待审批', '已通过', '已归档', '已驳回', '已支付']
 
 const invoiceTypes = [
   '增值税专用发票',
@@ -512,9 +512,9 @@ interface InvoiceSummary {
 const summaryMap = ref<Record<number, InvoiceSummary>>({})
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject' | 'pay'
+  action: 'submit' | 'approve' | 'reject' | 'submit_finance' | 'revert' | 'pay'
   label: string
-  type: 'warning' | 'success' | 'danger' | 'primary'
+  type: 'warning' | 'success' | 'danger' | 'primary' | 'info'
 }
 
 function transformActions(row: ReimbursementBill): RowAction[] {
@@ -528,7 +528,12 @@ function transformActions(row: ReimbursementBill): RowAction[] {
         { action: 'reject', label: '驳回', type: 'danger' },
       ]
     case '已通过':
-      return [{ action: 'pay', label: '提交财务', type: 'primary' }]
+      return [
+        { action: 'submit_finance', label: '提交财务', type: 'primary' },
+        { action: 'revert', label: '退回', type: 'info' },
+      ]
+    case '已归档':
+      return [{ action: 'pay', label: '支付', type: 'success' }]
     default:
       return []
   }
@@ -736,12 +741,30 @@ async function runAction(action: RowAction['action'], row: ReimbursementBill) {
     return
   }
 
-  if (action === 'pay') {
-    await ElMessageBox.confirm(`确认将报销单 ${row.bill_no ?? row.id} 提交给财务？`, '提示', { type: 'warning' })
+  if (action === 'submit_finance') {
+    await ElMessageBox.confirm(
+      `确认将报销单 ${row.bill_no ?? row.id} 提交财务？提交后不可退回，将自动生成记账凭证形成待支付挂账。`,
+      '提交财务确认',
+      { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '取消' },
+    )
+  } else if (action === 'revert') {
+    await ElMessageBox.confirm(
+      `确认退回报销单 ${row.bill_no ?? row.id} 至草稿状态？退回后可修改重新提交。`,
+      '退回确认',
+      { type: 'warning', confirmButtonText: '确认退回', cancelButtonText: '取消' },
+    )
+  } else if (action === 'pay') {
+    await ElMessageBox.confirm(
+      `确认支付报销单 ${row.bill_no ?? row.id}？系统将自动生成付款凭证（借：其他应付款，贷：银行存款）。`,
+      '支付确认',
+      { type: 'warning', confirmButtonText: '确认支付', cancelButtonText: '取消' },
+    )
   }
 
-  const map = {
+  const map: Record<string, (id: number) => Promise<any>> = {
     submit: reimburseApi.submit,
+    submit_finance: reimburseApi.submitFinance,
+    revert: reimburseApi.revert,
     pay: reimburseApi.pay,
   }
   await map[action](row.id)

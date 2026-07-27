@@ -60,8 +60,8 @@ export const menuItems: MenuItem[] = [
         color: '#E6A23C',
         children: [
           { title: '采购申请', path: '/purchase/apply' },
-          { title: '采购审批', path: '/purchase/approve' },
-          { title: '我的采购', path: '/purchase/mine' },
+          { title: '采购报销', path: '/purchase/reimburse' },
+          // 采购审批/我的采购已隐藏：一人公司自动审批，采购申请页自带列表+回退+转报销
         ],
       },
     ],
@@ -80,6 +80,39 @@ export const menuItems: MenuItem[] = [
           { title: '差旅申请', path: '/travel/apply' },
           { title: '差旅审批', path: '/travel/approve' },
           { title: '我的差旅', path: '/travel/mine' },
+        ],
+      },
+    ],
+  },
+
+  {
+    title: '报销管理',
+    icon: 'Coin',
+    module: 'reimburse',
+    groups: [
+      {
+        title: '报销单',
+        icon: 'Document',
+        color: '#409EFF',
+        children: [
+          { title: '报销单', path: '/reimburse/bill' },
+          { title: '我的报销', path: '/reimburse/mine' },
+        ],
+      },
+      {
+        title: '审批',
+        icon: 'CircleCheck',
+        color: '#E6A23C',
+        children: [
+          { title: '待审批', path: '/reimburse/approve' },
+        ],
+      },
+      {
+        title: '报销查询',
+        icon: 'Search',
+        color: '#909399',
+        children: [
+          { title: '报销查询', path: '/reimburse/query' },
         ],
       },
     ],

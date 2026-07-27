@@ -148,6 +148,8 @@ const router = createRouter({
           meta: { title: '采购管理', module: 'purchase' },
         },
         { path: 'purchase/apply', name: 'PurchaseApply', component: () => import('@/views/purchase/PurchaseApply.vue'), meta: { title: '采购申请', group: '采购' } },
+        { path: 'purchase/reimburse', name: 'PurchaseReimburse', component: () => import('@/views/reimburse/BillList.vue'), meta: { title: '采购报销', group: '采购' } },
+        // 采购审批/我的采购路由保留可访问，菜单已隐藏
         { path: 'purchase/approve', name: 'PurchaseApprove', component: () => import('@/views/purchase/PurchaseApprove.vue'), meta: { title: '采购审批', group: '采购' } },
         { path: 'purchase/mine', name: 'PurchaseMine', component: () => import('@/views/purchase/MyPurchase.vue'), meta: { title: '我的采购', group: '采购' } },
 

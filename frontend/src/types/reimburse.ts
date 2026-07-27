@@ -1,6 +1,6 @@
 import type { Invoice } from './invoice'
 
-export type ReimburseStatus = '草稿' | '待审批' | '已通过' | '已驳回' | '已支付'
+export type ReimburseStatus = '草稿' | '待审批' | '已通过' | '已归档' | '已驳回' | '已支付'
 
 export type ReimburseBillType = '采购报销' | '差旅报销'
 

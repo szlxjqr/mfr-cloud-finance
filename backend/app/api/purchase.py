@@ -25,12 +25,14 @@ def _build_items(db: Session, req: "m.PurchaseRequisition", items: list[s.Purcha
 router = APIRouter(prefix="/purchases", tags=["purchases"])
 
 # 状态流转白名单：当前状态 -> 允许的动作 -> 目标状态
+# 采购申请不再生成凭证（确认应付凭证已废弃），费用在报销单提交财务时入账
+# 已通过可退回草稿修改后重新提交
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
-    "已通过": {"pay": "已支付"},
+    "已通过": {"revert": "草稿"},
     "已驳回": {"submit": "待审批"},  # 重新提交
-    "已支付": {},  # 终态
+    "已支付": {},  # 终态（兼容旧数据）
 }
 
 
@@ -122,7 +124,7 @@ def delete_req(rid: int, db: Session = Depends(get_db)):
 # ================= 状态流转 =================
 @router.post("/{rid}/submit", response_model=s.PurchaseReqRead)
 def submit_req(rid: int, db: Session = Depends(get_db)):
-    """提交采购申请 → 一人公司自动审批通过（并联动生成凭证）。"""
+    """提交采购申请 → 一人公司自动审批通过（不再生成凭证，费用在报销单归档时入账）。"""
     obj = _get_or_404(db, rid)
     if "submit" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许提交")
@@ -134,8 +136,7 @@ def submit_req(rid: int, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = approver
     obj.approve_remark = "系统自动审批（一人公司）"
-    # 联动：采购申请审批通过 → 自动生成「确认应付」凭证（幂等）
-    voucher_service.generate_from_purchase(db, obj, maker=approver)
+    # 采购申请不再生成凭证；费用在报销单提交财务/归档时入账
     db.commit()
     db.refresh(obj)
     return obj
@@ -152,8 +153,7 @@ def approve_req(rid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
-    # 联动：采购申请审批通过 → 自动生成「确认应付」凭证（幂等，已生成则跳过）
-    voucher_service.generate_from_purchase(db, obj, maker=obj.approver)
+    # 采购申请不再生成凭证；费用在报销单提交财务/归档时入账
     db.commit()
     db.refresh(obj)
     return obj
@@ -170,6 +170,24 @@ def reject_req(rid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{rid}/revert", response_model=s.PurchaseReqRead)
+def revert_req(rid: int, db: Session = Depends(get_db)):
+    """退回：已通过 → 草稿（允许修改后重新提交）。"""
+    obj = _get_or_404(db, rid)
+    if "revert" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前状态「{obj.status}」不允许退回，仅「已通过」状态可退回",
+        )
+    obj.status = _STATUS_FLOW[obj.status]["revert"]
+    obj.approve_date = None
+    obj.approver = None
+    obj.approve_remark = None
     db.commit()
     db.refresh(obj)
     return obj

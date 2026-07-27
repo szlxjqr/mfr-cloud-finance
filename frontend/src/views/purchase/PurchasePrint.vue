@@ -325,18 +325,5 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 </style>
 
 <style>
-/* 全局打印样式：隐藏弹窗遮罩/侧边栏/页头 */
-@media print {
-  body * { visibility: hidden !important; }
-  .purchase-form,
-  .purchase-form * { visibility: visible !important; }
-  .purchase-form {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    z-index: 99999 !important;
-  }
-  .el-overlay { display: none !important; }
-}
+/* 打印层的布局由 MyPurchase.vue 统一控制；这里不再使用 body * visibility 隐藏。 */
 </style>

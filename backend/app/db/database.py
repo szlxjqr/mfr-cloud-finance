@@ -75,6 +75,7 @@ def init_db() -> None:
     _seed_admin(engine)
     _seed_subjects(engine)
     _ensure_accum_dep_subject(engine)
+    _fix_rd_expense_category(engine)
     _seed_company_settings(engine)
     _seed_hr_contract_template(engine)
 
@@ -249,7 +250,7 @@ _SUBJECT_SEED: list[dict] = [
     # ── 成本类（借）──
     {"code": "4001", "name": "生产成本", "category": "成本", "direction": "借"},
     {"code": "4101", "name": "制造费用", "category": "成本", "direction": "借"},
-    {"code": "4301", "name": "研发支出", "category": "成本", "direction": "借"},
+    {"code": "4301", "name": "研发支出", "category": "损益", "direction": "借"},
     # ── 损益类 ──
     {"code": "5001", "name": "主营业务收入", "category": "损益", "direction": "贷"},
     {"code": "5051", "name": "其他业务收入", "category": "损益", "direction": "贷"},
@@ -315,6 +316,25 @@ def _ensure_accum_dep_subject(engine) -> None:
             )
         )
         db.commit()
+
+
+def _fix_rd_expense_category(engine) -> None:
+    """将 4301 研发支出科目分类从「成本」修正为「损益」（费用化，不做资本化）。
+
+    _seed_subjects 仅在科目表为空时写入，故老库的 4301 仍为「成本」分类。
+    此函数将其修正为「损益」，使报表引擎将其归入利润表费用项而非资产负债表非流动资产。
+    """
+    from sqlalchemy import select
+
+    from app.models import subject as _models
+
+    with SessionLocal() as db:
+        sub = db.scalar(
+            select(_models.AccountSubject).where(_models.AccountSubject.code == "4301")
+        )
+        if sub and sub.category != "损益":
+            sub.category = "损益"
+            db.commit()
 
 
 def _ensure_hr_contract_columns(engine) -> None:

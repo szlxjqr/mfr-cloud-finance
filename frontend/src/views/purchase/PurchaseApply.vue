@@ -30,9 +30,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="260" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="row.status === '草稿' || row.status === '已驳回'" link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button
             v-for="act in transformActions(row)"
             :key="act.action"
@@ -40,7 +40,7 @@
             :type="act.type"
             @click="runAction(act.action, row)"
           >{{ act.label }}</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button v-if="row.status === '草稿' || row.status === '已驳回'" link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -167,11 +167,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
+import { reimburseApi } from '@/api/reimburse'
 import type { PurchaseReq, PurchaseItem } from '@/types/purchase'
 
-const statusOptions = ['草稿', '待审批', '已通过', '已驳回']
+const router = useRouter()
+const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
@@ -221,9 +224,9 @@ const emptyForm = () => ({
 const form = reactive(emptyForm())
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject'
+  action: 'submit' | 'approve' | 'reject' | 'revert' | 'to_reimburse'
   label: string
-  type: 'warning' | 'success' | 'danger'
+  type: 'warning' | 'success' | 'danger' | 'info' | 'primary'
 }
 function transformActions(row: PurchaseReq): RowAction[] {
   switch (row.status) {
@@ -234,6 +237,11 @@ function transformActions(row: PurchaseReq): RowAction[] {
       return [
         { action: 'approve', label: '通过', type: 'success' },
         { action: 'reject', label: '驳回', type: 'danger' },
+      ]
+    case '已通过':
+      return [
+        { action: 'to_reimburse', label: '转报销', type: 'primary' },
+        { action: 'revert', label: '退回', type: 'info' },
       ]
     default:
       return []
@@ -367,6 +375,44 @@ async function runAction(action: RowAction['action'], row: PurchaseReq) {
     approveRow.value = row
     approveForm.value = { approver: '', remark: '' }
     approveDialogVisible.value = true
+    return
+  }
+  if (action === 'revert') {
+    try {
+      await ElMessageBox.confirm(
+        `确认退回采购申请「${row.req_no ?? row.id}」至草稿状态？退回后可修改重新提交。`,
+        '退回确认',
+        { type: 'warning', confirmButtonText: '确认退回', cancelButtonText: '取消' },
+      )
+    } catch {
+      return
+    }
+    try {
+      await purchaseApi.revert(row.id)
+      ElMessage.success('已退回至草稿')
+      load()
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.detail || '退回失败')
+    }
+    return
+  }
+  if (action === 'to_reimburse') {
+    try {
+      await ElMessageBox.confirm(
+        `确认将采购申请「${row.req_no ?? row.id}」转为报销单？转后进入草稿态，可挂接发票后提交审批。`,
+        '转报销确认',
+        { type: 'warning', confirmButtonText: '确认转报销', cancelButtonText: '取消' },
+      )
+    } catch {
+      return
+    }
+    try {
+      await reimburseApi.fromPurchase(row.id)
+      ElMessage.success('已生成报销单，正在跳转…')
+      router.push('/purchase/reimburse')
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.detail || '转报销失败')
+    }
     return
   }
   await purchaseApi.submit(row.id)

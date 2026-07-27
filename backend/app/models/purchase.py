@@ -30,7 +30,7 @@ class PurchaseRequisition(Base):
     supplier: Mapped[Optional[str]] = mapped_column(String(200))  # 建议供应商（首项）
     expected_date: Mapped[Optional[date]] = mapped_column(Date)  # 预计采购日期
     reason: Mapped[Optional[str]] = mapped_column(Text)  # 采购事由
-    status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回
+    status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回/已支付(兼容旧数据)
     submit_date: Mapped[Optional[date]] = mapped_column(Date)  # 提交日期
     approver: Mapped[Optional[str]] = mapped_column(String(100))  # 审批人
     approve_date: Mapped[Optional[date]] = mapped_column(Date)  # 审批日期

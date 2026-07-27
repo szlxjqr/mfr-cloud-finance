@@ -17,10 +17,13 @@ from app.services import voucher_service  # 联动：审批通过 → 自动生�
 router = APIRouter(prefix="/reimbursements", tags=["reimbursements"])
 
 # 状态流转白名单：当前状态 -> 允许的动作 -> 目标状态
+# 新流程：草稿→待审批→已通过→(提交财务)→已归档→(支付)→已支付
+# 凭证生成时机后移到「提交财务(归档)」，审批通过只改状态不入账，可退回修改
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
-    "已通过": {"pay": "已支付"},
+    "已通过": {"submit_finance": "已归档", "revert": "草稿"},
+    "已归档": {"pay": "已支付"},
     "已驳回": {"submit": "待审批"},  # 重新提交
     "已支付": {},  # 终态
 }
@@ -81,11 +84,11 @@ def create_bill(payload: s.ReimbursementBillCreate, db: Session = Depends(get_db
 
 @router.post("/from-purchase/{rid}", response_model=s.ReimbursementBillRead, status_code=201)
 def convert_from_purchase(rid: int, db: Session = Depends(get_db)):
-    """采购申请单 → 报销单：预填申请人/部门/金额/事由，状态置「待审批」待审批。
+    """采购申请单 → 报销单：预填申请人/部门/金额/事由，状态置「草稿」待挂接发票后提交。
 
     幂等：同一采购单已生成过报销单则返回 409 并提示原单号，避免重复生成。
-    生成的报销单进入独立审批流（前端 /reimburse/bill），审批通过才允许付款
-    （付款仅作账务调整，不触发真实银行付款）。
+    生成的报销单进入草稿态，用户挂接发票后提交审批（自动审批通过），
+    再提交财务归档形成待支付挂账，最后支付（仅账务调整，不触发真实银行付款）。
     """
     from app.models import purchase as pm
 
@@ -114,8 +117,7 @@ def convert_from_purchase(rid: int, db: Session = Depends(get_db)):
         department=req.department,
         amount=req.expected_amount or 0,
         reason=reason,
-        status="待审批",
-        submit_date=date.today(),
+        status="草稿",
         bill_type="采购报销",
         purchase_requisition_id=rid,
     )
@@ -161,7 +163,7 @@ def delete_bill(bid: int, db: Session = Depends(get_db)):
 # ================= 状态流转 =================
 @router.post("/{bid}/submit", response_model=s.ReimbursementBillRead)
 def submit_bill(bid: int, db: Session = Depends(get_db)):
-    """提交报销单 → 一人公司自动审批通过（并联动生成凭证）。"""
+    """提交报销单 → 一人公司自动审批通过（不生成凭证，凭证在提交财务/归档时生成）。"""
     obj = _get_or_404(db, bid)
     if "submit" not in _STATUS_FLOW.get(obj.status, {}):
         raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许提交")
@@ -173,8 +175,7 @@ def submit_bill(bid: int, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = approver
     obj.approve_remark = "系统自动审批（一人公司）"
-    # 联动：报销单审批通过 → 自动生成记账凭证（幂等）
-    voucher_service.generate_from_reimbursement(db, obj, maker=approver)
+    # 凭证生成已后移到 submit_finance（提交财务/归档），此处不再调用
     db.commit()
     db.refresh(obj)
     return obj
@@ -191,8 +192,7 @@ def approve_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
-    # 联动：报销单审批通过 → 自动生成记账凭证（幂等，已生成则跳过）
-    voucher_service.generate_from_reimbursement(db, obj, maker=obj.approver)
+    # 凭证生成已后移到 submit_finance（提交财务/归档），此处不再调用
     db.commit()
     db.refresh(obj)
     return obj
@@ -214,11 +214,52 @@ def reject_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     return obj
 
 
+@router.post("/{bid}/submit-finance", response_model=s.ReimbursementBillRead)
+def submit_finance_bill(bid: int, db: Session = Depends(get_db)):
+    """提交财务 → 已归档（不可逆）：此时自动生成费用凭证，形成待支付挂账。
+
+    凭证规则（按来源采购单的 is_rd_project 区分借方科目）：
+    - 研发项目 → 借 研发支出(4301) + 借 进项税额 + 贷 其他应付款(2241)
+    - 非研发   → 借 管理费用(5602) + 借 进项税额 + 贷 其他应付款(2241)
+    幂等：source_type='报销单', source_no=bill_no 已存在则跳过。
+    """
+    obj = _get_or_404(db, bid)
+    if "submit_finance" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前状态「{obj.status}」不允许提交财务，仅「已通过」状态可提交",
+        )
+    obj.status = _STATUS_FLOW[obj.status]["submit_finance"]
+    # 联动：提交财务/归档 → 自动生成记账凭证（幂等）
+    voucher_service.generate_from_reimbursement(db, obj, maker=obj.approver or "system")
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{bid}/revert", response_model=s.ReimbursementBillRead)
+def revert_bill(bid: int, db: Session = Depends(get_db)):
+    """退回：已通过 → 草稿（允许修改后重新提交）。归档后不可退回。"""
+    obj = _get_or_404(db, bid)
+    if "revert" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前状态「{obj.status}」不允许退回，仅「已通过」状态可退回",
+        )
+    obj.status = _STATUS_FLOW[obj.status]["revert"]
+    obj.approve_date = None
+    obj.approver = None
+    obj.approve_remark = None
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
 @router.post("/{bid}/pay", response_model=s.ReimbursementBillRead)
 def pay_bill(bid: int, db: Session = Depends(get_db)):
     obj = _get_or_404(db, bid)
     if "pay" not in _STATUS_FLOW.get(obj.status, {}):
-        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许支付")
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许支付，仅「已归档」状态可支付")
     obj.status = _STATUS_FLOW[obj.status]["pay"]
     obj.pay_date = date.today()
     # 联动：支付报销款 → 自动生成付款凭证（借其他应付款 / 贷银行存款，幂等）

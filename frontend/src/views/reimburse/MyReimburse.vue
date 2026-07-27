@@ -44,7 +44,7 @@
       </el-table-column>
       <el-table-column prop="submit_date" label="提交日期" width="110" />
       <el-table-column prop="approve_date" label="审批日期" width="110" />
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">查看详情</el-button>
           <el-button link type="success" @click="openAttachInvoice(row)">挂发票</el-button>
@@ -52,25 +52,46 @@
             v-if="row.status === '已通过'"
             link
             type="primary"
+            @click="submitFinanceRow(row)"
+          >提交财务</el-button>
+          <el-button
+            v-if="row.status === '已通过'"
+            link
+            type="info"
+            @click="revertRow(row)"
+          >退回</el-button>
+          <el-button
+            v-if="row.status === '已归档'"
+            link
+            type="success"
             @click="payRow(row)"
-          >付款</el-button>
+          >支付</el-button>
         </template>
       </el-table-column>
       </el-table>
       </DataLoader>
 
-    <!-- 报销单详情弹窗：按报销类型渲染物品报销单 / 差旅报销单 -->
+    <!-- 报销单详情弹窗：BillDetail 内部已用共享打印函数，差旅/采购自动适配 -->
     <el-dialog v-model="detailVisible" :title="detailTitle" width="950px" :close-on-click-modal="false" class="detail-dialog">
-      <BillDetail v-if="currentBill && billType(currentBill) === '采购报销'" :bill="currentBill" />
-      <TravelBillDetail v-else-if="currentBill" :bill="currentBill" />
+      <BillDetail v-if="currentBill" :bill="currentBill" />
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
           <el-button
             v-if="currentBill && currentBill.status === '已通过'"
+            type="primary"
+            @click="submitFinanceRow(currentBill)"
+          >提交财务</el-button>
+          <el-button
+            v-if="currentBill && currentBill.status === '已通过'"
+            type="info"
+            @click="revertRow(currentBill)"
+          >退回</el-button>
+          <el-button
+            v-if="currentBill && currentBill.status === '已归档'"
             type="success"
             @click="payRow(currentBill)"
-          >付款</el-button>
+          >支付</el-button>
           <el-button type="primary" @click="printDetail">打印报销单</el-button>
         </div>
       </template>
@@ -92,7 +113,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { reimburseApi } from '@/api/reimburse'
 import type { ReimbursementBill } from '@/types/reimburse'
 import BillDetail from './BillDetail.vue'
-import TravelBillDetail from './TravelBillDetail.vue'
+import { buildReimbursePrintDocument } from '@/utils/reimbursePrint'
 import InvoiceRecognizeDialog from '@/components/InvoiceRecognizeDialog.vue'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 
@@ -108,12 +129,11 @@ const recognizeVisible = ref(false)
 const attachVisible = ref(false)
 const attachBill = ref<ReimbursementBill | null>(null)
 
-const billType = (b: ReimbursementBill) => b.bill_type || '采购报销'
 const detailTitle = computed(() =>
   (currentBill.value?.bill_type || '采购报销') === '差旅报销' ? '差旅报销单' : '物品报销单'
 )
 
-const statusOptions = ['待审批', '已通过', '已驳回', '已支付']
+const statusOptions = ['待审批', '已通过', '已归档', '已驳回', '已支付']
 
 function invoiceTotal(bill: ReimbursementBill): number {
   return (bill.invoices || []).reduce((sum, inv) => {
@@ -191,75 +211,69 @@ async function payRow(bill: ReimbursementBill) {
   }
 }
 
-function printDetail() {
-  // 克隆报销单表单到独立打印窗口：
-  // 彻底绕开 el-dialog 的 fixed/overflow/居中 对打印分页的干扰（它会把表单头部顶出可打印区而被裁掉）。
-  const form = document.querySelector('.detail-dialog .expense-form') as HTMLElement | null
-  if (!form) {
-    window.print()
+async function submitFinanceRow(bill: ReimbursementBill) {
+  try {
+    await ElMessageBox.confirm(
+      `确认将报销单「${bill.bill_no || ('#' + bill.id)}」提交财务？提交后不可退回，将自动生成记账凭证形成待支付挂账。`,
+      '提交财务确认',
+      { type: 'warning', confirmButtonText: '确认提交', cancelButtonText: '取消' },
+    )
+  } catch {
     return
   }
-
-  const win = window.open('', '_blank')
-  if (!win) {
-    // 弹窗被拦截时的兜底：仍用整页打印
-    window.print()
-    return
-  }
-
-  // 收集当前页面的全部样式（dev 为 <style> 注入、生产为 <link>），保证克隆出的表单样式一致
-  const styleTexts = Array.from(document.querySelectorAll('style'))
-    .map((s) => s.textContent || '')
-    .filter(Boolean)
-  const linkHrefs = Array.from(document.querySelectorAll('link[rel="stylesheet"]')).map(
-    (l) => (l as HTMLLinkElement).href
-  )
-
-  // 打印窗口专用：A4 + 整卡不跨页 + 灰度保留
-  const printCss = `
-    @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; }
-    .expense-form {
-      width: auto !important;
-      min-height: 0 !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none !important;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
+  try {
+    await reimburseApi.submitFinance(bill.id)
+    ElMessage.success('已提交财务，生成记账凭证')
+    if (currentBill.value && currentBill.value.id === bill.id) {
+      currentBill.value = { ...currentBill.value, status: '已归档' }
     }
-    .form-title, .section-title { break-after: avoid; page-break-after: avoid; }
-    .info-table, .sign-table, .detail-table { break-inside: avoid; page-break-inside: avoid; }
-    .invoice-cards { break-inside: auto; }
-    .invoice-box { break-inside: avoid; page-break-inside: avoid; -webkit-column-break-inside: avoid; }
-  `
-
-  win.document.open()
-  win.document.write('<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">')
-  win.document.write(`<title>${detailTitle.value}</title>`)
-  linkHrefs.forEach((h) => win.document.write(`<link rel="stylesheet" href="${h}">`))
-  styleTexts.forEach((css) => win.document.write(`<style>${css}</style>`))
-  win.document.write(`<style>${printCss}</style>`)
-  win.document.write('</head><body>')
-  win.document.write(form.outerHTML)
-  win.document.write('</body></html>')
-  win.document.close()
-
-  // 等样式与字体加载完成再打印，避免空白/错位；用守卫避免重复打印
-  let printed = false
-  const triggerPrint = () => {
-    if (printed) return
-    printed = true
-    win.focus()
-    win.print()
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '提交财务失败')
   }
-  if (win.document.readyState === 'complete') {
-    setTimeout(triggerPrint, 300)
-  } else {
-    win.onload = triggerPrint
-    // 兜底：若 onload 未触发，600ms 后强制打印
-    setTimeout(triggerPrint, 600)
+}
+
+async function revertRow(bill: ReimbursementBill) {
+  try {
+    await ElMessageBox.confirm(
+      `确认退回报销单「${bill.bill_no || ('#' + bill.id)}」至草稿状态？退回后可修改重新提交。`,
+      '退回确认',
+      { type: 'warning', confirmButtonText: '确认退回', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
   }
+  try {
+    await reimburseApi.revert(bill.id)
+    ElMessage.success('已退回至草稿')
+    if (currentBill.value && currentBill.value.id === bill.id) {
+      currentBill.value = { ...currentBill.value, status: '草稿' }
+    }
+    load()
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '退回失败')
+  }
+}
+
+function printDetail() {
+  const b = currentBill.value
+  if (!b) {
+    ElMessage.warning('请先打开报销单详情再打印')
+    return
+  }
+  // 弹窗和打印共用同一份 HTML（保证屏幕上看到 = 打印出来的）
+  const html = buildReimbursePrintDocument(b, detailTitle.value)
+
+  const iframe = document.createElement('iframe')
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none;'
+  document.body.appendChild(iframe)
+  const doc = iframe.contentWindow!.document
+  doc.open()
+  doc.write(html)
+  doc.close()
+  iframe.contentWindow!.focus()
+  iframe.contentWindow!.print()
+  setTimeout(() => { if (iframe.parentNode) iframe.parentNode.removeChild(iframe) }, 2000)
 }
 
 onMounted(load)

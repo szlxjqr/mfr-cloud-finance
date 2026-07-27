@@ -1,8 +1,10 @@
 """联动核心：业务单审批通过 → 自动生成记账凭证。
 
 这是「以业务为入口、联动账务」的发动机：
-- 报销单（采购报销/差旅报销）审批通过 → 借 费用 + 借 进项税额 + 贷 其他应付款（员工）
-- 采购申请审批通过 → 借 存货/研发支出 + 贷 应付账款（供应商）
+- 报销单（采购报销/差旅报销）提交财务归档 → 借 费用 + 借 进项税额 + 贷 其他应付款（员工）
+  - 采购报销借方按来源采购单的 is_rd_project 区分：研发→研发支出(4301)，非研发→管理费用(5602)
+  - 差旅报销无采购单关联，统一借 管理费用(5602)
+- 采购申请不再生成凭证（确认应付凭证已废弃），费用在报销单归档时入账
 
 科目编码采用「小企业会计准则」风格，全部来自 account_subjects 种子表；
 生成时按 code 查 name，找不到则回退用 code 本身（不应发生，因为已种子）。
@@ -105,17 +107,26 @@ def _make_voucher(
 
 # ==================== 报销单 → 凭证 ====================
 def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker: str) -> Optional[vm.Voucher]:
-    """报销单审批通过 → 自动凭证。
+    """报销单提交财务/归档 → 自动凭证。
 
-    规则（与发票明细联动）：
-    - 有发票明细：借 管理费用(不含税合计) + 借 进项税额(税额合计) + 贷 其他应付款(价税合计)
-    - 无发票明细：借 管理费用(报销金额) + 贷 其他应付款(报销金额)
+    规则（与发票明细联动，按来源采购单 is_rd_project 区分借方）：
+    - 有发票明细：
+      - 研发项目 → 借 研发支出(4301)(不含税合计) + 借 进项税额(税额合计) + 贷 其他应付款(价税合计)
+      - 非研发   → 借 管理费用(5602)(不含税合计) + 借 进项税额(税额合计) + 贷 其他应付款(价税合计)
+    - 无发票明细：借 管理费用(报销金额) + 贷 其他应付款(报销金额)（差旅报销无采购单关联）
     幂等：source_type='报销单', source_no=bill_no 已存在则跳过。
     """
     if _exists(db, "报销单", bill.bill_no):
         return None
 
     v_date = bill.approve_date or date.today()
+    # 查找来源采购单的 is_rd_project 标记，决定借方科目
+    debit_code = SUB_MANAGE  # 默认管理费用（差旅报销或无采购单关联）
+    if bill.purchase_requisition_id:
+        req = db.get(pm.PurchaseRequisition, bill.purchase_requisition_id)
+        if req and (req.is_rd_project or "") == "是":
+            debit_code = SUB_RDCOST  # 研发支出
+
     # 汇总发票明细（不含税/税额/价税合计）
     invs = db.scalars(
         select(im.Invoice).where(im.Invoice.reimbursement_bill_id == bill.id)
@@ -132,14 +143,14 @@ def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker
     summary = f"报销单 {bill.bill_no} 报销款（{bill.bill_type}）"
     if sum_total > 0:
         entries = [
-            (SUB_MANAGE, "借", summary, sum_amount),
+            (debit_code, "借", summary, sum_amount),
             (SUB_INPUT_TAX, "借", summary, sum_tax),
             (SUB_OTHER_PAY, "贷", summary, sum_total),
         ]
     else:
         amt = bill.amount or Decimal("0")
         entries = [
-            (SUB_MANAGE, "借", summary, amt),
+            (debit_code, "借", summary, amt),
             (SUB_OTHER_PAY, "贷", summary, amt),
         ]
     return _make_voucher(
@@ -148,12 +159,14 @@ def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker
     )
 
 
-# ==================== 采购申请 → 凭证 ====================
+# ==================== 采购申请 → 凭证（保留兼容旧数据，新流程不再调用）====================
 def generate_from_purchase(db: Session, req: "pm.PurchaseRequisition", maker: str) -> Optional[vm.Voucher]:
     """采购申请审批通过 → 自动凭证（确认应付）。
 
     规则：借 原材料(1403) [研发项目则借 研发支出(4301)] + 贷 应付账款(2202)，金额=预计金额。
     幂等：source_type='采购申请', source_no=req_no 已存在则跳过。
+    注意：新流程下采购申请不再生成凭证（费用在报销单归档时入账），
+    此函数保留仅供 sync_from_approved 回填旧数据使用。
     """
     if _exists(db, "采购申请", req.req_no):
         return None
@@ -509,17 +522,20 @@ def unpost_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
 
 # ==================== 批量补生成（回填历史已通过单据）====================
 def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
-    """扫描所有「已通过」的报销单/采购申请，对尚未生成凭证的补生成。
+    """扫描所有「已归档/已支付」的报销单 + 「已通过」的历史采购单/工资单，对尚未生成凭证的补生成。
 
     用于：(1) 历史数据回填；(2) 一键把联动铺开到现有业务单。
     返回 (生成数, 跳过数, 明细日志)。
+    注意：新流程下报销单在「已归档」时才生成凭证，故扫描已归档+已支付。
     """
     generated = 0
     skipped = 0
     logs: List[str] = []
 
     bills = db.scalars(
-        select(rm.ReimbursementBill).where(rm.ReimbursementBill.status == "已通过")
+        select(rm.ReimbursementBill).where(
+            rm.ReimbursementBill.status.in_(["已归档", "已支付"])
+        )
     ).all()
     for b in bills:
         v = generate_from_reimbursement(db, b, maker)
