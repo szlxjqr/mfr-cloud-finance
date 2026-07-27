@@ -99,7 +99,7 @@
         <td class="label">报销金额</td>
         <td class="num num-strong" colspan="2">¥{{ reimburse.toFixed(2) }}</td>
         <td class="label">金额大写</td>
-        <td colspan="2">{{ cnAmount }}</td>
+        <td class="cn-amount" colspan="2">{{ cnAmount }}</td>
       </tr>
     </table>
 
@@ -332,9 +332,9 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   background: #f2f2f2;
   font-weight: 600;
   text-align: center;
-  font-size: 8pt;
+  font-size: 9pt;
 }
-.detail-table td { font-size: 8pt; }
+.detail-table td { font-size: 9pt; }
 .detail-table td.left { text-align: left; }
 
 .label {
@@ -342,7 +342,7 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-weight: 600;
   text-align: center;
   width: 78px;
-  font-size: 8.5pt;
+  font-size: 9pt;
 }
 
 .base-table td { font-size: 9pt; }
@@ -358,10 +358,12 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-family: 'Courier New', monospace;
 }
 
-.date-cell { white-space: nowrap; font-size: 8pt; text-align: center; }
+.date-cell { white-space: nowrap; font-size: 9pt; text-align: center; }
 
-.num { text-align: right; font-family: 'Courier New', monospace; }
-.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 9pt; }
+.num { text-align: right; font-family: 'Courier New', monospace; font-size: 10pt; }
+.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 11pt; }
+.cn-amount { font-size: 10pt; font-weight: 600; }
+.unit-sub { font-size: 8pt; font-weight: normal; color: #555; }
 
 .sign-table td { text-align: center; height: 28px; }
 .sign-row td { height: 56px; }

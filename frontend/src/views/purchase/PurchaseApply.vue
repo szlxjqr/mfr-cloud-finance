@@ -597,12 +597,12 @@ body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding:0; margi
 .section-title { font-weight:bold; margin:12px 0 5px; font-size:10pt; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 .info-table td, .detail-table th, .detail-table td, .sign-table td { border:1px solid #333; padding:3px 5px; word-break:break-all; vertical-align:middle; }
-.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:8.5pt; }
-.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:8pt; }
-.detail-table td { font-size:8pt; }
-.num { text-align:right; font-family:'Courier New',monospace; }
-.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:9pt; }
-.cn-amount { font-size:9pt; font-weight:600; }
+.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:9pt; }
+.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:9pt; }
+.detail-table td { font-size:9pt; }
+.num { text-align:right; font-family:'Courier New',monospace; font-size:10pt; }
+.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:11pt; }
+.cn-amount { font-size:10pt; font-weight:600; }
 .sign-table td { text-align:center; height:28px; }
 .sign-row td { height:56px; }
 .form-footer { margin-top:12px; font-size:9pt; color:#333; }
@@ -619,7 +619,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
   <table class="info-table base-table">
     <tr>
       <td class="label">申请单号</td><td class="bill-no" style="word-break:break-all;text-align:center;font-family:'Courier New',monospace;font-size:12pt;font-weight:bold;letter-spacing:0.5px;color:#000">${p.req_no || '-'}</td>
-      <td class="label">申请日期</td><td style="white-space:nowrap;text-align:center;font-size:8pt">${p.submit_date || '-'}</td>
+      <td class="label">申请日期</td><td style="white-space:nowrap;text-align:center;font-size:9pt">${p.submit_date || '-'}</td>
       <td class="label">申请人</td><td>${p.applicant || '-'}</td>
     </tr>
     <tr>
@@ -642,7 +642,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
   <div class="section-title">三、汇总与付款</div>
   <table class="info-table summary-table">
     <tr>
-      <td class="label">采购总金额<br><span style="font-size:7pt;font-weight:normal;color:#555">（元）</span></td>
+      <td class="label">采购总金额<br><span style="font-size:8pt;font-weight:normal;color:#555">（元）</span></td>
       <td class="num-strong" colspan="2">¥${fmtMoney(p.expected_amount, '0.00')}</td>
       <td class="label">金额大写</td>
       <td colspan="3" class="cn-amount">${amountInWords}</td>
@@ -650,7 +650,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
     <tr>
       <td class="label">状态</td><td>${p.status}</td>
       <td class="label">审批人</td><td>${p.approver || '-'}</td>
-      <td class="label">审批日期</td><td style="white-space:nowrap;text-align:center;font-size:8pt" colspan="2">${p.approve_date || '-'}</td>
+      <td class="label">审批日期</td><td style="white-space:nowrap;text-align:center;font-size:9pt" colspan="2">${p.approve_date || '-'}</td>
     </tr>
     <tr><td class="label">审批意见</td><td colspan="6">${p.approve_remark || '-'}</td></tr>
   </table>

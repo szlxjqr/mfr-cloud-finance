@@ -944,7 +944,7 @@ function printReimbursement() {
         <td class="left">${it.item_name || '-'}</td>
         <td style="width:130px">${matched.map((inv) => inv.no).join(', ') || '-'}</td>
         <td style="width:140px">${matched.map((inv) => inv.seller_name).join(', ') || '-'}</td>
-        <td style="width:100px;text-align:center;font-size:8pt">${matched.map((inv) => inv.invoice_date).filter(Boolean).join(', ') || '-'}</td>
+        <td style="width:100px;text-align:center">${matched.map((inv) => inv.invoice_date).filter(Boolean).join(', ') || '-'}</td>
         <td style="width:110px" class="num">¥${total.toFixed(2)}</td>
         <td class="left">${it.remark || '-'}</td>
       </tr>`
@@ -956,7 +956,7 @@ function printReimbursement() {
     <thead><tr>
       <th style="width:40px">编号</th><th>采购内容</th>
       <th style="width:130px">发票号</th><th style="width:140px">销售方</th>
-      <th style="width:100px">开票日期</th><th style="width:110px">发票金额<br><span style="font-size:7pt;font-weight:normal;color:#555">（价税合计）</span></th>
+      <th style="width:100px">开票日期</th><th style="width:110px">发票金额<br><span style="font-size:8pt;font-weight:normal;color:#555">（价税合计）</span></th>
       <th>备注</th>
     </tr></thead>
     <tbody>${purchaseDetailRows}</tbody>
@@ -977,14 +977,15 @@ body { font-family: 'PingFang SC','Microsoft YaHei',sans-serif; padding:0; margi
 .section-title { font-weight:bold; margin:12px 0 5px; font-size:10pt; }
 table { width:100%; border-collapse:collapse; table-layout:fixed; }
 .info-table td, .sign-table td, .detail-table th, .detail-table td { border:1px solid #333; padding:3px 5px; word-break:break-all; vertical-align:middle; }
-.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:8pt; }
-.detail-table td { font-size:8pt; }
+.detail-table th { background:#f2f2f2; font-weight:600; text-align:center; font-size:9pt; }
+.detail-table td { font-size:9pt; }
 .detail-table td.left { text-align:left; }
-.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:8.5pt; }
-.num { text-align:right; font-family:'Courier New',monospace; }
-.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:9pt; }
+.label { background:#f2f2f2; font-weight:600; text-align:center; width:78px; font-size:9pt; }
+.num { text-align:right; font-family:'Courier New',monospace; font-size:10pt; }
+.num-strong { text-align:right; font-weight:bold; font-family:'Courier New',monospace; font-size:11pt; }
+.cn-amount { font-size:10pt; font-weight:600; }
 .bill-no { word-break:break-all; text-align:center; font-family:'Courier New',monospace; font-size:12pt; font-weight:bold; letter-spacing:0.5px; color:#000; }
-.date-cell { white-space:nowrap; text-align:center; font-size:8pt; }
+.date-cell { white-space:nowrap; text-align:center; font-size:9pt; }
 .sign-table td { text-align:center; height:28px; }
 .sign-row td { height:56px; }
 .form-footer { margin-top:12px; font-size:9pt; color:#333; }
@@ -1026,7 +1027,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
     </tr>
     <tr>
       <td class="label">报销金额</td><td class="num num-strong" colspan="2">¥${reimburse.toFixed(2)}</td>
-      <td class="label">金额大写</td><td colspan="2">${cnAmount}</td>
+      <td class="label">金额大写</td><td class="cn-amount" colspan="2">${cnAmount}</td>
     </tr>
   </table>
   <div class="section-title">四、审批与支付</div>

@@ -288,9 +288,9 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-weight: 600;
   text-align: center;
   width: 78px;
-  font-size: 8.5pt;
+  font-size: 9pt;
 }
-.label .unit-sub { font-size: 7pt; font-weight: normal; color: #555; }
+.label .unit-sub { font-size: 8pt; font-weight: normal; color: #555; }
 
 .base-table td { font-size: 9pt; }
 
@@ -305,17 +305,17 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
   font-family: 'Courier New', monospace;
 }
 
-.date-cell { white-space: nowrap; font-size: 8pt; text-align: center; }
+.date-cell { white-space: nowrap; font-size: 9pt; text-align: center; }
 
-.detail-table th { background: #f2f2f2; font-weight: 600; text-align: center; font-size: 8pt; }
-.detail-table td { font-size: 8pt; }
+.detail-table th { background: #f2f2f2; font-weight: 600; text-align: center; font-size: 9pt; }
+.detail-table td { font-size: 9pt; }
 .detail-table td.left { text-align: left; }
 
-.num { text-align: right; font-family: 'Courier New', monospace; }
-.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 9pt; }
-.cn-amount { font-size: 9pt; font-weight: 600; }
+.num { text-align: right; font-family: 'Courier New', monospace; font-size: 10pt; }
+.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 11pt; }
+.cn-amount { font-size: 10pt; font-weight: 600; }
 
-.summary-table .num-strong { font-size: 9pt; }
+.summary-table .num-strong { font-size: 11pt; }
 
 .empty { text-align: center; color: #999; padding: 20px; }
 
