@@ -30,7 +30,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
-      <el-table-column label="操作" width="260" fixed="right">
+      <el-table-column label="操作" width="300" fixed="right">
         <template #default="{ row }">
           <el-button v-if="row.status === '草稿' || row.status === '已驳回'" link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button
@@ -162,6 +162,23 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 采购申请单浏览弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="采购申请单浏览"
+      width="900px"
+      :close-on-click-modal="false"
+      class="detail-dialog"
+    >
+      <div v-if="detailLoading" class="detail-loading">正在加载采购申请单…</div>
+      <PurchasePrint v-else :purchase="detail" />
+      <template #footer>
+        <div class="detail-footer">
+          <el-button @click="detailVisible = false">关闭</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -172,6 +189,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { purchaseApi } from '@/api/purchase'
 import { reimburseApi } from '@/api/reimburse'
 import type { PurchaseReq, PurchaseItem } from '@/types/purchase'
+import PurchasePrint from './PurchasePrint.vue'
 
 const router = useRouter()
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
@@ -187,6 +205,32 @@ const previewReqNo = ref<string | null>(null)
 
 const approveDialogVisible = ref(false)
 const approveAction = ref<'approve' | 'reject' | null>(null)
+
+// 浏览弹窗
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detail = reactive<PurchaseReq>({
+  id: 0,
+  req_no: '',
+  applicant: '',
+  department: '',
+  item_name: '',
+  spec: '',
+  quantity: 1,
+  expected_amount: 0,
+  supplier: '',
+  expected_date: '',
+  reason: '',
+  status: '草稿',
+  submit_date: '',
+  approver: '',
+  approve_date: '',
+  approve_remark: '',
+  is_rd_project: '否',
+  rd_project_code: '',
+  remark: '',
+  items: [],
+})
 const approveRow = ref<PurchaseReq | null>(null)
 const approveForm = ref({ approver: '', remark: '' })
 const approveFormRef = ref<any>(null)
@@ -224,7 +268,7 @@ const emptyForm = () => ({
 const form = reactive(emptyForm())
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject' | 'revert' | 'to_reimburse'
+  action: 'submit' | 'approve' | 'reject' | 'revert' | 'to_reimburse' | 'view'
   label: string
   type: 'warning' | 'success' | 'danger' | 'info' | 'primary'
 }
@@ -240,6 +284,7 @@ function transformActions(row: PurchaseReq): RowAction[] {
       ]
     case '已通过':
       return [
+        { action: 'view', label: '浏览', type: 'info' },
         { action: 'to_reimburse', label: '转报销', type: 'primary' },
         { action: 'revert', label: '退回', type: 'info' },
       ]
@@ -415,6 +460,10 @@ async function runAction(action: RowAction['action'], row: PurchaseReq) {
     }
     return
   }
+  if (action === 'view') {
+    openDetail(row)
+    return
+  }
   await purchaseApi.submit(row.id)
   ElMessage.success('已提交')
   load()
@@ -446,6 +495,20 @@ async function remove(row: PurchaseReq) {
   await purchaseApi.remove(row.id)
   ElMessage.success('已删除')
   load()
+}
+
+async function openDetail(row: PurchaseReq) {
+  detailVisible.value = true
+  detailLoading.value = true
+  try {
+    const res = await purchaseApi.get(row.id)
+    Object.assign(detail, res.data)
+  } catch (e: any) {
+    Object.assign(detail, row)
+    ElMessage.warning(e?.response?.data?.detail || '详情加载失败，已展示列表数据')
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 onMounted(load)
