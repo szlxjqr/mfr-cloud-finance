@@ -32,6 +32,9 @@
       <el-table-column prop="amount" label="预算金额" width="120" align="right">
         <template #default="{ row }">{{ row.amount != null ? '¥' + Number(row.amount).toFixed(2) : '-' }}</template>
       </el-table-column>
+      <el-table-column label="报销金额" width="120" align="right">
+        <template #default="{ row }">{{ reimburseDisplay(row) }}</template>
+      </el-table-column>
       <el-table-column prop="reason" label="事由" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
@@ -96,8 +99,23 @@
           </el-form-item>
         </template>
 
-        <el-form-item label="金额">
-          <el-input v-model.number="form.amount" type="number" placeholder="0.00（保存发票后自动汇总）" />
+        <el-form-item label="预算金额">
+          <el-input v-model.number="form.amount" type="number" placeholder="0.00（采购报销取采购申请预算）" />
+        </el-form-item>
+        <el-form-item v-if="editing && editingId" label="发票合计">
+          <el-input :model-value="editingInvoiceTotal.toFixed(2)" disabled />
+          <span class="tax-hint">已挂发票含税合计（自动汇总）</span>
+        </el-form-item>
+        <el-form-item v-if="editing && editingId" label="报销金额">
+          <el-input-number
+            v-model="form.reimburse_amount"
+            :min="0"
+            :precision="2"
+            :controls="false"
+            :placeholder="editingInvoiceTotal.toFixed(2) + '（默认=发票合计）'"
+            style="width: 200px"
+          />
+          <span class="tax-hint">默认=发票合计；可调低，须 &gt;0 且 ≤ 发票合计</span>
         </el-form-item>
         <el-form-item label="事由">
           <el-input v-model="form.reason" type="textarea" :rows="2" />
@@ -446,6 +464,11 @@ const editingRow = ref<ReimbursementBill | null>(null)
 const previewBillNo = ref<string | null>(null)
 const linkedInvoices = ref<Invoice[]>([])
 const linkedTableKey = ref(0)
+
+// 编辑中报销单的「发票合计」= 已挂发票含税合计（实时算，不存）
+const editingInvoiceTotal = computed(() => {
+  return linkedInvoices.value.reduce((s, inv) => s + invoiceTotal(inv), 0)
+})
 // 采购细项 id → 名称映射（openEdit 拉取来源采购单的 items 时填充，供"已关联发票"表"对应细项"列展示）
 const itemNameMap = ref<Record<number, string>>({})
 // 编辑模式下当前报销单对应的采购细项（含每条已挂计数）
@@ -483,6 +506,7 @@ const emptyForm = () => ({
   applicant: '',
   department: '',
   amount: null as number | null,
+  reimburse_amount: null as number | null,
   reason: '',
   remark: '',
   bill_type: '采购报销' as string,
@@ -598,6 +622,14 @@ function formatMoney(v: any): string {
   return n.toFixed(2)
 }
 
+// 报销金额显示：优先取 reimburse_amount；为空则回落到发票合计（默认=发票合计）
+function reimburseDisplay(row: ReimbursementBill): string {
+  const ra = row.reimburse_amount != null ? Number(row.reimburse_amount) : null
+  const invoiceTotal = Number(summaryMap.value[row.id]?.total || 0)
+  const v = ra != null ? ra : invoiceTotal
+  return v ? '¥' + v.toFixed(2) : '-'
+}
+
 function invoiceSubtotal(inv: Invoice): number {
   return (inv.details || []).reduce((sum, d) => sum + toNum(d.amount), 0)
 }
@@ -646,7 +678,11 @@ async function openEdit(row: ReimbursementBill) {
   previewBillNo.value = row.bill_no ?? null
   editingRow.value = row
   dialogVisible.value = true
-  loadLinkedInvoices()
+  await loadLinkedInvoices()
+  // 报销金额默认=发票合计（reimburse_amount 为空时回落）
+  if (form.reimburse_amount == null) {
+    form.reimburse_amount = editingInvoiceTotal.value || null
+  }
   // 采购报销且有关联采购单 → 加载细项 + 已挂统计（供编辑弹窗的"采购申请细项"区）
   editPurchaseItems.value = []
   editItemInvoiceCount.value = new Map()
@@ -715,7 +751,21 @@ async function onAttachDone() {
 async function save() {
   const payload: Record<string, unknown> = { ...form }
   if (payload.amount === '' || payload.amount === null) payload.amount = null
+  // 报销金额校验：有发票时须 >0 且 ≤ 发票合计
   if (editing.value && editingId.value != null) {
+    const invTotal = editingInvoiceTotal.value
+    const ra = form.reimburse_amount != null ? Number(form.reimburse_amount) : null
+    if (invTotal > 0) {
+      if (ra == null || ra <= 0) {
+        ElMessage.warning('报销金额须大于 0')
+        return
+      }
+      if (ra > invTotal + 0.01) {
+        ElMessage.warning(`报销金额不能超过发票合计 ¥${invTotal.toFixed(2)}`)
+        return
+      }
+    }
+    if (payload.reimburse_amount === '' || payload.reimburse_amount === null) payload.reimburse_amount = null
     await reimburseApi.update(editingId.value, payload)
     ElMessage.success('已更新')
     dialogVisible.value = false
@@ -797,8 +847,11 @@ function moneyToChinese(n: number): string {
 function printReimbursement(row: ReimbursementBill) {
   const p = row
   const summary = summaryMap.value[row.id] || { total: 0, amount: 0, tax: 0, invoice_count: 0 }
-  const amount = Number(p.amount != null ? p.amount : 0)
-  const cnAmount = moneyToChinese(amount)
+  const budgetAmount = Number(p.amount != null ? p.amount : 0)        // 预算金额
+  const invoiceTotal = Number(summary.total || 0)                      // 发票合计（含税）
+  // 报销金额：优先 reimburse_amount，为空回落到发票合计（默认=发票合计）
+  const reimburse = p.reimburse_amount != null ? Number(p.reimburse_amount) : invoiceTotal
+  const cnAmount = moneyToChinese(reimburse)
   const billType = p.bill_type || '采购报销'
 
   const travelRows = billType === '差旅报销'
@@ -860,7 +913,7 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
     <tr><td class="label">事由</td><td colspan="5">${p.reason || '-'}</td></tr>
     <tr><td class="label">备注</td><td colspan="5">${p.remark || '-'}</td></tr>
   </table>
-  <div class="section-title">二、发票汇总</div>
+  <div class="section-title">二、金额汇总</div>
   <table class="info-table base-table">
     <tr>
       <td class="label">发票张数</td><td>${summary.invoice_count} 张</td>
@@ -868,11 +921,12 @@ table { width:100%; border-collapse:collapse; table-layout:fixed; }
       <td class="label">税额</td><td class="num">¥${Number(summary.tax || 0).toFixed(2)}</td>
     </tr>
     <tr>
-      <td class="label">含税总金额</td><td class="num" colspan="2">¥${Number(summary.total || 0).toFixed(2)}</td>
-      <td class="label">报销金额</td><td class="num num-strong" colspan="2">¥${amount.toFixed(2)}</td>
+      <td class="label">预算金额</td><td class="num" colspan="2">¥${budgetAmount.toFixed(2)}</td>
+      <td class="label">发票合计</td><td class="num" colspan="2">¥${invoiceTotal.toFixed(2)}</td>
     </tr>
     <tr>
-      <td class="label">金额大写</td><td colspan="5">${cnAmount}</td>
+      <td class="label">报销金额</td><td class="num num-strong" colspan="2">¥${reimburse.toFixed(2)}</td>
+      <td class="label">金额大写</td><td colspan="3">${cnAmount}</td>
     </tr>
   </table>
   <div class="section-title">三、审批与支付</div>
@@ -1191,9 +1245,13 @@ async function syncBillAmount() {
   try {
     const sumRes = await invoiceApi.summaryByBill(editingId.value)
     const summary = sumRes.data
-    if (summary.total > 0) {
-      await reimburseApi.update(editingId.value, { amount: summary.total })
-      form.amount = summary.total
+    const invoiceTotal = Number(summary.total || 0)
+    if (invoiceTotal > 0) {
+      // 报销金额默认=发票合计；用户已调低且未超额则保留，否则回落的发票合计
+      const cur = form.reimburse_amount != null ? Number(form.reimburse_amount) : null
+      const newVal = (cur == null || cur > invoiceTotal || cur <= 0) ? invoiceTotal : cur
+      await reimburseApi.update(editingId.value, { reimburse_amount: newVal })
+      form.reimburse_amount = newVal
     }
   } catch (e) {
     // 汇总更新失败不影响主流程

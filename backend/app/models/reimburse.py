@@ -19,7 +19,8 @@ class ReimbursementBill(Base):
     bill_no: Mapped[Optional[str]] = mapped_column(String(50), unique=True)  # 单号：BX + 日期 + 自增序号
     applicant: Mapped[str] = mapped_column(String(100), nullable=False)  # 申请人
     department: Mapped[Optional[str]] = mapped_column(String(100))  # 部门
-    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))  # 报销金额
+    amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))  # 预算金额（采购报销取采购申请 expected_amount）
+    reimburse_amount: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 2))  # 报销金额（实报；默认=发票合计，可调低，约束 0<x≤发票合计）
     reason: Mapped[Optional[str]] = mapped_column(Text)  # 事由
     status: Mapped[str] = mapped_column(String(20), default="草稿")  # 草稿/待审批/已通过/已驳回/已归档/已支付
     submit_date: Mapped[Optional[date]] = mapped_column(Date)  # 提交日期

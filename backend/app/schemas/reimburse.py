@@ -13,6 +13,7 @@ class ReimbursementBillBase(BaseModel):
     applicant: str
     department: Optional[str] = None
     amount: Optional[Decimal] = None
+    reimburse_amount: Optional[Decimal] = None
     reason: Optional[str] = None
     status: str = "草稿"
     submit_date: Optional[date] = None
@@ -39,6 +40,7 @@ class ReimbursementBillUpdate(BaseModel):
     applicant: Optional[str] = None
     department: Optional[str] = None
     amount: Optional[Decimal] = None
+    reimburse_amount: Optional[Decimal] = None
     reason: Optional[str] = None
     status: Optional[str] = None
     submit_date: Optional[date] = None

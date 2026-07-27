@@ -149,6 +149,9 @@ def _ensure_reimbursement_bills_columns(engine) -> None:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN purchase_requisition_id INTEGER"))
         if "pay_date" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN pay_date DATE"))
+        # 报销金额（实报；默认=发票合计，可调低）。预算金额仍用 amount 列。
+        if "reimburse_amount" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN reimburse_amount NUMERIC(18,2)"))
 
 
 def _ensure_purchase_columns(engine) -> None:

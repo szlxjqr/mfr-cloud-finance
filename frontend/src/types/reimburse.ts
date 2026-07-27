@@ -10,6 +10,7 @@ export interface ReimbursementBill {
   applicant: string
   department?: string | null
   amount?: number | null
+  reimburse_amount?: number | null
   reason?: string | null
   status: ReimburseStatus
   submit_date?: string | null
