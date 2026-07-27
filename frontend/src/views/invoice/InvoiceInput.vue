@@ -299,7 +299,7 @@ async function applyAiResult(parsed: ParsedInvoice) {
       await loadList()
       aiDialogVisible.value = false
       const verify = verifyInvoice(parsed)
-      if (verify.consistent) {
+      if (verify.passed) {
         ElMessage.success('已识别并保存发票')
       } else {
         ElMessage.warning(`已保存，但识别数据疑似不符（已保留票面原值）：${verify.warnings.join('；')}`)

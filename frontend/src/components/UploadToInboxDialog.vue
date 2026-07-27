@@ -277,7 +277,6 @@ async function startParsing() {
       const parsed = await parseInvoiceFile(pf.file)
       pf.status = 'done'
       const validated = validateInvoice(parsed)
-      const validationPassed = parsed.validation?.passed === true
       const recognitionConsistent = parsed.recognition?.consistent !== false
       recognizedInvoices.value.push({
         fileName: pf.name,

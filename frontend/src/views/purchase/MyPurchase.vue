@@ -46,7 +46,8 @@
 
     <!-- 采购申请单详情弹窗（A4 预览 + 打印） -->
     <el-dialog v-model="detailVisible" title="采购申请单" width="900px" :close-on-click-modal="false" class="detail-dialog">
-      <PurchasePrint v-if="detail.id" :purchase="detail" />
+      <div v-if="detailLoading" class="detail-loading">正在加载采购申请单…</div>
+      <PurchasePrint v-else :purchase="detail" />
       <template #footer>
         <div class="detail-footer">
           <el-button @click="detailVisible = false">关闭</el-button>
@@ -54,6 +55,11 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 独立打印层：不放在 el-dialog 内，避免弹窗遮罩/transform/高度影响打印内容 -->
+    <div class="print-layer">
+      <PurchasePrint v-if="!detailLoading && detail.id" :purchase="detail" />
+    </div>
   </div>
 </template>
 
@@ -76,6 +82,7 @@ const list = ref<PurchaseReq[]>([])
 const loading = ref(false)
 
 const detailVisible = ref(false)
+const detailLoading = ref(false)
 const detail = reactive<PurchaseReq>({
   id: 0,
   req_no: '',
@@ -123,9 +130,20 @@ async function load() {
   }
 }
 
-function openDetail(row: PurchaseReq) {
-  Object.assign(detail, row)
+async function openDetail(row: PurchaseReq) {
+  // 列表数据可能不含完整 items，打开打印预览时必须重新取详情。
+  detailLoading.value = true
   detailVisible.value = true
+  try {
+    const res = await purchaseApi.get(row.id)
+    Object.assign(detail, res.data)
+  } catch (e: any) {
+    // 详情接口失败时仍展示列表行，避免弹窗白屏。
+    Object.assign(detail, row)
+    ElMessage.warning(e?.response?.data?.detail || '详情加载失败，已展示列表数据')
+  } finally {
+    detailLoading.value = false
+  }
 }
 
 function printPurchase() {
@@ -165,4 +183,21 @@ onMounted(load)
 .page { padding: 16px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
 .detail-footer { display: flex; justify-content: flex-end; gap: 12px; }
+.detail-loading { padding: 80px 0; text-align: center; color: #909399; }
+.print-layer { display: none; }
+</style>
+<style>
+@media print {
+  body * { visibility: hidden !important; }
+  .print-layer,
+  .print-layer * { visibility: visible !important; }
+  .print-layer {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 99999 !important;
+    background: #fff !important;
+  }
+  .el-overlay { display: none !important; }
+}
 </style>

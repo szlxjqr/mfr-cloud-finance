@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>采购申请单测试</title>
+<style>
+/* ====== 直接从 PurchasePrint.vue 复制过来的 scoped 样式 ====== */
+.purchase-form {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 6mm 12mm;
+  box-sizing: border-box;
+  background: #fff;
+  color: #000;
+  font-size: 9pt;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.form-title {
+  position: relative;
+  text-align: center;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+.company { font-size: 15pt; font-weight: bold; letter-spacing: 2px; }
+.doc-type { font-size: 17pt; font-weight: bold; margin-top: 3px; }
+.unit { position: absolute; right: 0; top: 0; font-size: 9pt; color: #333; }
+.section-title { font-weight: bold; margin: 12px 0 5px; font-size: 10pt; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.info-table td, .detail-table th, .detail-table td, .sign-table td {
+  border: 1px solid #333;
+  padding: 3px 5px;
+  word-break: break-all;
+  vertical-align: middle;
+}
+.label { background: #f2f2f2; font-weight: 600; text-align: center; width: 78px; font-size: 8.5pt; }
+.detail-table th { background: #f2f2f2; font-weight: 600; text-align: center; font-size: 8pt; }
+.detail-table td { font-size: 8pt; }
+.num { text-align: right; font-family: 'Courier New', monospace; }
+.num-strong { text-align: right; font-weight: bold; font-family: 'Courier New', monospace; font-size: 9pt; }
+.cn-amount { font-size: 9pt; font-weight: 600; }
+.sign-table td { text-align: center; height: 28px; }
+.sign-row td { height: 56px; }
+.form-footer { margin-top: 12px; font-size: 9pt; color: #333; }
+.empty { text-align: center; color: #999; padding: 20px; }
+</style>
+</head>
+<body>
+<h2 style="margin:20px">测试 1：纯 HTML + 内联 CSS（不依赖 Vue）</h2>
+<div class="purchase-form">
+  <div class="form-title">
+    <div class="company">深圳市流形机器人科技有限公司</div>
+    <div class="doc-type">采购申请单</div>
+    <div class="unit">单位：元</div>
+  </div>
+
+  <div class="section-title">一、基本信息</div>
+  <table class="info-table base-table">
+    <tr>
+      <td class="label">申请单号</td>
+      <td class="bill-no">CG-2026-0001</td>
+      <td class="label">申请日期</td>
+      <td class="date-cell">2026-07-27</td>
+      <td class="label">申请人</td>
+      <td>沈雷</td>
+    </tr>
+    <tr>
+      <td class="label">部门</td>
+      <td>研发部</td>
+      <td class="label">成本中心</td>
+      <td>R&D-001</td>
+      <td class="label">归属研发</td>
+      <td>是（RD-2026-MFR）</td>
+    </tr>
+    <tr>
+      <td class="label">采购事由</td>
+      <td colspan="5">采购测试用服务器配件</td>
+    </tr>
+    <tr>
+      <td class="label">备注</td>
+      <td colspan="5">-</td>
+    </tr>
+  </table>
+
+  <div class="section-title">二、采购明细</div>
+  <table class="detail-table">
+    <thead>
+      <tr>
+        <th style="width:40px">序号</th>
+        <th>物品 / 服务名称</th>
+        <th style="width:120px">规格 / 型号</th>
+        <th style="width:60px">数量</th>
+        <th style="width:90px">单价(元)</th>
+        <th style="width:100px">预算金额(元)</th>
+        <th style="width:130px">建议供应商</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td class="left">GPU 计算卡</td>
+        <td class="left">NVIDIA A100</td>
+        <td>2</td>
+        <td class="num">45000.00</td>
+        <td class="num">90000.00</td>
+        <td class="left">腾讯云</td>
+        <td class="left">-</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td class="left">内存条</td>
+        <td class="left">DDR5 32GB</td>
+        <td>4</td>
+        <td class="num">899.00</td>
+        <td class="num">3596.00</td>
+        <td class="left">京东</td>
+        <td class="left">-</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="section-title">三、汇总与付款</div>
+  <table class="info-table summary-table">
+    <tr>
+      <td class="label">采购总金额<br><span class="unit-sub">（元）</span></td>
+      <td class="num-strong" colspan="2">¥93,596.00</td>
+      <td class="label">金额大写</td>
+      <td colspan="3" class="cn-amount">玖万叁仟伍佰玖拾陆元整</td>
+    </tr>
+    <tr>
+      <td class="label">状态</td>
+      <td>待审批</td>
+      <td class="label">审批人</td>
+      <td>-</td>
+      <td class="label">审批日期</td>
+      <td class="date-cell" colspan="2">-</td>
+    </tr>
+    <tr>
+      <td class="label">审批意见</td>
+      <td colspan="6">-</td>
+    </tr>
+  </table>
+
+  <div class="section-title">四、审批签章</div>
+  <table class="sign-table">
+    <tr>
+      <td class="label">申请人</td>
+      <td class="label">项目负责人 / 部门负责人</td>
+      <td class="label">财务负责人</td>
+      <td class="label">总经理</td>
+    </tr>
+    <tr class="sign-row">
+      <td>沈雷</td><td></td><td></td><td></td>
+    </tr>
+  </table>
+
+  <div class="form-footer">
+    备注：本单经审批通过后方可执行采购；金额以实际采购发票为准，差异应在审批意见中说明。
+  </div>
+</div>
+
+<hr style="margin:40px 20px">
+
+<h2 style="margin:20px">测试 2：后端 dist 中的 CSS 是否被正确加载</h2>
+<p>下面这个元素应该显示为带方框的内容。如果下面一片空白，说明后续构建的 dist 没有被正确加载。</p>
+<div style="width:210mm;min-height:50mm;margin:0 auto;border:1px solid red;padding:12px">
+  <p style="font-size:12pt;color:red"><strong>如果你能看到这段红字，说明基础布局生效了。</strong></p>
+  <p>页面渲染正常，问题在数据或 Vue 组件绑定。</p>
+</div>
+</body>
+</html>

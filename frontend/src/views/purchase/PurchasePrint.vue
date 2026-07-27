@@ -45,7 +45,7 @@
           <th style="width: 120px">规格 / 型号</th>
           <th style="width: 60px">数量</th>
           <th style="width: 90px">单价(元)</th>
-          <th style="width: 100px">金额(元)</th>
+          <th style="width: 100px">预算金额(元)</th>
           <th style="width: 130px">建议供应商</th>
           <th>备注</th>
         </tr>
@@ -243,6 +243,7 @@ function moneyToChinese(n: number): string {
   }
 }
 
+/* ============ 布局样式 ============ */
 .purchase-form {
   width: 210mm;
   min-height: 297mm;
@@ -321,4 +322,21 @@ table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .sign-row td { height: 56px; }
 
 .form-footer { margin-top: 12px; font-size: 9pt; color: #333; }
+</style>
+
+<style>
+/* 全局打印样式：隐藏弹窗遮罩/侧边栏/页头 */
+@media print {
+  body * { visibility: hidden !important; }
+  .purchase-form,
+  .purchase-form * { visibility: visible !important; }
+  .purchase-form {
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    z-index: 99999 !important;
+  }
+  .el-overlay { display: none !important; }
+}
 </style>

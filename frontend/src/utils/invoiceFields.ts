@@ -23,6 +23,7 @@ export interface ParsedLineItem {
   amount: number
   taxRate?: number
   tax: number
+  total?: number
 }
 
 export interface InvoiceValidation {
