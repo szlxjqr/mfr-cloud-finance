@@ -15,6 +15,7 @@
         <el-option label="已识别" value="recognized" />
         <el-option label="已复核" value="reviewed" />
         <el-option label="待复核" value="needs_review" />
+        <el-option label="已拒绝" value="rejected" />
         <el-option label="已挂接" value="linked" />
       </el-select>
       <el-button @click="load">刷新</el-button>
@@ -38,7 +39,7 @@
       <el-table-column type="selection" width="42" />
       <el-table-column label="状态" width="100">
         <template #default="{ row }">
-          <StatusTag :status="row.status" />
+          <StatusTag :status="row.status" :label="row.status === 'rejected' ? '已拒绝' : undefined" />
         </template>
       </el-table-column>
       <el-table-column label="查验" width="100">
@@ -58,7 +59,7 @@
       </el-table-column>
       <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="openLink(row)" :disabled="row.status === 'linked' || row.status === 'needs_review'">挂接</el-button>
+          <el-button size="small" @click="openLink(row)" :disabled="row.status === 'linked' || row.status === 'needs_review' || row.status === 'rejected'">挂接</el-button>
           <el-button v-if="row.status === 'needs_review' || row.status === 'reviewed'" size="small" :type="row.status === 'needs_review' ? 'warning' : 'info'" @click="openReview(row)">{{ row.status === 'needs_review' ? '复核' : '查看' }}</el-button>
           <el-button size="small" @click="openVerify(row)" :disabled="!row.extracted_json">查验</el-button>
           <el-button size="small" type="danger" plain @click="remove(row)">删除</el-button>

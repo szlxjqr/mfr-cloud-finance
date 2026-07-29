@@ -15,4 +15,7 @@ export const travelApi = {
     http.post<TravelReq>(`/travels/${id}/approve`, data),
   reject: (id: number, data: { approver: string; remark?: string }) =>
     http.post<TravelReq>(`/travels/${id}/reject`, data),
+  revert: (id: number) => http.post<TravelReq>(`/travels/${id}/revert`),
+  convertTravel: (id: number) =>
+    http.post<any>(`/reimbursements/from-travel/${id}`),
 }

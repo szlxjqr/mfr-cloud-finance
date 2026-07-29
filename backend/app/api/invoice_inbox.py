@@ -60,6 +60,33 @@ def _dup_of(db: Session, seller_tax_no: Optional[str], no: Optional[str]) -> Opt
     return None
 
 
+# 入库拦截：购买方为自然人姓名（非企业）的发票不能报销入库；火车票（铁路电子客票）豁免。
+SELF_NAME = '深圳市流形机器人科技有限公司'
+ORG_SUFFIX = '股份有限公司|有限责任公司|有限公司|总公司|分公司|子公司|集团|酒店|旅行社|中心|局|厂|店|超市|商场|医院|学校|大学|银行|证券|保险|商行|商厦|企业|研究院|学院'
+
+
+def is_personal_name(buyer_name: Optional[str], invoice_type: Optional[str] = None) -> bool:
+    """购买方为自然人姓名（纯中文 2-4 字、无企业后缀）→ True（应彻底拒绝入库）。
+
+    仅对「发票」类凭证生效：类型含「发票」（增值税专用发票/普通发票/电子发票/数电票等）。
+    火车票、机票行程单、酒店/订单账单（其他票据）及未识别类型一律豁免——
+    这些票据的票面常出现旅客/入住人姓名，不应被误判为个人购买方而拒收。
+    """
+    if not buyer_name:
+        return False
+    # 仅发票类凭证做个人购买方拦截；非发票类（火车票/机票/其他票据）及未识别类型豁免
+    if not invoice_type or '发票' not in invoice_type:
+        return False
+    n = re.sub(r'\s+', '', buyer_name)
+    if not n or n == SELF_NAME:
+        return False
+    if re.search(r'(?:' + ORG_SUFFIX + r')$', n):
+        return False
+    if re.match(r'^[一-鿿]{2,4}$', n):
+        return True
+    return False
+
+
 def _refresh_linked_invoices(db: Session, no: Optional[str], extracted: dict) -> int:
     """发票箱识别结果更新后，级联刷新同号正式发票的头字段与明细（防折扣行负数等残留旧值）。
 
@@ -172,14 +199,20 @@ async def upload(
             _is_manual = (_ej.get("recognition") or {}).get("method") == "manual"
         except Exception:
             pass
+    _buyer = _ej.get("buyerName") if _ej else None
+    _itype = _ej.get("type") if _ej else None
+    _personal = is_personal_name(_buyer, _itype)
     dup = _dup_of(db, _seller, _no)
     if dup:
         # 重复上传：用本次识别结果更新发票箱记录，并级联刷新同号正式发票明细
         if extracted_json:
             dup.extracted_json = extracted_json
             dup.recognized_at = datetime.now()
+            # 个人姓名购买方 → 彻底拒绝（不入库、不隔离待复核、不可人工放行）
+            if _personal:
+                dup.status = "rejected"
             # 双识别一致 → recognized；不一致 → needs_review（人工修正过 → reviewed）
-            if not _consistent:
+            elif not _consistent:
                 dup.status = "needs_review"
             elif _is_manual:
                 dup.status = "reviewed"
@@ -194,8 +227,11 @@ async def upload(
         return resp
     # 先建记录拿 id，再按 id 命名文件（避免重名覆盖）
     if extracted_json:
+        # 个人姓名购买方 → 彻底拒绝（最高优先级，不入库）
+        if _personal:
+            _status = "rejected"
         # 双识别一致 → recognized；不一致 → needs_review（人工修正过 → reviewed）
-        if not _consistent:
+        elif not _consistent:
             _status = "needs_review"
         elif _is_manual:
             _status = "reviewed"
@@ -273,11 +309,17 @@ def update_inbox(iid: int, payload: s.InvoiceInboxUpdate, db: Session = Depends(
         _validation = _rj.get("validation") or {}
         _validation_passed = bool(_validation.get("passed", True))
         _is_manual = _recognition.get("method") == "manual"
+        # 个人姓名购买方 → 彻底拒绝（重新基于提交内容判定，防止人工误放行）
+        _personal = is_personal_name(_rj.get("buyerName"), _rj.get("type"))
     except Exception:
         _consistent = True
         _validation_passed = True
         _is_manual = False
-    if not _consistent:
+        _personal = False
+    # 个人姓名购买方 → 彻底拒绝（最高优先级，不入库、不可人工放行）
+    if _personal:
+        obj.status = "rejected"
+    elif not _consistent:
         obj.status = "needs_review"
     elif _is_manual:
         obj.status = "reviewed"

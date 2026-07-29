@@ -70,6 +70,8 @@ def init_db() -> None:
     _ensure_invoice_columns(engine)
     _ensure_reimbursement_bills_columns(engine)
     _ensure_purchase_columns(engine)
+    _ensure_travel_columns(engine)
+    _ensure_travel_default_items(engine)
     _ensure_employees_columns(engine)
     _ensure_hr_contract_columns(engine)
     _seed_admin(engine)
@@ -100,7 +102,7 @@ def _ensure_invoice_code_column(engine) -> None:
 
 
 def _ensure_invoice_columns(engine) -> None:
-    """为已存在的 invoices 表补加「采购申请 / 采购细项」外键列。
+    """为已存在的 invoices 表补加「采购申请 / 采购细项 / 差旅细项」外键列。
 
     SQLite 的 create_all 只会建缺失的表、不会给已存在的表加列，故单独处理；
     新库由模型约束建好，跳过即可。逐列独立判断，避免老库已加部分列时漏加其余列。
@@ -115,6 +117,9 @@ def _ensure_invoice_columns(engine) -> None:
     if "purchase_requisition_item_id" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE invoices ADD COLUMN purchase_requisition_item_id INTEGER"))
+    if "travel_requisition_item_id" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE invoices ADD COLUMN travel_requisition_item_id INTEGER"))
 
 
 def _ensure_reimbursement_bills_columns(engine) -> None:
@@ -144,9 +149,11 @@ def _ensure_reimbursement_bills_columns(engine) -> None:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_start DATE"))
         if "travel_end" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_end DATE"))
-        # 采购报销场景：关联来源采购申请单 + 实际付款日期
+        # 采购/差旅报销场景：关联来源申请单 + 实际付款日期
         if "purchase_requisition_id" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN purchase_requisition_id INTEGER"))
+        if "travel_requisition_id" not in cols:
+            conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN travel_requisition_id INTEGER"))
         if "pay_date" not in cols:
             conn.execute(text("ALTER TABLE reimbursement_bills ADD COLUMN pay_date DATE"))
         # 报销金额（实报；默认=发票合计，可调低）。预算金额仍用 amount 列。
@@ -169,6 +176,45 @@ def _ensure_purchase_columns(engine) -> None:
         # 实际付款日期（付款动作仅作账务调整，不触发真实付款）
         if "pay_date" not in cols:
             conn.execute(text("ALTER TABLE purchase_requisitions ADD COLUMN pay_date DATE"))
+
+
+def _ensure_travel_columns(engine) -> None:
+    """为已存在的 travel_requisitions 表补加「研发项目」相关字段。"""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    cols = [c["name"] for c in inspector.get_columns("travel_requisitions")]
+    with engine.begin() as conn:
+        if "is_rd_project" not in cols:
+            conn.execute(text("ALTER TABLE travel_requisitions ADD COLUMN is_rd_project VARCHAR(10)"))
+            conn.execute(text("UPDATE travel_requisitions SET is_rd_project = '否' WHERE is_rd_project IS NULL"))
+        if "rd_project_code" not in cols:
+            conn.execute(text("ALTER TABLE travel_requisitions ADD COLUMN rd_project_code VARCHAR(100)"))
+
+
+def _ensure_travel_default_items(engine) -> None:
+    """为存量差旅申请单回填两个默认费用细项（交通费、住宿费）。
+
+    新建的差旅单在 create_req 时自动建细项，但老库已有的差旅单没有 items。
+    travel_requisition_items 表由 create_all 自动建好，此处仅回填数据。
+    """
+    from sqlalchemy import inspect, select, text
+
+    inspector = inspect(engine)
+    if "travel_requisition_items" not in inspector.get_table_names():
+        return  # 表尚未建（理论上 create_all 已跑过，安全兜底）
+
+    with SessionLocal() as db:
+        # 找出没有任何细项的差旅单
+        from app.models import travel as _t
+        reqs = db.scalars(select(_t.TravelRequisition)).all()
+        for req in reqs:
+            if req.items:  # selectin lazy 已加载，有细项则跳过
+                continue
+            req.items.append(_t.TravelRequisitionItem(item_name="交通费", sort_order=0))
+            req.items.append(_t.TravelRequisitionItem(item_name="住宿费", sort_order=1))
+        if reqs:
+            db.commit()
 
 
 def _ensure_employees_columns(engine) -> None:

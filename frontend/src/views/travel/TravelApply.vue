@@ -30,9 +30,9 @@
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="240" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button v-if="row.status === '草稿' || row.status === '已驳回'" link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button
             v-for="act in transformActions(row)"
             :key="act.action"
@@ -40,7 +40,7 @@
             :type="act.type"
             @click="runAction(act.action, row)"
           >{{ act.label }}</el-button>
-          <el-button link type="danger" @click="remove(row)">删除</el-button>
+          <el-button v-if="row.status === '草稿' || row.status === '已驳回'" link type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -56,7 +56,10 @@
           <el-input v-model="form.applicant" placeholder="必填" />
         </el-form-item>
         <el-form-item label="部门">
-          <el-input v-model="form.department" />        </el-form-item>
+          <el-select v-model="form.department" placeholder="请选择部门" clearable style="width: 100%">
+            <el-option v-for="d in DEPARTMENTS" :key="d" :label="d" :value="d" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="出差人">
           <el-input v-model="form.traveler" placeholder="出差人员姓名（可与申请人不同）" />
         </el-form-item>
@@ -76,6 +79,15 @@
         </el-form-item>
         <el-form-item label="差旅预算">
           <el-input v-model.number="form.expected_amount" type="number" placeholder="0.00" />
+        </el-form-item>
+        <el-form-item label="是否研发">
+          <el-radio-group v-model="form.is_rd_project">
+            <el-radio value="是">是</el-radio>
+            <el-radio value="否">否</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.is_rd_project === '是'" label="研发项目编码">
+          <el-input v-model="form.rd_project_code" placeholder="如 RD-2026-001" />
         </el-form-item>
         <el-form-item label="出差事由">
           <el-input v-model="form.reason" type="textarea" :rows="2" />
@@ -115,16 +127,40 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 差旅申请单浏览弹窗 -->
+    <el-dialog
+      v-model="detailVisible"
+      title="差旅申请单浏览"
+      width="900px"
+      :close-on-click-modal="false"
+      class="detail-dialog"
+    >
+      <div v-if="detailLoading" class="detail-loading">正在加载差旅申请单…</div>
+      <TravelPrint v-else-if="detail.id" :row="detail" />
+      <template #footer>
+        <div class="detail-footer">
+          <el-button @click="detailVisible = false">关闭</el-button>
+          <el-button type="primary" @click="doPrint">打印差旅申请单</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { travelApi } from '@/api/travel'
 import type { TravelReq } from '@/types/travel'
+import TravelPrint from './TravelPrint.vue'
+import { printTravelApplication } from '@/utils/travelPrint'
+
+const router = useRouter()
 
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回']
+const DEPARTMENTS = ['总经办', '综合办', '研发部', '市场部']
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
@@ -144,16 +180,54 @@ const approveRules = {
   approver: [{ required: true, message: '请输入审批人', trigger: 'blur' }],
 }
 
+// 浏览弹窗：内嵌打印，采购申请同款
+const detailVisible = ref(false)
+const detailLoading = ref(false)
+const detail = reactive<TravelReq>({
+  id: 0,
+  req_no: '',
+  applicant: '',
+  department: '',
+  traveler: '',
+  destination: '',
+  travel_start: '',
+  travel_end: '',
+  expected_amount: null,
+  reason: '',
+  status: '草稿',
+  is_rd_project: '否',
+  rd_project_code: '',
+  remark: '',
+})
+async function viewDetail(row: TravelReq) {
+  detailVisible.value = true
+  detailLoading.value = true
+  try {
+    const res = await travelApi.get(row.id)
+    Object.assign(detail, res.data)
+  } catch (e: any) {
+    Object.assign(detail, row)
+    ElMessage.warning(e?.response?.data?.detail || '详情加载失败，已展示列表数据')
+  } finally {
+    detailLoading.value = false
+  }
+}
+function doPrint() {
+  printTravelApplication(detail)
+}
+
 const emptyForm = () => ({
   req_no: null as string | null,
   applicant: '沈雷',
-  department: '研发部',
+  department: '',
   traveler: '',
   destination: '',
   travel_start: null as string | null,
   travel_end: null as string | null,
   expected_amount: null as number | null,
   reason: '',
+  is_rd_project: '否',
+  rd_project_code: '',
   remark: '',
 })
 const form = reactive(emptyForm())
@@ -168,9 +242,9 @@ const travelRange = computed<string[]>({
 })
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject'
+  action: 'submit' | 'approve' | 'reject' | 'revert' | 'convert' | 'view'
   label: string
-  type: 'warning' | 'success' | 'danger'
+  type: 'warning' | 'success' | 'danger' | 'primary' | 'info'
 }
 function transformActions(row: TravelReq): RowAction[] {
   switch (row.status) {
@@ -181,6 +255,12 @@ function transformActions(row: TravelReq): RowAction[] {
       return [
         { action: 'approve', label: '通过', type: 'success' },
         { action: 'reject', label: '驳回', type: 'danger' },
+      ]
+    case '已通过':
+      return [
+        { action: 'view', label: '浏览', type: 'info' },
+        { action: 'convert', label: '转报销', type: 'primary' },
+        { action: 'revert', label: '退回', type: 'info' },
       ]
     default:
       return []
@@ -253,6 +333,42 @@ async function runAction(action: RowAction['action'], row: TravelReq) {
     approveDialogVisible.value = true
     return
   }
+  if (action === 'revert') {
+    await travelApi.revert(row.id)
+    ElMessage.success('已退回草稿')
+    load()
+    return
+  }
+  if (action === 'view') {
+    viewDetail(row)
+    return
+  }
+  if (action === 'convert') {
+    try {
+      await ElMessageBox.confirm(
+        `确认将差旅申请单「${row.req_no || ('#' + row.id)}」转为报销单？生成后进入草稿态，可挂接发票后提交审批。`,
+        '转报销单确认',
+        { type: 'warning', confirmButtonText: '确认转换', cancelButtonText: '取消' },
+      )
+    } catch {
+      return
+    }
+    try {
+      const res = await travelApi.convertTravel(row.id)
+      ElMessage.success(`已生成报销单「${res.data.bill_no}」，请挂接发票后提交`)
+      router.push('/travel/reimburse')
+    } catch (e: any) {
+      const status = e?.response?.status
+      const errDetail = e?.response?.data?.detail || '操作失败'
+      if (status === 409) {
+        ElMessage.warning(errDetail + '，将跳转到差旅报销列表')
+        router.push('/travel/reimburse')
+      } else {
+        ElMessage.error(errDetail)
+      }
+    }
+    return
+  }
   await travelApi.submit(row.id)
   ElMessage.success('已提交')
   load()
@@ -293,4 +409,6 @@ onMounted(load)
 .page { padding: 16px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; }
 .text-muted { color: var(--el-text-color-secondary); }
+.detail-footer { display: flex; justify-content: flex-end; gap: 12px; }
+.detail-loading { padding: 80px 0; text-align: center; color: #909399; }
 </style>

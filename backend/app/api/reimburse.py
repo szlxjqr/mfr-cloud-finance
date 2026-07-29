@@ -44,6 +44,7 @@ def list_bills(
     keyword: Optional[str] = None,
     status: Optional[str] = None,
     applicant: Optional[str] = None,
+    bill_type: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     stmt = select(m.ReimbursementBill)
@@ -58,6 +59,8 @@ def list_bills(
         stmt = stmt.where(m.ReimbursementBill.status == status)
     if applicant:
         stmt = stmt.where(m.ReimbursementBill.applicant == applicant)
+    if bill_type:
+        stmt = stmt.where(m.ReimbursementBill.bill_type == bill_type)
     return db.scalars(stmt).all()
 
 
@@ -120,6 +123,53 @@ def convert_from_purchase(rid: int, db: Session = Depends(get_db)):
         status="草稿",
         bill_type="采购报销",
         purchase_requisition_id=rid,
+    )
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/from-travel/{rid}", response_model=s.ReimbursementBillRead, status_code=201)
+def convert_from_travel(rid: int, db: Session = Depends(get_db)):
+    """差旅申请单 → 报销单：预填申请人/部门/金额/事由/差旅字段，状态置「草稿」待挂接发票后提交。
+
+    幂等：同一差旅单已生成过报销单则返回 409 并提示原单号，避免重复生成。
+    """
+    from app.models import travel as tm
+
+    req = db.get(tm.TravelRequisition, rid)
+    if not req:
+        raise HTTPException(status_code=404, detail="差旅申请单不存在")
+
+    existing = db.scalar(
+        select(m.ReimbursementBill).where(
+            m.ReimbursementBill.travel_requisition_id == rid
+        )
+    )
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"该差旅申请单已生成报销单「{existing.bill_no}」，请勿重复操作",
+        )
+
+    reason = req.reason
+    if not reason:
+        reason = f"差旅报销：{req.traveler or req.req_no or ''}".strip()
+
+    obj = m.ReimbursementBill(
+        bill_no=gen_bill_no(db),
+        applicant=req.applicant,
+        department=req.department,
+        amount=req.expected_amount or 0,
+        reason=reason,
+        status="草稿",
+        bill_type="差旅报销",
+        travel_requisition_id=rid,
+        traveler=req.traveler,
+        travel_destination=req.destination,
+        travel_start=req.travel_start,
+        travel_end=req.travel_end,
     )
     db.add(obj)
     db.commit()

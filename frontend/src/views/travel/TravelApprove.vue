@@ -69,6 +69,20 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 打印预览弹窗 -->
+    <el-dialog
+      v-model="printVisible"
+      title="差旅申请单打印预览"
+      width="800px"
+      :close-on-click-modal="false"
+    >
+      <TravelPrint v-if="printRow" :row="printRow" />
+      <template #footer>
+        <el-button @click="printVisible = false">关闭</el-button>
+        <el-button type="primary" @click="doPrint">打印差旅申请单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -76,7 +90,9 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { travelApi } from '@/api/travel'
+import TravelPrint from './TravelPrint.vue'
 import type { TravelReq } from '@/types/travel'
+import { printTravelApplication } from '@/utils/travelPrint'
 
 const statusOptions = ['待审批', '已通过', '已驳回']
 
@@ -90,20 +106,32 @@ const approveAction = ref<'approve' | 'reject' | null>(null)
 const approveRow = ref<TravelReq | null>(null)
 const approveForm = ref({ approver: '', remark: '' })
 const approveFormRef = ref<any>(null)
+const printVisible = ref(false)
+const printRow = ref<TravelReq | null>(null)
+function doPrint() {
+  if (!printRow.value) return
+  printTravelApplication(printRow.value)
+}
 const approveRules = {
   approver: [{ required: true, message: '请输入审批人', trigger: 'blur' }],
 }
 
 interface RowAction {
-  action: 'approve' | 'reject'
+  action: 'approve' | 'reject' | 'revert' | 'print'
   label: string
-  type: 'success' | 'danger'
+  type: 'success' | 'danger' | 'warning' | 'primary'
 }
 function rowActions(row: TravelReq): RowAction[] {
   if (row.status === '待审批') {
     return [
       { action: 'approve', label: '通过', type: 'success' },
       { action: 'reject', label: '驳回', type: 'danger' },
+    ]
+  }
+  if (row.status === '已通过') {
+    return [
+      { action: 'revert', label: '退回', type: 'warning' },
+      { action: 'print', label: '打印', type: 'primary' },
     ]
   }
   return []
@@ -122,7 +150,18 @@ async function load() {
   }
 }
 
-function runAction(action: RowAction['action'], row: TravelReq) {
+async function runAction(action: RowAction['action'], row: TravelReq) {
+  if (action === 'revert') {
+    await travelApi.revert(row.id)
+    ElMessage.success('已退回草稿')
+    load()
+    return
+  }
+  if (action === 'print') {
+    printRow.value = row
+    printVisible.value = true
+    return
+  }
   approveAction.value = action
   approveRow.value = row
   approveForm.value = { approver: '', remark: '' }

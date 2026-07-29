@@ -138,17 +138,22 @@ const TESS_LANG_PATH = '/tesseract/lang/'
 
 async function ocrToText(input: File | HTMLCanvasElement): Promise<string> {
   const Tesseract = await import('tesseract.js')
-  const worker = await Tesseract.createWorker('chi_sim+eng', 1, {
-    workerPath: TESS_WORKER_PATH,
-    corePath: TESS_CORE_PATH,
-    langPath: TESS_LANG_PATH,
-    logger: () => {},
-  })
   try {
-    const { data } = await worker.recognize(input)
-    return data.text || ''
-  } finally {
-    await worker.terminate()
+    const worker = await Tesseract.createWorker('chi_sim+eng', 1, {
+      workerPath: TESS_WORKER_PATH,
+      corePath: TESS_CORE_PATH,
+      langPath: TESS_LANG_PATH,
+      logger: () => {},
+    })
+    try {
+      const { data } = await worker.recognize(input)
+      return data.text || ''
+    } finally {
+      await worker.terminate().catch((e) => console.warn('tesseract terminate warn', e))
+    }
+  } catch (e: any) {
+    console.error('tesseract.js OCR worker 初始化/识别失败：', e)
+    throw e
   }
 }
 
@@ -199,11 +204,15 @@ export async function parsePdf(file: File): Promise<ParsedInvoice> {
   let ocrText = ''
   for (let i = 1; i <= pdf.numPages; i++) {
     try {
-      const canvas = await renderPageToCanvas(pdf, i)
+      // 大图（如 950 行程单 3450x2003）用 scale=1.5 已足够 OCR，scale=2 在 wasm 端容易 OOM/超时
+      const canvas = await renderPageToCanvas(pdf, i, 1.5)
       ocrText += (await ocrToText(canvas)) + '\n'
     } catch (e) {
-      console.warn('PDF 第', i, '页渲染失败', e)
+      console.error(`PDF 第 ${i}/${pdf.numPages} 页 OCR 失败：`, e)
     }
+  }
+  if (!ocrText.trim()) {
+    console.warn('PDF 全页 OCR 均未产出文本，返回空解析结果')
   }
   const gate = dualRecognize(ocrText, extractInvoiceFields)
   const parsed = attachValidation(gate.r1)

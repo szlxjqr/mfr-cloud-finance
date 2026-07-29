@@ -34,6 +34,10 @@ class ReimbursementBill(Base):
     purchase_requisition_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("purchase_requisitions.id"), nullable=True
     )  # 关联来源采购申请单
+    # 差旅报销场景：关联来源差旅申请单（便于回溯与去重）
+    travel_requisition_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("travel_requisitions.id"), nullable=True
+    )  # 关联来源差旅申请单
     pay_date: Mapped[Optional[date]] = mapped_column(Date)  # 实际付款日期（仅账务调整，不触发真实付款）
 
     # 报销类型与差旅专属字段：采购报销无需填写差旅字段，差旅报销填写出差人/地点/起止

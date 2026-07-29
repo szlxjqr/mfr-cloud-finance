@@ -60,7 +60,8 @@
         </el-table-column>
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.needsReview" size="small" type="warning">待复核</el-tag>
+            <el-tag v-if="row.rejected" size="small" type="danger">已拒绝</el-tag>
+            <el-tag v-else-if="row.needsReview" size="small" type="warning">待复核</el-tag>
             <el-tag v-else-if="row.valid" size="small" type="success">识别成功</el-tag>
             <el-tag v-else size="small" type="danger">解析失败</el-tag>
           </template>
@@ -176,6 +177,8 @@ interface RecognizedRow {
   total: number
   valid: boolean
   needsReview?: boolean
+  rejected?: boolean
+  rejectReason?: string
 }
 
 const recognizedInvoices = ref<RecognizedRow[]>([])
@@ -291,19 +294,50 @@ async function startParsing() {
         valid: validated.ok,
         // 需复核：核心字段齐全但 r1 与 r2 不一致（比对金额/税额/价税合计三项）
         needsReview: validated.ok && !recognitionConsistent,
+        // 彻底拒绝：购买方为个人姓名（火车票除外），不可入库、不可人工放行
+        rejected: !!validated.reject,
+        rejectReason: validated.rejectReason,
       })
-    } catch {
-      pf.status = 'fail'
+    } catch (e: any) {
+      console.error('发票解析异常：', e)
+      // 自动识别抛错时不再直接"解析失败"，而是给出一个可手动补录的待复核行，
+      // 确保文件仍能进入发票箱，而不是阻断在弹窗里。
+      const nameLow = pf.name.toLowerCase()
+      const fallbackType = nameLow.includes('行程单') || nameLow.includes('机票') || nameLow.includes('航空')
+        ? '航空运输电子客票行程单'
+        : nameLow.includes('火车') || nameLow.includes('铁路')
+          ? '铁路电子客票'
+          : '增值税专用发票'
+      const fallbackParsed: ParsedInvoice = {
+        type: fallbackType,
+        no: '',
+        code: '',
+        date: '',
+        buyerName: '',
+        buyerTaxNo: '',
+        sellerName: '',
+        sellerTaxNo: '',
+        amount: 0,
+        tax: 0,
+        total: 0,
+        taxRate: 0,
+        items: [],
+        recognition: { consistent: false, diffs: [], method: 'manual' },
+      } as any
+      pf.status = 'done'
       recognizedInvoices.value.push({
         fileName: pf.name,
         file: pf.file,
-        parsed: null,
+        parsed: fallbackParsed,
         no: '',
         sellerName: '',
         amount: 0,
         tax: 0,
         total: 0,
-        valid: false,
+        valid: true,
+        needsReview: true,
+        rejected: false,
+        rejectReason: undefined,
       })
     }
     processedCount.value++
@@ -364,6 +398,8 @@ function confirmEdit() {
   row.total = p.total
   const validated = validateInvoice(p)
   row.valid = validated.ok
+  row.rejected = !!validated.reject
+  row.rejectReason = validated.rejectReason
   // 人工修正后重新比对双识别一致性
   row.needsReview = validated.ok && p.recognition?.consistent === false
   editVisible.value = false
@@ -427,6 +463,16 @@ async function confirmAll() {
   const items: ResultItem[] = []
   for (const row of recognizedInvoices.value) {
     const ej = JSON.stringify(row.parsed || {})
+    // 彻底拒绝：购买方为个人姓名（火车票除外）→ 不入库、不隔离待复核，直接标记已拒绝
+    if (row.rejected) {
+      try {
+        await inboxApi.upload(row.file, ej) // 后端置 rejected 状态，留痕且不可放行
+      } catch (e) {
+        // 即便上传失败也不入库，忽略网络错误
+      }
+      items.push({ fileName: row.fileName, status: '已拒绝', detail: row.rejectReason || '购买方为个人姓名，不能入库' })
+      continue
+    }
     const poolable = canEnterPool(row)
     try {
       if (poolable) {
@@ -448,7 +494,9 @@ async function confirmAll() {
           const reasons: string[] = []
           if (!row.valid) reasons.push('核心字段缺失')
           if (row.parsed?.validation?.passed === false) reasons.push(row.parsed?.validation?.message || '核心三数不自洽')
-          if (row.parsed?.recognition?.consistent === false) reasons.push('双识别不一致')
+          if (row.parsed?.recognition?.consistent === false) {
+            reasons.push(row.parsed?.recognition?.method === 'manual' ? '自动识别失败' : '双识别不一致')
+          }
           items.push({
             fileName: row.fileName,
             status: '待复核',

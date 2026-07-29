@@ -140,3 +140,83 @@ def test_update_consistent_true_releases_isolation(db, inbox_dir):
         ib.id, s.InvoiceInboxUpdate(extracted_json=payload), db
     )
     assert obj.status == "recognized", obj.status
+
+
+# ===== 个人姓名购买方拦截（彻底拒绝）回归测试 =====
+
+def test_upload_personal_buyer_is_rejected(db, inbox_dir):
+    _clean_inbox(db)
+    rec = asyncio.run(
+        ib_mod.upload(
+            FakeUpload("p.pdf"),
+            extracted_json=_ej(
+                "8811700000000000091", True, buyerName="张三", type="增值税专用发票"
+            ),
+            db=db,
+        )
+    )
+    assert rec.status == "rejected", rec.status
+
+
+def test_upload_personal_buyer_railway_exempt(db, inbox_dir):
+    _clean_inbox(db)
+    # 火车票（铁路电子客票）豁免个人姓名拦截：即便 buyerName 是自然人也不拒绝
+    rec = asyncio.run(
+        ib_mod.upload(
+            FakeUpload("rail.pdf"),
+            extracted_json=_ej(
+                "8811700000000000092", True, buyerName="李四", type="铁路电子客票"
+            ),
+            db=db,
+        )
+    )
+    assert rec.status == "recognized", rec.status
+
+
+def test_update_personal_buyer_stays_rejected(db, inbox_dir):
+    _clean_inbox(db)
+    # 先建一张正常 recognized 记录
+    ib = ib_m.InvoiceInbox(
+        filename="q.pdf", storage_path="/tmp/q.pdf", source="upload",
+        status="recognized", extracted_json=_ej("8811700000000000093", True),
+    )
+    db.add(ib)
+    db.commit()
+    db.refresh(ib)
+    # 人工提交一份 buyerName 为个人姓名的内容 → 后端应硬拒绝，不可放行
+    payload = _ej(
+        "8811700000000000093", True, buyerName="王五", type="增值税专用发票"
+    )
+    obj = ib_mod.update_inbox(ib.id, s.InvoiceInboxUpdate(extracted_json=payload), db)
+    assert obj.status == "rejected", obj.status
+
+
+def test_upload_flight_passenger_not_rejected(db, inbox_dir):
+    _clean_inbox(db)
+    # 机票行程单：票面常出现旅客姓名，但若被误放进 buyerName（旅客≠购买方），
+    # 因类型不含「发票」应豁免，不误拒（老板要求：飞机要看清楚字段）。
+    rec = asyncio.run(
+        ib_mod.upload(
+            FakeUpload("flight.pdf"),
+            extracted_json=_ej(
+                "8811700000000000094", True, buyerName="张三", type="航空运输电子客票行程单"
+            ),
+            db=db,
+        )
+    )
+    assert rec.status == "recognized", rec.status
+
+
+def test_upload_other_receipt_personal_guest_not_rejected(db, inbox_dir):
+    _clean_inbox(db)
+    # 其他票据（酒店/订单账单）的入住人/乘客姓名不应触发个人拦截
+    rec = asyncio.run(
+        ib_mod.upload(
+            FakeUpload("hotel.pdf"),
+            extracted_json=_ej(
+                "8811700000000000095", True, buyerName="李四", type="其他票据"
+            ),
+            db=db,
+        )
+    )
+    assert rec.status == "recognized", rec.status

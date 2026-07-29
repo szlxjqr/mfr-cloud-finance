@@ -28,9 +28,21 @@
         </template>
       </el-table-column>
       <el-table-column prop="approve_date" label="审批日期" width="120" />
-      <el-table-column label="操作" width="90" fixed="right">
+      <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openDetail(row)">查看</el-button>
+          <el-button
+            v-if="row.status === '已通过'"
+            link
+            type="primary"
+            @click="convertTravel(row)"
+          >转报销</el-button>
+          <el-button
+            v-if="row.status === '已通过'"
+            link
+            type="primary"
+            @click="openPrint(row)"
+          >打印</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -62,14 +74,33 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 打印预览弹窗 -->
+    <el-dialog
+      v-model="printVisible"
+      title="差旅申请单打印预览"
+      width="800px"
+      :close-on-click-modal="false"
+    >
+      <TravelPrint v-if="printRow" :row="printRow" />
+      <template #footer>
+        <el-button @click="printVisible = false">关闭</el-button>
+        <el-button type="primary" @click="doPrint">打印差旅申请单</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { travelApi } from '@/api/travel'
 import type { TravelReq } from '@/types/travel'
+import TravelPrint from './TravelPrint.vue'
+import { printTravelApplication } from '@/utils/travelPrint'
 
+const router = useRouter()
 const currentUser = '沈雷'
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回']
 
@@ -110,6 +141,43 @@ async function load() {
 function openDetail(row: TravelReq) {
   Object.assign(detail, row)
   detailVisible.value = true
+}
+
+const printVisible = ref(false)
+const printRow = ref<TravelReq | null>(null)
+function openPrint(row: TravelReq) {
+  printRow.value = row
+  printVisible.value = true
+}
+function doPrint() {
+  if (!printRow.value) return
+  printTravelApplication(printRow.value)
+}
+
+async function convertTravel(row: TravelReq) {
+  try {
+    await ElMessageBox.confirm(
+      `确认将差旅申请单「${row.req_no || ('#' + row.id)}」转为报销单？生成后进入草稿态，可挂接发票后提交审批。`,
+      '转报销单确认',
+      { type: 'warning', confirmButtonText: '确认转换', cancelButtonText: '取消' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const res = await travelApi.convertTravel(row.id)
+    ElMessage.success(`已生成报销单「${res.data.bill_no}」，请挂接发票后提交`)
+    router.push('/travel/reimburse')
+  } catch (e: any) {
+    const status = e?.response?.status
+    const errDetail = e?.response?.data?.detail || '操作失败'
+    if (status === 409) {
+      ElMessage.warning(errDetail + '，将跳转到差旅报销列表')
+      router.push('/travel/reimburse')
+    } else {
+      ElMessage.error(errDetail)
+    }
+  }
 }
 
 onMounted(load)

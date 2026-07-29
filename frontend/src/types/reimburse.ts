@@ -20,6 +20,7 @@ export interface ReimbursementBill {
   attachment_path?: string | null
   remark?: string | null
   purchase_requisition_id?: number | null
+  travel_requisition_id?: number | null
   pay_date?: string | null
   bill_type?: ReimburseBillType | string | null
   traveler?: string | null

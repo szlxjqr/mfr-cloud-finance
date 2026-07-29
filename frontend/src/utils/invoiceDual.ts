@@ -55,18 +55,38 @@ function compact(t: string): string {
   return t.replace(/\s+/g, '')
 }
 
+// 合并 CJK 字符间的空白（含全角空格），用于 OCR 退化文本（如「行 程 单」→「行程单」）。
+// 照抄①的 collapseCjk：仅合并「CJK+CJK」间空白，不动数字/金额间空白。
+function collapseCjk(t: string): string {
+  let out = t
+  for (let i = 0; i < 12; i++) {
+    const nxt = out.replace(/([一-鿿])\s+([一-鿿])/g, '$1$2')
+    if (nxt === out) break
+    out = nxt
+  }
+  return out
+}
+
 // ===== 字段提取（识别器②）=====
 
 // 发票号码：标签扫描优先；其次独立 20 位纯数字串（compact 后标签可能跟别的文字黏连）。
+// 前导 1 校正：OCR 常把 20 位行程单/数电票号多识别一个前导 1 → 21 位，剥离首位还原（照抄①的 correctInvoiceNoLeadingOne）。
+// 发票号码：完全照抄①的 extractInvoiceNo 算法（标签正则 + 前导1校正 + 长数字串回退 + 税号排除），
+// 仅把输入换成保留空白的归一化文本（避免 compact 把发票号与后续数字黏连导致多吞位）。
+// 这样识别器②的发票号与识别器①逐字节一致，双识别闸门不会误判 needs_review。
 function v2InvoiceNo(text: string): string | undefined {
-  const m = text.match(/发票号码[:：]?\s*(\d{8,20})/)
-  if (m) return m[1]
-  // compact 后「发票号码:开票日期:」先匹配 —— 用 Lookahead：「发票号码:」后取最近 20 位
-  const no_text = text.match(/发票号码[^0-9]*(\d{20})/)
-  if (no_text) return no_text[1]
-  // 纯 20 位数字串（紧凑文档里发票号跟别的文字黏连后的无匹配回退）；税号 18 位不冲突
-  const r = text.match(/\b\d{20}\b/)
-  if (r) return r[0]
+  const stripLeadingOne = (no: string): string => (/^1\d{20}$/.test(no) ? no.slice(1) : no)
+  const tr = normalizeMoneyDecimals(text)
+  const taxNos = v2TaxNos(tr)
+  const labelRe = /发票号码\s*[：:]?\s*([0-9]{8,22})/
+  const lm = tr.match(labelRe)
+  if (lm) return stripLeadingOne(lm[1])
+  const runs = [...tr.matchAll(/\d{18,22}/g)].map((x) => x[0])
+  for (const r of runs) {
+    const idx = tr.indexOf(r)
+    const next = idx >= 0 && idx + r.length < tr.length ? tr[idx + r.length] : ''
+    if (next !== '/' && !taxNos.some((t) => t.includes(r) || r.includes(t))) return stripLeadingOne(r)
+  }
   return undefined
 }
 
@@ -140,7 +160,7 @@ function v2Parties(text: string): { buyer?: string; seller?: string } {
 // 明细行（识别器②）：整段文本扫描所有"金额 税率% 税额"三元组并求和，
 // 不依赖 *xxx* 锚点（与①段内取最后一组不同路）。无三元组时回退合计行两数字。
 function v2ItemsAndSums(text: string): { items: ParsedLineItem[]; amount: number; tax: number } {
-  const triples = [...text.matchAll(/(-?[\d,]+\.\d{2})\s+(\d{1,2})\s*%\s+(-?[\d,]+\.\d{2})/g)]
+  const triples = [...text.matchAll(/(-?[\d,]+\.\d{2})\s+(\d{1,2})\s*%\s*(-?[\d,]+\.\d{2})/g)]
   const items: ParsedLineItem[] = []
   let amount = 0
   let tax = 0
@@ -154,8 +174,8 @@ function v2ItemsAndSums(text: string): { items: ParsedLineItem[]; amount: number
       items.push({ name: '', amount: round2(a), tax: round2(tx), taxRate: rate })
     }
   } else {
-    // 回退：合计行「合计 ¥A ¥B」首末两数
-    const m = text.match(/合计[^\d]*(-?[\d,]+\.\d{2})[^\d]*(-?[\d,]+\.\d{2})/)
+    // 回退：合计行「合计 ¥A ¥B」首末两数（「合计」在提取文本中常被拆成「合 计」，放宽空白）
+    const m = text.match(/合\s*计[^\d]*(-?[\d,]+\.\d{2})[^\d]*(-?[\d,]+\.\d{2})/)
     if (m) {
       amount = parseMoney(m[1])
       tax = parseMoney(m[2])
@@ -182,6 +202,11 @@ function v2Total(text: string, amount: number, tax: number): number | undefined 
     const nums = [...after.matchAll(/(\d[\d,]*\.\d{2})/g)].map((x) => parseMoney(x[1]))
     if (nums.length) return nums[nums.length - 1]
   }
+  // 航空行程单 OCR 退化场景：只剩「票价/合计」金额列，最后一个是票面价税合计。
+  if (/客票号码|电子客票|行程单|航空运输/.test(text) && /(?:CNY|¥|￥)/.test(text)) {
+    const cny = [...text.matchAll(/[¥￥CNYcny]\s*([\d,]+\.\d{2})/g)].map((x) => parseMoney(x[1]))
+    if (cny.length >= 2) return cny[cny.length - 1]
+  }
   // 最后兜底：最大两位小数金额
   const decs = [...text.matchAll(/[\d,]+\.\d{2}/g)].map((x) => parseMoney(x[0]))
   const valid = decs.filter((d) => d > 0 && d < 1e7).filter((d) => d <= (Math.max(...decs.filter(x=>x>0&&x<1e7), 0) * 0.7))  // 排除黏连伪值（如台149.29 → 1+49.29）
@@ -196,13 +221,41 @@ function v2Total(text: string, amount: number, tax: number): number | undefined 
  * 识别器②：与 extractInvoiceFields 逻辑独立的第二套解析。
  * 返回与 ParsedInvoice 同构对象，供 dualRecognize 比对。
  */
+// 航空行程单金额列推断（识别器②专用，与①的 inferByAmounts 同构）：
+// 票面金额列末位为「含基金」的票面合计，前若干列为不含税应税项/非税附加费；
+// 用 9%（货运等极少数 13%）反推校验，剥离民航发展基金等非税项，得不含税金额/税额。
+function inferAviationLayout(all: number[]): { amount: number; tax: number; total: number; nonTax: number } | null {
+  if (all.length < 4) return null
+  const totalPaid = all[all.length - 1]
+  const tryNonTax = (c: number) => {
+    const taxableCount = all.length - 1 - c
+    if (taxableCount < 1) return null
+    const nonTaxItems = all.slice(taxableCount, all.length - 1)
+    const taxableItems = all.slice(0, taxableCount)
+    const nonTax = round2(nonTaxItems.reduce((a, b) => a + b, 0))
+    const amount = round2(taxableItems.reduce((a, b) => a + b, 0))
+    const tax = round2(totalPaid - amount - nonTax)
+    if (amount <= 0) return null
+    const rate = (tax / amount) * 100
+    // 行程单只可能是 9%（机票）；13% 留给极少数货运/其他应税服务兜底（与①一致）。
+    if (![9, 13].some((r) => Math.abs(rate - r) <= 2)) return null
+    return { amount, tax, total: round2(amount + tax), nonTax }
+  }
+  for (const c of [2, 1, 0]) {
+    const r = tryNonTax(c)
+    if (r) return r
+  }
+  return null
+}
+
 export function extractInvoiceFieldsV2(text: string): ParsedInvoice {
   const result: ParsedInvoice = { rawText: text }
   if (!text) return result
   const t_raw = normalizeMoneyDecimals(text)  // 保留空白，用于明细行三元组正则
   const t = compact(t_raw)
+  const tc = collapseCjk(t)  // 合并 CJK 间空白，用于航空分支判定与中文标签提取
 
-  const no = v2InvoiceNo(t) || v2InvoiceNo(t_raw)  // compact 优先；不行就 fallback 到保留空白的原始文本（\b 边界正确）
+  const no = v2InvoiceNo(text)  // 用原始文本（内部保留空白归一化，避免 compact 黏连导致多吞位）
   if (no) result.no = no
   const date = v2Date(t)
   if (date) result.date = date
@@ -225,6 +278,45 @@ export function extractInvoiceFieldsV2(text: string): ParsedInvoice {
   }
   const total = v2Total(t, amount, tax)
   if (total !== undefined) result.total = total
+
+  // —— 航空运输电子客票行程单（识别器②独立分支，与①同构）：标签法/金额列推断算「不含基金」的价税合计 ——
+  const isAviation =
+    (/电子客票行程单|航空运输电子客票|行程单|客票号码|电子客票/.test(tc) &&
+      (/填开单位|票价|民航|燃油|其他税费|购买方名称/.test(tc) ||
+        /(?:CNY|¥|￥)\s*[\d,]+\.\d{2}/.test(tc))) ||
+    (/客票号码|电子客票/.test(tc) && /填开单位/.test(tc) && /(?:CNY|¥|￥)/.test(tc))
+  if (isAviation) {
+    const tn = normalizeMoneyDecimals(tc)
+    const cny = [...tn.matchAll(/[¥￥CNYcny]\s*([\d,]+\.\d{2})/g)].map((m) => parseMoney(m[1]))
+    const fare = (tn.match(/票价[\s¥￥CNYcny]*([\d,]+\.\d{2})/) || [])[1]
+    const fuel = (tn.match(/燃油附加费[\s¥￥CNYcny]*([\d,]+\.\d{2})/) || [])[1]
+    const taxLbl = (tn.match(/增值税税额[\s¥￥CNYcny]*([\d,]+\.\d{2})/) || [])[1]
+    const fund = (tn.match(/民航发展基金[\s¥￥CNYcny]*([\d,]+\.\d{2})/) || [])[1]
+    const other = (tn.match(/其他税费[\s¥￥CNYcny]*([\d,]+\.\d{2})/) || [])[1]
+    let a2 = 0, tx2 = 0, t2 = 0, nt = 0
+    if (fare && fuel && taxLbl) {
+      a2 = round2(parseMoney(fare) + parseMoney(fuel))
+      tx2 = round2(parseMoney(taxLbl))
+      t2 = round2(a2 + tx2)
+      nt = round2((fund ? parseMoney(fund) : 0) + (other ? parseMoney(other) : 0))
+    } else {
+      const layout = inferAviationLayout(cny)
+      if (layout) { a2 = layout.amount; tx2 = layout.tax; t2 = layout.total; nt = layout.nonTax }
+    }
+    const issuer = (tc.match(/填开单位[\s：:]*([\u4e00-\u9fff]+(?:有限公司|股份有限公司|公司|航空|旅行社|集团))/) || [])[1]
+    if (a2 > 0 && t2 > 0) {
+      result.type = '航空运输电子客票行程单'
+      result.amount = a2
+      result.tax = tx2
+      result.total = t2
+      result.taxRate = result.taxRate ?? 9
+      if (nt > 0) result.nonTaxAmount = nt
+      if (issuer) result.sellerName = cleanCompany(issuer)
+      result.items = [{ name: '*', amount: a2, tax: tx2, taxRate: result.taxRate }]
+      return result
+    }
+    // 金额未能识别全 → 降级走通用逻辑兜底（不 return）
+  }
 
   if (result.taxRate === undefined) {
     const rateMatch = t.match(/(\d{1,2})\s*%/)
@@ -268,8 +360,13 @@ export function dualRecognize(
   if (r2.date !== undefined && (r1.date || '') !== (r2.date || '')) {
     diffs.push(`开票日期: ①=${r1.date || '(空)'} ②=${r2.date || '(空)'}`)
   }
-  if (r2.sellerName !== undefined && normName(r1.sellerName) !== normName(r2.sellerName)) {
-    diffs.push(`销售方: ①=${r1.sellerName || '(空)'} ②=${r2.sellerName || '(空)'}`)
+  if (r2.sellerName !== undefined) {
+    const n1 = normName(r1.sellerName)
+    const n2 = normName(r2.sellerName)
+    // 同一主体、名称粒度不同（如「西湖云栖酒店管理有限公司」vs「西湖云栖酒店」）视为一致，
+    // 避免把真实发票误判 needs_review；仅当互不串含（确为不同主体）才记分歧。
+    const nameSame = n1 === n2 || n1.includes(n2) || n2.includes(n1)
+    if (!nameSame) diffs.push(`销售方: ①=${r1.sellerName || '(空)'} ②=${r2.sellerName || '(空)'}`)
   }
   const t1 = num(r1.total)
   const t2 = num(r2.total)

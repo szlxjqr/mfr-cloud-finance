@@ -161,6 +161,7 @@ const router = createRouter({
           meta: { title: '差旅管理', module: 'travel' },
         },
         { path: 'travel/apply', name: 'TravelApply', component: () => import('@/views/travel/TravelApply.vue'), meta: { title: '差旅申请', group: '差旅' } },
+        { path: 'travel/reimburse', name: 'TravelReimburse', component: () => import('@/views/reimburse/BillList.vue'), meta: { title: '差旅报销', group: '差旅' } },
         { path: 'travel/approve', name: 'TravelApprove', component: () => import('@/views/travel/TravelApprove.vue'), meta: { title: '差旅审批', group: '差旅' } },
         { path: 'travel/mine', name: 'TravelMine', component: () => import('@/views/travel/MyTravel.vue'), meta: { title: '我的差旅', group: '差旅' } },
 

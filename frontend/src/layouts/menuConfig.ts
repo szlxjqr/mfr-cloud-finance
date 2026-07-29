@@ -78,8 +78,8 @@ export const menuItems: MenuItem[] = [
         color: '#409EFF',
         children: [
           { title: '差旅申请', path: '/travel/apply' },
-          { title: '差旅审批', path: '/travel/approve' },
-          { title: '我的差旅', path: '/travel/mine' },
+          { title: '差旅报销', path: '/travel/reimburse' },
+          // 差旅审批/我的差旅已隐藏：一人公司自动审批，差旅申请页自带列表+提交/通过/驳回+已通过转报销/打印。
         ],
       },
     ],

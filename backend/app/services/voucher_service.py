@@ -3,7 +3,7 @@
 这是「以业务为入口、联动账务」的发动机：
 - 报销单（采购报销/差旅报销）提交财务归档 → 借 费用 + 借 进项税额 + 贷 其他应付款（员工）
   - 采购报销借方按来源采购单的 is_rd_project 区分：研发→研发支出(4301)，非研发→管理费用(5602)
-  - 差旅报销无采购单关联，统一借 管理费用(5602)
+  - 差旅报销借方按来源差旅单的 is_rd_project 区分：研发→研发支出(4301)，非研发→管理费用(5602)
 - 采购申请不再生成凭证（确认应付凭证已废弃），费用在报销单归档时入账
 
 科目编码采用「小企业会计准则」风格，全部来自 account_subjects 种子表；
@@ -24,6 +24,7 @@ from app.models import invoice as im
 from app.models import purchase as pm
 from app.models import reimburse as rm
 from app.models import salary as slm
+from app.models import travel as tm
 from app.models import subject as sm
 from app.models import voucher as vm
 from app.utils.codegen import gen_asset_no, gen_voucher_no
@@ -109,22 +110,26 @@ def _make_voucher(
 def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker: str) -> Optional[vm.Voucher]:
     """报销单提交财务/归档 → 自动凭证。
 
-    规则（与发票明细联动，按来源采购单 is_rd_project 区分借方）：
+    规则（与发票明细联动，按来源采购单/差旅单的 is_rd_project 区分借方）：
     - 有发票明细：
       - 研发项目 → 借 研发支出(4301)(不含税合计) + 借 进项税额(税额合计) + 贷 其他应付款(价税合计)
       - 非研发   → 借 管理费用(5602)(不含税合计) + 借 进项税额(税额合计) + 贷 其他应付款(价税合计)
-    - 无发票明细：借 管理费用(报销金额) + 贷 其他应付款(报销金额)（差旅报销无采购单关联）
+    - 无发票明细：借 管理费用(报销金额) + 贷 其他应付款(报销金额)
     幂等：source_type='报销单', source_no=bill_no 已存在则跳过。
     """
     if _exists(db, "报销单", bill.bill_no):
         return None
 
     v_date = bill.approve_date or date.today()
-    # 查找来源采购单的 is_rd_project 标记，决定借方科目
-    debit_code = SUB_MANAGE  # 默认管理费用（差旅报销或无采购单关联）
+    # 查找来源单据（采购单 / 差旅单）的 is_rd_project 标记，决定借方科目
+    debit_code = SUB_MANAGE  # 默认管理费用（无来源单关联）
     if bill.purchase_requisition_id:
         req = db.get(pm.PurchaseRequisition, bill.purchase_requisition_id)
         if req and (req.is_rd_project or "") == "是":
+            debit_code = SUB_RDCOST  # 研发支出
+    elif bill.travel_requisition_id:
+        treq = db.get(tm.TravelRequisition, bill.travel_requisition_id)
+        if treq and (treq.is_rd_project or "") == "是":
             debit_code = SUB_RDCOST  # 研发支出
 
     # 汇总发票明细（不含税/税额/价税合计）

@@ -18,7 +18,7 @@ router = APIRouter(prefix="/travels", tags=["travels"])
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
-    "已通过": {},
+    "已通过": {"revert": "草稿"},
     "已驳回": {"submit": "待审批"},  # 重新提交
 }
 
@@ -69,6 +69,9 @@ def create_req(payload: s.TravelReqCreate, db: Session = Depends(get_db)):
     if not data.get("req_no"):
         data["req_no"] = gen_travel_no(db)
     obj = m.TravelRequisition(**data)
+    # 自动创建两个默认费用细项（交通费、住宿费），镜像采购申请的细项机制
+    obj.items.append(m.TravelRequisitionItem(item_name="交通费", sort_order=0))
+    obj.items.append(m.TravelRequisitionItem(item_name="住宿费", sort_order=1))
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -145,6 +148,24 @@ def reject_req(rid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{rid}/revert", response_model=s.TravelReqRead)
+def revert_req(rid: int, db: Session = Depends(get_db)):
+    """退回：已通过 → 草稿（允许修改后重新提交）。差旅无付款场景，不照搬 pay。"""
+    obj = _get_or_404(db, rid)
+    if "revert" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前状态「{obj.status}」不允许退回，仅「已通过」状态可退回",
+        )
+    obj.status = _STATUS_FLOW[obj.status]["revert"]
+    obj.approve_date = None
+    obj.approver = None
+    obj.approve_remark = None
     db.commit()
     db.refresh(obj)
     return obj

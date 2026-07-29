@@ -125,10 +125,10 @@
         </el-form-item>
       </el-form>
 
-      <!-- 采购申请细项（编辑模式：列出所有细项，每行"挂发票"按钮直达） -->
+      <!-- 采购/差旅费用细项（编辑模式：列出所有细项，每行"挂发票"按钮直达） -->
       <div v-if="editing && editingId && editPurchaseItems.length" class="purchase-items">
         <div class="linked-header">
-          <span class="linked-title">采购申请细项（来源采购单：<strong>{{ editingRow?.purchase_requisition_id ? '#' + editingRow.purchase_requisition_id : '-' }}</strong>）</span>
+          <span class="linked-title">{{ editItemKind === 'travel' ? '差旅费用细项' : '采购申请细项' }}（来源{{ editItemKind === 'travel' ? '差旅' : '采购' }}单：<strong>{{ editItemKind === 'travel' ? (editingRow?.travel_requisition_id ? '#' + editingRow.travel_requisition_id : '-') : (editingRow?.purchase_requisition_id ? '#' + editingRow.purchase_requisition_id : '-') }}</strong>）</span>
           <div class="header-actions">
             <el-button type="primary" size="small" @click="openUploadToPool">
               <AppIcon name="Upload" />上传发票
@@ -140,13 +140,13 @@
           <el-table-column label="序号" width="55" align="center">
             <template #default="{ $index }">{{ $index + 1 }}</template>
           </el-table-column>
-          <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
-          <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
-          <el-table-column label="数量" prop="quantity" width="60" align="center" />
+          <el-table-column :label="editItemKind === 'travel' ? '费用名称' : '物品/服务'" prop="item_name" min-width="140" show-overflow-tooltip />
+          <el-table-column v-if="editItemKind !== 'travel'" label="规格" prop="spec" width="110" show-overflow-tooltip />
+          <el-table-column v-if="editItemKind !== 'travel'" label="数量" prop="quantity" width="60" align="center" />
           <el-table-column label="预算金额" width="100" align="right">
             <template #default="{ row }">¥{{ formatMoney(row.amount) }}</template>
           </el-table-column>
-          <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
+          <el-table-column v-if="editItemKind !== 'travel'" label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
           <el-table-column label="已挂" width="80" align="center">
             <template #default="{ row }">
               <span :class="{ 'has-invoices': (editItemInvoiceCount.get(row.id) || 0) > 0 }">
@@ -166,6 +166,10 @@
       <div v-if="editing && editingId" class="linked-invoices">
         <div class="linked-header">
           <span class="linked-title">已关联发票</span>
+          <!-- 无采购细项时（差旅报销 / 手工采购报销）补统一挂发票入口，照抄采购细项行按钮的同一 AttachInvoiceDialog -->
+          <div v-if="!editPurchaseItems.length" class="header-actions">
+            <el-button type="primary" size="small" @click="openAttachFromEdit(null)">挂发票</el-button>
+          </div>
         </div>
         <el-table :key="linkedTableKey" :data="linkedInvoices" border stripe size="small" empty-text="暂无发票，点击上方按钮添加">
           <el-table-column prop="invoice_date" label="开票日期" width="95" />
@@ -175,7 +179,7 @@
           <el-table-column prop="seller_name" label="销方名称" min-width="120" show-overflow-tooltip />
           <el-table-column label="对应细项" width="120" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ itemNameMap[row.purchase_requisition_item_id] || (row.purchase_requisition_item_id ? '#' + row.purchase_requisition_item_id : '—') }}
+              {{ itemLabel(row) }}
             </template>
           </el-table-column>
           <el-table-column label="不含税金额" width="95" align="right">
@@ -449,6 +453,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reimburseApi } from '@/api/reimburse'
 import { invoiceApi } from '@/api/invoice'
@@ -456,7 +461,9 @@ import type { ReimbursementBill } from '@/types/reimburse'
 import type { Invoice, InvoiceCreatePayload } from '@/types/invoice'
 import { parseInvoiceFile, type ParsedInvoice } from '@/utils/invoiceParser'
 import { purchaseApi } from '@/api/purchase'
+import { travelApi } from '@/api/travel'
 import type { PurchaseItem, PurchaseReq } from '@/types/purchase'
+import type { TravelItem } from '@/types/travel'
 import AttachInvoiceDialog from '@/components/AttachInvoiceDialog.vue'
 import UploadToInboxDialog from '@/components/UploadToInboxDialog.vue'
 import ReimbursePrint from './ReimbursePrint.vue'
@@ -482,6 +489,16 @@ const keyword = ref('')
 const statusFilter = ref<string | null>(null)
 const list = ref<ReimbursementBill[]>([])
 const loading = ref(false)
+
+// 路由驱动 bill_type 过滤：采购报销/差旅报销 各自只显示对应类型；报销单(/reimburse/bill)显示全部。
+const route = useRoute()
+const routeBillType = computed<string | undefined>(() => {
+  switch (route.name) {
+    case 'PurchaseReimburse': return '采购报销'
+    case 'TravelReimburse': return '差旅报销'
+    default: return undefined
+  }
+})
 const dialogVisible = ref(false)
 const editing = ref(false)
 const editingId = ref<number | null>(null)
@@ -494,11 +511,24 @@ const linkedTableKey = ref(0)
 const editingInvoiceTotal = computed(() => {
   return linkedInvoices.value.reduce((s, inv) => s + invoiceTotal(inv), 0)
 })
-// 采购细项 id → 名称映射（openEdit 拉取来源采购单的 items 时填充，供"已关联发票"表"对应细项"列展示）
+// 采购/差旅细项 id → 名称映射（openEdit 拉取来源单的 items 时填充，供"已关联发票"表"对应细项"列展示）
 const itemNameMap = ref<Record<number, string>>({})
-// 编辑模式下当前报销单对应的采购细项（含每条已挂计数）
-const editPurchaseItems = ref<PurchaseItem[]>([])
+// 编辑模式下当前报销单对应的细项（采购或差旅，结构兼容：都有 id/item_name/amount）
+const editPurchaseItems = ref<(PurchaseItem | TravelItem)[]>([])
 const editItemInvoiceCount = ref<Map<number, number>>(new Map())
+// 区分细项来源：采购报销 → 'purchase'，差旅报销 → 'travel'
+const editItemKind = ref<'purchase' | 'travel' | null>(null)
+
+// 已关联发票表"对应细项"列：兼容采购细项和差旅细项
+function itemLabel(row: Invoice): string {
+  if (row.purchase_requisition_item_id) {
+    return itemNameMap.value[row.purchase_requisition_item_id] || '#' + row.purchase_requisition_item_id
+  }
+  if (row.travel_requisition_item_id) {
+    return itemNameMap.value[row.travel_requisition_item_id] || '#' + row.travel_requisition_item_id
+  }
+  return '—'
+}
 
 // 挂发票弹窗（编辑弹窗里点细项行的"挂发票"按钮触发）
 const attachVisible = ref(false)
@@ -604,9 +634,10 @@ function transformActions(row: ReimbursementBill): RowAction[] {
 async function load() {
   loading.value = true
   try {
-    const params: { keyword?: string; status?: string } = {}
+    const params: { keyword?: string; status?: string; bill_type?: string } = {}
     if (keyword.value) params.keyword = keyword.value
     if (statusFilter.value) params.status = statusFilter.value
+    if (routeBillType.value) params.bill_type = routeBillType.value
     const res = await reimburseApi.list(params)
     list.value = res.data
     await loadInvoiceSummaries(res.data)
@@ -689,6 +720,7 @@ function invoiceTaxRateLabel(inv: Invoice): string {
 
 async function openCreate() {
   Object.assign(form, emptyForm())
+  if (routeBillType.value) form.bill_type = routeBillType.value
   editing.value = false
   editingId.value = null
   previewBillNo.value = null
@@ -716,10 +748,12 @@ async function openEdit(row: ReimbursementBill) {
   if (form.reimburse_amount == null) {
     form.reimburse_amount = editingInvoiceTotal.value || null
   }
-  // 采购报销且有关联采购单 → 加载细项 + 已挂统计（供编辑弹窗的"采购申请细项"区）
+  // 采购/差旅报销且有来源单 → 加载细项 + 已挂统计（供编辑弹窗的细项区）
   editPurchaseItems.value = []
   editItemInvoiceCount.value = new Map()
+  editItemKind.value = null
   if (row.purchase_requisition_id) {
+    editItemKind.value = 'purchase'
     try {
       const res = await purchaseApi.get(row.purchase_requisition_id)
       const items = (res.data.items || []) as PurchaseItem[]
@@ -738,11 +772,32 @@ async function openEdit(row: ReimbursementBill) {
     } catch {
       // 非关键异常
     }
+  } else if (row.travel_requisition_id) {
+    // 差旅报销：加载差旅费用细项（镜像采购报销流程）
+    editItemKind.value = 'travel'
+    try {
+      const res = await travelApi.get(row.travel_requisition_id)
+      const items = (res.data.items || []) as TravelItem[]
+      editPurchaseItems.value = items
+      const map: Record<number, string> = {}
+      items.forEach((it: TravelItem) => { if (it.id) map[it.id] = it.item_name })
+      itemNameMap.value = map
+      const linkedRes = await invoiceApi.list({ reimbursement_bill_id: row.id })
+      const counts = new Map<number, number>()
+      ;(linkedRes.data || []).forEach((inv: Invoice) => {
+        if (inv.travel_requisition_item_id) {
+          counts.set(inv.travel_requisition_item_id, (counts.get(inv.travel_requisition_item_id) || 0) + 1)
+        }
+      })
+      editItemInvoiceCount.value = counts
+    } catch {
+      // 非关键异常
+    }
   }
 }
 
 // 从编辑弹窗里"采购申请细项"表的某行点"挂发票"按钮触发
-function openAttachFromEdit(itemId: number) {
+function openAttachFromEdit(itemId: number | null) {
   if (!editingId.value) return
   // 构造 attachBill：用当前表单的最新数据（编辑后未保存的字段也带上）
   attachBill.value = {
@@ -773,6 +828,9 @@ async function onAttachDone() {
     ;(linkedRes.data || []).forEach((inv: Invoice) => {
       if (inv.purchase_requisition_item_id) {
         counts.set(inv.purchase_requisition_item_id, (counts.get(inv.purchase_requisition_item_id) || 0) + 1)
+      }
+      if (inv.travel_requisition_item_id) {
+        counts.set(inv.travel_requisition_item_id, (counts.get(inv.travel_requisition_item_id) || 0) + 1)
       }
     })
     editItemInvoiceCount.value = counts
@@ -907,13 +965,13 @@ async function openDetail(row: ReimbursementBill) {
 function printReimbursement() {
   const p = detailRow.value
   if (!p) return
+  const billType = p.bill_type || '采购报销'
   const summary = detailSummary.value || { total: 0, amount: 0, tax: 0, invoice_count: 0 }
   const budgetAmount = Number(p.amount != null ? p.amount : 0)        // 预算金额
   const invoiceTotal = Number(summary.total || 0)                      // 发票合计（含税）
   // 报销金额：优先 reimburse_amount，为空回落到发票合计（默认=发票合计）
   const reimburse = p.reimburse_amount != null ? Number(p.reimburse_amount) : invoiceTotal
   const cnAmount = moneyToChinese(reimburse)
-  const billType = p.bill_type || '采购报销'
 
   const travelRows = billType === '差旅报销'
     ? `<tr>

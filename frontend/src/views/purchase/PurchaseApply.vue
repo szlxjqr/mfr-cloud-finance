@@ -57,7 +57,9 @@
           <el-input v-model="form.applicant" placeholder="必填" />
         </el-form-item>
         <el-form-item label="部门">
-          <el-input v-model="form.department" />
+          <el-select v-model="form.department" placeholder="请选择部门" clearable style="width: 100%">
+            <el-option v-for="d in DEPARTMENTS" :key="d" :label="d" :value="d" />
+          </el-select>
         </el-form-item>
         <el-form-item label="是否归属研发项目">
           <el-radio-group v-model="form.is_rd_project">
@@ -194,6 +196,7 @@ import PurchasePrint from './PurchasePrint.vue'
 
 const router = useRouter()
 const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已支付']
+const DEPARTMENTS = ['总经办', '综合办', '研发部', '市场部']
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
@@ -253,7 +256,7 @@ function emptyItem(): PurchaseItem {
 const emptyForm = () => ({
   req_no: null as string | null,
   applicant: '沈雷',
-  department: '研发部',
+  department: '',
   item_name: '',
   spec: '',
   quantity: 1,

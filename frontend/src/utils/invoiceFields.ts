@@ -62,6 +62,10 @@ export interface ParsedInvoice {
   item?: string
   items?: ParsedLineItem[]
   account?: string
+  /** 非增值税金额（如机票行程单的民航发展基金），不计入价税合计 / 税额，仅作报销附加费展示 */
+  nonTaxAmount?: number
+  /** 电子客票号码（行程单专用，区别于 20 位发票号码） */
+  ticketNo?: string
   rawText?: string
   // 双识别闸门结论（由 invoiceDual.dualRecognize 注入）：
   // consistent=false 时后端置 needs_review 隔离，不自动信任。
@@ -74,6 +78,9 @@ export interface ValidationResult {
   ok: boolean
   missing: string[]
   parsed: ParsedInvoice
+  /** 彻底拒绝入库（非 needs_review 可人工放行）：如购买方为个人姓名。 */
+  reject?: boolean
+  rejectReason?: string
 }
 
 /** @deprecated 改用 InvoiceValidation */
@@ -92,6 +99,19 @@ const SELF_TAXNO = '91440300MAKF9C8P4U'
 // 长后缀放前面，正则按序首匹配。
 const SUFFIX =
   '股份有限公司|有限责任公司|有限公司|总公司|分公司|子公司|集团|酒店|旅行社|中心|局|厂|店|超市|商场|医院|学校|大学|银行|证券|保险|商行|商厦|企业|研究院|学院'
+
+// 判断「购买方」是否为自然人姓名（而非企业）。用于入库拦截：个人消费的发票不能报销入库。
+// 规则：含企业后缀（SUFFIX）→ 企业；纯中文 2-4 字且无后缀 → 自然人；其余（含字母/数字/≥5字/本名）→ 非个人。
+function isPersonalName(name?: string): boolean {
+  if (!name) return false
+  const n = name.replace(/\s+/g, '')
+  if (!n) return false
+  if (n === SELF_NAME) return false
+  if (new RegExp(`(?:${SUFFIX})$`).test(n)) return false
+  if (/^[一-鿿]{2,4}$/.test(n)) return true
+  return false
+}
+
 const round2 = (n: number) => Number(n.toFixed(2))
 
 // 标准 VAT 税率（%）。推导税率时吸附到最近的标准率；
@@ -181,8 +201,17 @@ export function normalizeMoneyDecimals(s: string): string {
   })
 }
 
+// OCR 偶发把「50.00」拆成「50. 00」；只合并恰好 2 位小数被空格拆开的情况。
+function fixMoneySpaces(s: string): string {
+  return s.replace(/(\d+)\.\s*(\d{2})(?!\d)/g, '$1.$2')
+}
+
 function cleanCompany(s: string): string {
-  return s.trim().replace(/\s+/g, ' ')
+  // 剥除企业名前残留的「年/月/日/：」等日期/标点前缀（数电票分块排版常见）。
+  return s
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:：年月日\-/]+/, '')
 }
 
 // 把「被拆开写」的标签归并：仅去除 CJK 字符之间的空白，保留数字/字母间距。
@@ -277,15 +306,17 @@ function extractSellerLabels(norm: string): string[] {
 }
 
 // 广义实体兜底：乘客（TO:/乘客/乘机人）、任意中文实体串（排除已知关键字）。
-function extractEntities(norm: string): { sellers: string[]; buyers: string[]; passengers: string[] } {
+function extractEntities(norm: string, rawText?: string): { sellers: string[]; buyers: string[]; passengers: string[] } {
   const sellers: string[] = []
   const buyers: string[] = []
   const passengers: string[] = []
 
-  // 乘客 / 客人（去哪儿账单 TO: 沈雷）
-  const pRe = new RegExp(`(?:TO|乘客|客人|乘机人)\\s*[：:]\\s*([${CJK}A-Za-z·]{1,12})`, 'g')
+  // 乘客 / 客人（去哪儿账单 TO: 沈雷）。必须在**未 collapseCjk 的原始文本**上匹配，
+  // 否则「沈雷\n感谢您...」会被 collapse 成「沈雷感谢您...」，导致乘客名被拉长污染。
+  const pSrc = rawText || norm
+  const pRe = new RegExp(`(?:TO|乘客|客人|乘机人)\\s*[：:]\\s*([${CJK}A-Za-z·]{1,12})(?=$|\\s|[^${CJK}A-Za-z·])`, 'g')
   let m: RegExpExecArray | null
-  while ((m = pRe.exec(norm))) passengers.push(cleanCompany(m[1]))
+  while ((m = pRe.exec(pSrc))) passengers.push(cleanCompany(m[1]))
 
   // 任意「中文实体串」作为兜底销售方（后缀锚定 + 排除已知关键字）
   const genericRe = new RegExp(`(${ENTCLASS}{1,30}?(?:${SUFFIX}))`, 'g')
@@ -320,6 +351,16 @@ function extractTaxNos(norm: string): string[] {
   const numRuns = [...norm.matchAll(/[0-9]+/g)].map((m) => m[0])
   splitRuns(numRuns, 15)
   return out
+}
+
+// 发票号码 OCR「前导 1」脏值校正：数电票 / 行程单的 20 位发票号被多识别一个前导 1 → 21 位，
+// 会触发 validateInvoice 的「发票号码缺失」误判（其正则 ^\d{8,20}$ 上限为 20）。
+// 合法发票号码恒为 8~20 位；恰好 21 位且以 '1' 开头几乎必为前导 1 脏值，剥离即可还原。
+// （仅处理「长度本身已非法」的 21 位场景，避免对合法 20 位号误删首位。）
+function correctInvoiceNoLeadingOne(no?: string): { value: string; corrected: boolean } {
+  if (!no) return { value: '', corrected: false }
+  if (/^1\d{20}$/.test(no)) return { value: no.slice(1), corrected: true }
+  return { value: no, corrected: false }
 }
 
 // 发票号码：标签锚定优先；其次取「18~22 位最长数字串」（数电票可为 19 位、且逐字空格分隔），
@@ -358,14 +399,17 @@ function extractDate(norm: string): string | undefined {
   return undefined
 }
 
-// 价税合计：优先「价税合计」后首个 ¥ 数（大写夹在中间）；「合计（小写）」次之；
+// 价税合计：优先「价税合计」标签后的**最后一个** ¥ 金额（大写在前、小写在后，
+// 中间可能夹杂脏金额如 ¥276.42 ¥16.58）；「合计（小写）」次之；
 // 账单类（去哪儿）用「实付金额 / 票价」末列 ¥（贪婪，取到最后一个 ¥）。
 function extractTotal(norm: string): number | undefined {
-  let m = norm.match(/价税合计[\s\S]*?[¥￥]\s*([\d,]+\.\d{2})/)
+  // 改「最后一个 prefix-¥」：河源等发票大写后先出现合计金额/税额，最后才是小写价税合计。
+  // 用 negative lookbehind 排除 suffix-¥（如 558.80¥ 33.53¥）被误当 prefix-¥。
+  let m = norm.match(/价税合计[\s\S]*(?<![\d.])[¥￥]\s*([\d,]+\.\d{2})(?![\s\S]*(?<![\d.])[¥￥])/)
   if (m) return parseMoney(m[1])
   m = norm.match(/合计\s*（小写）\s*[¥￥]?\s*([\d,]+\.\d{2})/)
   if (m) return parseMoney(m[1])
-  m = norm.match(/(实付金额|票价)[\s\S]*[¥￥]\s*([\d,]+\.\d{2})/)
+  m = norm.match(/(实付金额|票价)[\s\S]*(?<![\d.])[¥￥]\s*([\d,]+\.\d{2})/)
   if (m) return parseMoney(m[2])
   return undefined
 }
@@ -452,14 +496,27 @@ function extractEinvoiceItems(normE: string): ParsedLineItem[] {
  *  京东等优惠发票有额外负号行，合计行为权威来源。
  *  返回 { summaryAmount, summaryTax, summaryTotal }，找不到时全部为 undefined。 */
 function extractSummaryLine(norm: string): { summaryAmount?: number; summaryTax?: number; summaryTotal?: number } {
-  // 找「合计」或「小计」标签后的数字区域
-  const m = norm.match(/[合小]计[\s\S]{0,80}?(-?[\d,]+\.\d{2})\s+(-?[\d,]+\.\d{2})(?:\s+(-?[\d,]+\.\d{2}))?/)
-  if (!m) return {}
-  const r: { summaryAmount?: number; summaryTax?: number; summaryTotal?: number } = {}
-  r.summaryAmount = parseMoney(m[1])
-  r.summaryTax = parseMoney(m[2])
-  if (m[3] !== undefined) r.summaryTotal = parseMoney(m[3])
-  return r
+  // 数电票分块排版时，合计金额/税额可能出现在「合计」标签之后 200+ 字符处（如杭州酒店：
+  // 先出现备注+明细行，最后才是 323.06 19.38）。放宽窗口到 500 字符。
+  let textAfter = norm.match(/[合小]计([\s\S]{0,500})/)?.[1] || ''
+  // 同一行内的「金额 税额」对才认，避免跨行把「342.44\n323.06」黏成一对、把真正的 323.06/19.38 拆散。
+  // 同时去掉 ¥/￥ 符号，让「¥827.86 ¥107.63」也能成对提取。
+  textAfter = textAfter.replace(/[¥￥]/g, ' ')
+  const pairs = [...textAfter.matchAll(/(-?[\d,]+\.\d{2})[^\S\n\r]+(-?[\d,]+\.\d{2})(?![\d])/g)]
+  // 优先选「金额+税额」推导税率能吸附到标准 VAT 率的组合（过滤掉 323.06 323.06 这类脏对）。
+  for (const m of pairs) {
+    const a = parseMoney(m[1])
+    const t = parseMoney(m[2])
+    const dr = deriveTaxRate(a, t)
+    if (dr && STANDARD_VAT_RATES.includes(dr.rate)) {
+      return { summaryAmount: a, summaryTax: t }
+    }
+  }
+  // 回退：第一对数字
+  if (pairs.length) {
+    return { summaryAmount: parseMoney(pairs[0][1]), summaryTax: parseMoney(pairs[0][2]) }
+  }
+  return {}
 }
 
 // 开票项目（*xxx* 形式，取首个）。
@@ -473,47 +530,125 @@ function extractItem(norm: string): string | undefined {
 // 数电票购销方：税号提取最稳，名称取「各自税号紧前」的 CJK 后缀实体；
 // 布局重排（标签挤页眉、名称甩页中）或与日期黏连时仍稳。前置日期残留（年/月/日/数字/空白）一并剥除。
 function extractEinvoiceParties(norm: string, taxNos: string[]): { buyer?: string; seller?: string } {
-  const lastEntityBefore = (taxNo: string): string | undefined => {
-    const idx = norm.indexOf(taxNo)
-    if (idx < 0) return undefined
-    // 税号前 80 字符窗口（兼容名称与税号跨行）；去尾部空白/换行后从末尾回扫名称字符，
-    // 遇 数字/字母（税号/银行账号/型号残留）即止。
-    const win = norm.slice(Math.max(0, idx - 80), idx).replace(/\s+$/, '')
-    let s = ''
-    for (let i = win.length - 1; i >= 0; i--) {
-      const ch = win[i]
-      if (/[0-9A-Za-z]/.test(ch)) break
-      s = ch + s
-      if (s.length > 40) break
+  // 数电票文字层被 pdf.js 重排后，购销方名称可能落在税号之前或之后，且可能被日期/人名污染
+  // （如「2026年07月03日王大成深圳市流形机器人科技有限公司杭州呈华酒店管理有限公司」）。
+  // 策略：1) 贪婪提取最长 CJK+SUFFIX 串；2) 超长且含多个后缀的长串按后缀拆成子候选；
+  //    子候选若包含本企业名，取本企业名子串；3) 去重后按出现顺序分配（购买方在前、销售方在后）。
+  const suffixRe = new RegExp(`(?:${SUFFIX})$`)
+  const companyRe = new RegExp(`(${ENTCLASS}{2,}(?:${SUFFIX}))`, 'g')
+  // 拆分脏拼接长串时只用「有限公司」类核心后缀，避免把「XX分公司」等分支后缀误拆成独立公司。
+  const coreSuffix = '股份有限公司|有限责任公司|有限公司'
+  const suffixSplitRe = new RegExp(`(${coreSuffix})`, 'g')
+  const MAX_SINGLE = 25
+  const companies: { name: string; idx: number }[] = []
+  let m: RegExpExecArray | null
+  while ((m = companyRe.exec(norm)) !== null) {
+    const raw = cleanCompany(m[1])
+    if (raw.length < 4) continue
+    const suffixCount = [...raw.matchAll(suffixSplitRe)].length
+    // 含多个核心后缀（如「A有限公司B有限公司」）几乎一定是脏拼接，优先拆分再合并。
+    let parts: string[] =
+      suffixCount > 1
+        ? (() => {
+            const outParts: string[] = []
+            let last = 0
+            let sm: RegExpExecArray | null
+            while ((sm = suffixSplitRe.exec(raw)) !== null) {
+              outParts.push(raw.slice(last, sm.index + sm[0].length))
+              last = sm.index + sm[0].length
+            }
+            return outParts
+          })()
+        : [raw]
+    // 合并被误拆的相邻部分（如「杭州呈华酒店」+「管理有限公司」）
+    const merged: string[] = []
+    for (let i = 0; i < parts.length; i++) {
+      const cur = parts[i]
+      const next = parts[i + 1]
+      if (next && !/公司$/.test(cur) && /公司$/.test(cur + next)) {
+        merged.push(cur + next)
+        i++
+      } else {
+        merged.push(cur)
+      }
     }
-    // 去除前置日期残留（年/月/日/数字/空白/标点）
-    const cleaned = s.replace(/^[0-9年月光日时分秒.\/\-（）()\s]+/, '')
-    const name = cleanCompany(cleaned)
-    return name.length >= 4 ? name : undefined
+    parts = merged
+    for (const part of parts) {
+      let name = cleanCompany(part)
+      if (name.length < 4) continue
+      const selfPos = name.indexOf(SELF_NAME)
+      if (selfPos > 0) name = SELF_NAME
+      if (name === SELF_NAME || suffixRe.test(name)) {
+        companies.push({ name, idx: m.index })
+      }
+    }
   }
+  // 本企业名兜底（可能不符合通用后缀规则，但 SELF_NAME 已知）
+  let selfIdx = norm.indexOf(SELF_NAME)
+  while (selfIdx >= 0) {
+    if (!companies.some((c) => c.idx === selfIdx)) {
+      companies.push({ name: SELF_NAME, idx: selfIdx })
+    }
+    selfIdx = norm.indexOf(SELF_NAME, selfIdx + 1)
+  }
+  // 去重（同名保留首次）
+  const seen = new Set<string>()
+  const unique = companies.filter((c) => {
+    if (seen.has(c.name)) return false
+    seen.add(c.name)
+    return true
+  })
+
+  // 过滤掉税务局/发票监制章等政府机关名，避免其因出现位置早而被错当成销售方。
+  const isGov = (n: string) => /税务|发票|监制|国家/.test(n)
   const out: { buyer?: string; seller?: string } = {}
-  if (taxNos.length >= 1) {
-    const b = lastEntityBefore(taxNos[0])
-    if (b) out.buyer = b
+  if (unique.length >= 2) {
+    // 报销场景：本企业恒为购买方；无本企业时再按标签顺序推断。
+    const selfIdx = unique.findIndex((c) => c.name === SELF_NAME)
+    if (selfIdx >= 0) {
+      // 优先取非政府机关的另一方（如酒店公司），避免把「XX税务局」当销售方。
+      const otherCandidates = unique.filter((_, i) => i !== selfIdx && !isGov(_.name))
+      const otherIdx = otherCandidates.length
+        ? unique.findIndex((c) => c.name === otherCandidates[0].name)
+        : (selfIdx === 0 ? 1 : 0)
+      out.buyer = unique[selfIdx].name
+      out.seller = unique[otherIdx].name
+  } else {
+    // 非本企业报销场景：购销方均排除税务局/发票监制章等政府机关名。
+    const nonGov = unique.filter((c) => !isGov(c.name))
+    const buyerLabelIdx = norm.indexOf('购买方')
+    const sellerLabelIdx = norm.indexOf('销售方')
+    if (nonGov.length >= 2) {
+      if (sellerLabelIdx >= 0 && buyerLabelIdx >= 0 && sellerLabelIdx < buyerLabelIdx) {
+        out.buyer = nonGov[1].name
+        out.seller = nonGov[0].name
+      } else {
+        out.buyer = nonGov[0].name
+        out.seller = nonGov[1].name
+      }
+    } else if (nonGov.length === 1) {
+      out.seller = nonGov[0].name
+    }
   }
-  if (taxNos.length >= 2) {
-    const s2 = lastEntityBefore(taxNos[1])
-    if (s2) out.seller = s2
+  } else if (unique.length === 1) {
+    if (unique[0].name === SELF_NAME) out.buyer = SELF_NAME
+    else if (!isGov(unique[0].name)) out.seller = unique[0].name
   }
   return out
 }
 export function extractInvoiceFields(text: string): ParsedInvoice {
   const result: ParsedInvoice = { rawText: text }
   if (!text) return result
-  const norm = normLabels(normalizeMoneyDecimals(depod(text)))
+  const norm = normLabels(normalizeMoneyDecimals(fixMoneySpaces(depod(text))))
   // 数电票专用副本：不跑 normalizeMoneyDecimals（避免把粘连小数 22.5486 误圆成 22.55，
   // 破坏「税率%[单位] 金额 税额」中税额的精确 2 位提取）。
-  const normE = normLabels(depod(text))
+  const normE = normLabels(fixMoneySpaces(depod(text)))
 
-  // 1. 发票号码
+  // 1. 发票号码（含 OCR 前导 1 校正：21 位→20 位）
   const taxNos = extractTaxNos(norm)
-  const no = extractInvoiceNo(norm, taxNos)
-  if (no) result.no = no
+  const rawNo = extractInvoiceNo(norm, taxNos)
+  const noFix = correctInvoiceNoLeadingOne(rawNo)
+  if (noFix.value) result.no = noFix.value
 
   // 2. 开票日期
   const date = extractDate(norm)
@@ -522,7 +657,7 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
   // 3. 购销方：名称锚点顺序优先；其次标签 / 广义实体 / 本企业兜底
   const names = extractNameAnchors(norm)
   const sellerLabels = extractSellerLabels(norm)
-  const entities = extractEntities(norm)
+  const entities = extractEntities(norm, text)
 
   let buyerName: string | undefined
   let sellerName: string | undefined
@@ -550,28 +685,210 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     result.sellerTaxNo = taxNos[taxNos.length - 1]
   }
 
+  // 4b. 两税号场景：用「税号紧前窗口」反查购销方名，修复标签/值分块排版的电子发票
+  // （如去哪儿酒店专票把销售方/购买方值块排在税号之前，通用实体兜底会抓错）。
+  // 过滤：只接受以企业后缀结尾或为本企业的名称，防止把标签文字（统一社会信用代码/：）当名称。
+  const suffixRe = new RegExp(`(?:${SUFFIX})$`)
+  const isValidParty = (n?: string) =>
+    !!n && (n === SELF_NAME || suffixRe.test(n))
+  if (taxNos.length >= 2) {
+    const parties = extractEinvoiceParties(normE, taxNos)
+    if (isValidParty(parties.buyer)) buyerName = parties.buyer
+    if (isValidParty(parties.seller)) sellerName = parties.seller
+  }
+
+  // —— 航空运输电子客票行程单（航司 / 代理开票，含民航发展基金）——
+  // 结构特殊：票面「合计」含【非增值税】的民航发展基金，真正的价税合计 = 票价 + 燃油附加费 + 增值税税额。
+  // 字段对齐（已与老板确认）：票价、燃油附加费均为不含税；增值税税额独立；民航发展基金为非税附加费。
+  // 计算：amount = 票价 + 燃油附加费；tax = 增值税税额；total = amount + tax（= 价税合计，不含基金）。
+  // 民航发展基金 + 其他税费记入 nonTaxAmount，不进 VAT 公式，仅作报销附加费。
+  // OCR 场景下标签可能全丢，只剩「CNY 688.07 CNY 137.61 CNY 50.00 CNY 0.00 CNY 950.00」这种金额列，
+  // 此时按列序推断：最后一个是票面合计（含基金），前面若干列按「应税金额 / 非税附加费」组合，用 9% 税率反推校验。
+  const isAviation =
+    (/电子客票行程单|航空运输电子客票|行程单|客票号码|电子客票/.test(norm) &&
+      (/填开单位|票价|民航|燃油|其他税费|购买方名称/.test(norm) ||
+        /(?:CNY|¥|￥)\s*[\d,]+\.\d{2}/.test(norm))) ||
+    // OCR 噪声场景：标题关键字可能错字/丢失，但「客票号码 + 填开单位 + 金额」足够判定为行程单。
+    (/客票号码|电子客票/.test(norm) && /填开单位/.test(norm) && /(?:CNY|¥|￥)/.test(norm))
+  if (isAviation) {
+    const moneyAfter = (re: RegExp, def?: number): number | undefined => {
+      const m = norm.match(re)
+      return m ? parseMoney(m[1]) : def
+    }
+
+    // 1) 标签法：票面文字层干净时直接用。
+    const fareLbl = moneyAfter(/票价[\s¥￥CNYcny]*([\d,]+\.\d{2})/)
+    const fuelLbl = moneyAfter(/燃油附加费[\s¥￥CNYcny]*([\d,]+\.\d{2})/)
+    const taxLbl = moneyAfter(/增值税税额[\s¥￥CNYcny]*([\d,]+\.\d{2})/)
+    const fundLbl = moneyAfter(/民航发展基金[\s¥￥CNYcny]*([\d,]+\.\d{2})/, 0)
+    const otherLbl = moneyAfter(/其他税费[\s¥￥CNYcny]*([\d,]+\.\d{2})/, 0)
+
+    // 2) 金额列推断（OCR 标签丢失时）：连续金额列，最后一个是票面合计。
+    //    行程单列序一般为：票价 燃油附加费 [民航发展基金] [其他税费] 合计。
+    //    把末尾 0~2 个小金额当 nonTax，其余当应税金额，用标准 VAT 率反推税额。
+    const allAmounts = [...norm.matchAll(/[¥￥CNYcny]\s*([\d,]+\.\d{2})/g)].map((m) =>
+      parseMoney(m[1]),
+    )
+    type Layout = { amount: number; tax: number; total: number; nonTax: number; taxRate: number }
+    const inferByAmounts = (): Layout | null => {
+      if (allAmounts.length < 4) return null
+      const totalPaid = allAmounts[allAmounts.length - 1]
+      const tryNonTax = (nonTaxCount: number): Layout | null => {
+        const taxableCount = allAmounts.length - 1 - nonTaxCount
+        if (taxableCount < 1) return null
+        const nonTaxItems = allAmounts.slice(taxableCount, allAmounts.length - 1)
+        const taxableItems = allAmounts.slice(0, taxableCount)
+        const nonTax = round2(nonTaxItems.reduce((a, b) => a + b, 0))
+        const amount = round2(taxableItems.reduce((a, b) => a + b, 0))
+        const tax = round2(totalPaid - amount - nonTax)
+        const dr = deriveTaxRate(amount, tax)
+        if (!dr) return null
+        // 行程单只可能是 9%（机票）；13% 留给极少数货运/其他应税服务兜底。
+        if (![9, 13].includes(dr.rate)) return null
+        // 推导值与标准率偏差应在 2 个百分点内
+        if (Math.abs(dr.derived - dr.rate) > 2) return null
+        return { amount, tax, total: round2(amount + tax), nonTax, taxRate: dr.rate }
+      }
+      // 优先尝试末尾 2 项为 nonTax（常见：基金+其他税费），再 1 项，最后 0 项
+      for (const c of [2, 1, 0]) {
+        const layout = tryNonTax(c)
+        if (layout) return layout
+      }
+      return null
+    }
+    // OCR 严重退化时只剩「票价/合计」两列（甚至只有 3 个金额），无法分离基金/燃油；
+    // 此时直接按 9% 由 total 倒推 amount+tax，保证 total/tax 可用（基金 breakdown 放弃）。
+    const inferFromTotalOnly = (): Layout | null => {
+      if (allAmounts.length < 2) return null
+      const totalPaid = allAmounts[allAmounts.length - 1]
+      if (totalPaid <= 0) return null
+      const RATE = 9
+      const amount = round2(totalPaid / (1 + RATE / 100))
+      const tax = round2(totalPaid - amount)
+      if (amount <= 0 || tax < 0) return null
+      return { amount, tax, total: totalPaid, nonTax: 0, taxRate: RATE }
+    }
+
+    const ticketNo = (norm.match(/电子客票号码[\s：:]*([0-9]{10,20})/) || [])[1] ||
+                     (norm.match(/客票号码[\s：:]*([0-9]{10,20})/) || [])[1]
+    const rateM = norm.match(/增值税税率\s*(\d{1,2})\s*%/)
+    const explicitRate = rateM ? Number(rateM[1]) : undefined
+
+    let amount = 0
+    let tax = 0
+    let total = 0
+    let nonTax = 0
+    let taxRate: number | undefined = explicitRate
+
+    if (fareLbl && fuelLbl && taxLbl) {
+      amount = round2(fareLbl + fuelLbl)
+      tax = round2(taxLbl)
+      total = round2(amount + tax)
+      nonTax = round2((fundLbl || 0) + (otherLbl || 0))
+    } else {
+      const layout = inferByAmounts() || inferFromTotalOnly()
+      if (layout) {
+        amount = layout.amount
+        tax = layout.tax
+        total = layout.total
+        nonTax = layout.nonTax
+        taxRate = taxRate ?? layout.taxRate
+      }
+    }
+
+    if (amount > 0 && total > 0) {
+      result.amount = amount
+      result.tax = tax
+      result.total = total
+      result.taxRate =
+        taxRate !== undefined ? taxRate : (deriveTaxRate(amount, tax)?.rate ?? undefined)
+      result.type = '航空运输电子客票行程单'
+      if (nonTax > 0) result.nonTaxAmount = nonTax
+      if (ticketNo) result.ticketNo = ticketNo
+      // 行程单没有 20 位发票号码，以电子客票号码作为唯一识别码通过校验。
+      if (ticketNo && !result.no) result.no = ticketNo
+      // 销售方：优先「填开单位」，其次排除本企业的实体；行程单不含销售方税号
+      const issuer = (norm.match(new RegExp(`填开单位[\\s：:]*(${ENTCLASS}{2,30}?(?:${SUFFIX}))`)) || [])[1]
+      if (issuer) result.sellerName = cleanCompany(issuer)
+      else if (!sellerName && entities.sellers.length) {
+        const s = entities.sellers.find((x) => x !== SELF_NAME && !x.includes('流形'))
+        if (s) result.sellerName = s
+      } else if (sellerName) result.sellerName = sellerName
+      // 购买方：航空行程单取真实「购买方名称」栏（公司抬头），旅客姓名归 passenger，不污染购买方字段。
+      // 避免把自然人旅客误判为购买方触发拦截；票面无购买方名称时留空（不取旅客姓名）。
+      const buyerLabel = (norm.match(/购买方名称[\s：:]*([一-鿿（）()·\-\/]{2,30}?(?:${SUFFIX}))/) || [])[1]
+      let realBuyer: string | undefined
+      if (buyerLabel) realBuyer = cleanCompany(buyerLabel)
+      else if (selfHere || selfTaxHere) realBuyer = SELF_NAME
+      result.buyerName = realBuyer
+      result.sellerTaxNo = undefined
+      result.items = [{ name: '*', amount, tax, taxRate: result.taxRate }]
+      return result
+    }
+    // 金额未能识别全 → 降级走通用逻辑兜底
+  }
+
   // —— 数电票（电子发票/增值税专用发票，detail 行以「税率%[单位] 金额 税额」呈现）——
-  // 关键金额在「¥ 金额 ¥ 税额」与「价税合计（大写） ¥ 总额」两处，且逐字空格拆开。
-  // 走专用分支：避免被通用逻辑的「合计」截断、顺序错配、或 normalizeMoneyDecimals 破坏粘连小数。
-  // 判定放宽（仅服务京东这一种新格式，不误伤已有 fixture）：
   //  · 原条件：税率带单位字（%[个块台套件张只]）→ 阿里/海利士/宝之谷/极途/拓骏成。
   //  · 新增：京东电子发票「裸税率%」（税额黏税率、无单位字，如 76.1613%）+ ¥金额¥税额 对。
   //    用「\d+\.\d{2}\d{1,2}%」锚定「税额.xx 直接黏 税率yy%」（无空格），避免把普通「金额 空格 税率%」(如 323.06 6%) 误拽进分支。
-  if (
-    /%\s*[个块台套件张只]/.test(normE) ||
-    (/电子发票|增值税专用发票/.test(normE) && /\d+\.\d{2}\d{1,2}%/.test(normE) && /[¥￥]\s*[\d,]+\.\d{2}\s*[¥￥]/.test(normE))
-  ) {
-    const pair = normE.match(/[¥￥]\s*([\d,]+\.\d{2})\s*[¥￥]\s*([\d,]+\.\d{2})/)
-    if (pair) {
-      result.amount = round2(parseMoney(pair[1]))
-      result.tax = round2(parseMoney(pair[2]))
+  const isEinvoiceWithUnit = /%\s*[个块台套件张只]/.test(normE)
+  const isJdEinvoice =
+    /电子发票|增值税专用发票/.test(normE) &&
+    /\d+\.\d{2}\d{1,2}%/.test(normE) &&
+    /[¥￥]\s*[\d,]+\.\d{2}\s*[¥￥]/.test(normE)
+  // 标签/值分块排版：明细行呈现为「金额 税额 税率%」或「金额 税率% 税额」（无 ¥ 前缀、无单位字），如杭州/河源酒店专票。
+  const isLooseEinvoice =
+    /电子发票|增值税专用发票/.test(normE) &&
+    (
+      /([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+\d{1,2}%/.test(normE) || // 金额 税额 税率%
+      /([\d,]+\.\d{2})\s+\d{1,2}\s*%\s+[\d,]+\.\d{2}/.test(normE) // 金额 税率% 税额
+    )
+  if (isEinvoiceWithUnit || isJdEinvoice || isLooseEinvoice) {
+    // 金额/税额：优先「合计」行（最权威）；其次 ¥金额¥税额 对；最后才尝试明细行三元组。
+    // 杭州等 OCR 把税率脏成「19.386%」，明细三元组会抓错；合计行 323.06 19.38 始终可靠。
+    const sl = extractSummaryLine(normE)
+    if (sl.summaryAmount !== undefined && sl.summaryTax !== undefined) {
+      const dr = deriveTaxRate(sl.summaryAmount, sl.summaryTax)
+      if (dr && STANDARD_VAT_RATES.includes(dr.rate)) {
+        result.amount = sl.summaryAmount
+        result.tax = sl.summaryTax
+      }
     }
-    // 价税合计：取「价税合计（大写）…」之后【最后一个】¥ 数（总额恒在末位）
-    const totM = normE.match(/价税合计[\s\S]*[¥￥]\s*([\d,]+\.\d{2})(?![\s\S]*[¥￥])/)
+
+    if (result.amount === undefined) {
+      const pair = normE.match(/[¥￥]\s*([\d,]+\.\d{2})\s*[¥￥]\s*([\d,]+\.\d{2})/)
+      if (pair) {
+        result.amount = round2(parseMoney(pair[1]))
+        result.tax = round2(parseMoney(pair[2]))
+      } else {
+        // 宽松 A：金额 税额 税率%（税率前紧邻的两个 2 位小数）
+        const loose = normE.match(/([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+(\d{1,2})\s*%/)
+        if (loose) {
+          result.amount = round2(parseMoney(loose[1]))
+          result.tax = round2(parseMoney(loose[2]))
+        }
+        // 宽松 B：金额 税率% 税额（河源等分块排版）
+        if (result.amount === undefined) {
+          const loose2 = normE.match(/([\d,]+\.\d{2})\s+(\d{1,2})\s*%\s+([\d,]+\.\d{2})/)
+          if (loose2) {
+            result.amount = round2(parseMoney(loose2[1]))
+            result.tax = round2(parseMoney(loose2[3]))
+          }
+        }
+      }
+    }
+    // 价税合计：优先「价税合计…」之后最后一个 prefix-¥ 金额（suffix-¥ 如 558.80¥ 不算）。
+    const totM = normE.match(/价税合计[\s\S]*(?<![\d.])[¥￥]\s*([\d,]+\.\d{2})(?![\s\S]*(?<![\d.])[¥￥])/)
     if (totM) result.total = round2(parseMoney(totM[1]))
     else {
-      const all = [...normE.matchAll(/[¥￥]\s*([\d,]+\.\d{2})/g)].map((x) => parseMoney(x[1]))
+      // 只取真正的 prefix-¥（¥ 前不是数字/小数点），避免「558.80¥ 33.53」把 suffix ¥ 当 prefix 抓到 33.53。
+      const all = [...normE.matchAll(/(?<![\d.])[¥￥]\s*([\d,]+\.\d{2})/g)].map((x) => parseMoney(x[1]))
       if (all.length) result.total = round2(all[all.length - 1])
+      else {
+        const allBare = [...normE.matchAll(/([\d,]+\.\d{2})/g)].map((x) => parseMoney(x[1]))
+        if (allBare.length) result.total = round2(Math.max(...allBare))
+      }
     }
     // 税率：明细「%个」优先；否则由 税额/金额 反推吸附标准 VAT
     const rateM = normE.match(/(\d{1,2})\s*%\s*[个块台套件张只]?/)
@@ -632,9 +949,18 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
       if (dr) result.taxRate = dr.rate
     }
   } else {
+    // 明细被截断或排在合计之后时（河源/杭州等分块排版），从「合计」行取金额/税额。
+    const sl = extractSummaryLine(norm)
+    if (sl.summaryAmount !== undefined && sl.summaryTax !== undefined) {
+      result.amount = sl.summaryAmount
+      result.tax = sl.summaryTax
+    }
+
     const total = extractTotal(norm)
     if (total !== undefined) {
       result.total = total
+    } else if (sl.summaryTotal !== undefined) {
+      result.total = sl.summaryTotal
     } else {
       // 无标签/无明细（火车票等）：取最大两位小数金额，其次合理整数
       const decs = [...norm.matchAll(/[\d,]+\.\d{2}/g)].map((x) => parseMoney(x[0]))
@@ -645,6 +971,12 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
         const cand = ints.filter((n) => n > 0 && n <= 10000)
         if (cand.length) result.total = Math.max(...cand)
       }
+    }
+
+    // 税率：由合计行金额/税额反推吸附标准 VAT
+    if (result.taxRate === undefined && result.amount && result.tax !== undefined) {
+      const dr = deriveTaxRate(result.amount, result.tax)
+      if (dr) result.taxRate = dr.rate
     }
   }
 
@@ -658,20 +990,85 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
   const item = extractItem(norm)
   if (item) result.item = item
 
+  // 火车票 / 铁路电子客票（无标签版式，含 12306 / 中国铁路 / D·G+车次）：
+  //  · 票面仅印「票价 = 总价(含税)」，不印单独税额；铁路增值税率 9%，
+  //    按 total/(1+9%) 倒算 金额/税额，使 amount+tax≈total 自洽、公式闸门通过（方案A）。
+  //  · 销售方恒为「中国铁路」；票面「XX税务局」是开票机关、非销售方，须压过通用实体兜底。
+  //  · 火车票不印销售方税号，清掉「单税号落 taxNos[last]」误带成的买方税号。
+  if (/12306|中国铁路|[\s(（]?[DG]\d{2,4}[\s)）]/.test(norm)) {
+    if (sellerName !== '中国铁路') sellerName = '中国铁路'
+    result.sellerTaxNo = undefined
+    if (result.total && (!result.amount || result.amount <= 0)) {
+      const RATE = 9
+      const amount = round2(result.total / (1 + RATE / 100))
+      const tax = round2(result.total - amount)
+      result.amount = amount
+      result.tax = tax
+      result.taxRate = RATE
+      if (!result.type) result.type = '铁路电子客票'
+      if (!result.items || !result.items.length) {
+        result.items = [{ name: '*', amount, tax, taxRate: RATE }]
+      }
+    }
+  }
+
+  // 非发票类票据兜底：消费明细 / 酒店账单 / 订单详情 / 平台账单等。
+  // 这类 PDF 无发票号码、无价税结构，但报销需要「销售方 + 总金额」。
+  const hasInvoiceMarker = /电子发票|增值税专用发票|普通发票|发票号码|统一社会信用代码|纳税人识别号/.test(norm)
+  const hasReceiptMarker = /消费明细|酒店账单|订单详情|平台账单|账单/.test(norm)
+  if (!hasInvoiceMarker && hasReceiptMarker && result.total && !result.amount) {
+    const total = result.total
+    result.amount = total
+    result.tax = 0
+    result.taxRate = 0
+    result.type = '其他票据'
+    // 销售方优先用已提取的「酒店名称」标签，避免自定义正则跨行吞入日期。
+    const receiptSeller = sellerLabels[0] || norm.match(/酒店名称\s*[：:]\s*([^\n]{2,40})/)?.[1]
+    if (receiptSeller) sellerName = cleanCompany(receiptSeller)
+    // 购买方：乘客/入住人优先，无则兜底本企业。
+    if (entities.passengers.length) buyerName = entities.passengers[0]
+    else if (selfHere || selfTaxHere) buyerName = SELF_NAME
+  }
+
   result.buyerName = buyerName
   result.sellerName = sellerName
   return result
 }
 
+// 是否为非发票类票据（消费明细 / 酒店账单 / 平台账单等）。
+function isReceipt(p: ParsedInvoice): boolean {
+  const norm = (p.rawText || '').replace(/\s/g, '')
+  const hasInvoiceMarker = /电子发票|增值税专用发票|普通发票|发票号码|统一社会信用代码|纳税人识别号/.test(norm)
+  const hasReceiptMarker = /消费明细|酒店账单|订单详情|平台账单|账单|实付金额|酒店名称/.test(norm)
+  return !hasInvoiceMarker && hasReceiptMarker
+}
+
 // 校验识别结果：只检查核心四字段（发票号/金额/税额/价税合计）。
 // 非核心字段（日期/购销方/明细名/单价/数量）缺失不影响「可入库」判定。
+// 非发票类票据（消费明细/酒店账单等）无发票号码，校验放宽为只核金额/税额/价税合计。
 export function validateInvoice(p: ParsedInvoice): ValidationResult {
   const missing: string[] = []
-  if (!p.no || !/^\d{8,20}$/.test(p.no)) missing.push('发票号码')
+  const receipt = isReceipt(p)
+  // OCR 前导 1 脏值：21 位（20 位真号 + 前导 1）先剥离再校验，避免误判「发票号码缺失」。
+  const chkNo = correctInvoiceNoLeadingOne(p.no).value
+  if (!receipt && (!chkNo || !/^\d{8,20}$/.test(chkNo))) missing.push('发票号码')
   if (!p.amount || p.amount <= 0) missing.push('合计金额')
   if (p.tax === undefined || p.tax === null || p.tax < 0) missing.push('合计税额')
   if (!p.total || p.total <= 0) missing.push('价税合计')
-  return { ok: missing.length === 0, missing, parsed: p }
+  // 入库拦截：仅对「发票」类凭证（类型含「发票」：增值税专用发票/普通发票/电子发票/数电票等）
+  // 做个人购买方拦截——购买方为自然人姓名（非企业）的不能报销入库。
+  // 火车票、机票行程单、酒店/订单账单（其他票据）及未识别类型一律豁免，
+  // 避免把旅客/入住人姓名误判为个人购买方（老板要求：飞机要看清楚字段，旅客≠购买方）。
+  const isInvoiceType = !!p.type && p.type.includes('发票')
+  const personal = isInvoiceType && isPersonalName(p.buyerName)
+  if (personal) missing.push('购买方为个人姓名，不能入库')
+  return {
+    ok: missing.length === 0,
+    missing,
+    parsed: p,
+    reject: personal,
+    rejectReason: personal ? '购买方为个人姓名，不能入库' : undefined,
+  }
 }
 
 // 公式核对：权威判定，抓识别错误。

@@ -23,6 +23,7 @@ class ReimbursementBillBase(BaseModel):
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
     purchase_requisition_id: Optional[int] = None
+    travel_requisition_id: Optional[int] = None
     pay_date: Optional[date] = None
     bill_type: str = "采购报销"
     traveler: Optional[str] = None
@@ -50,6 +51,7 @@ class ReimbursementBillUpdate(BaseModel):
     attachment_path: Optional[str] = None
     remark: Optional[str] = None
     purchase_requisition_id: Optional[int] = None
+    travel_requisition_id: Optional[int] = None
     pay_date: Optional[date] = None
     bill_type: Optional[str] = None
     traveler: Optional[str] = None

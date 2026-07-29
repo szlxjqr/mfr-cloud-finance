@@ -42,6 +42,7 @@ class InvoiceBase(BaseModel):
     remark: Optional[str] = None
     reimbursement_bill_id: Optional[int] = None
     purchase_requisition_item_id: Optional[int] = None
+    travel_requisition_item_id: Optional[int] = None
     attachment_path: Optional[str] = None
     route_info: Optional[str] = None
     traveler: Optional[str] = None
@@ -67,6 +68,7 @@ class InvoiceUpdate(BaseModel):
     remark: Optional[str] = None
     reimbursement_bill_id: Optional[int] = None
     purchase_requisition_item_id: Optional[int] = None
+    travel_requisition_item_id: Optional[int] = None
     attachment_path: Optional[str] = None
     route_info: Optional[str] = None
     traveler: Optional[str] = None

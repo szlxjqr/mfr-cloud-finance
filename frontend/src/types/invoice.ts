@@ -28,6 +28,7 @@ export interface Invoice {
   remark?: string | null
   reimbursement_bill_id?: number | null
   purchase_requisition_item_id?: number | null
+  travel_requisition_item_id?: number | null
   attachment_path?: string | null
   route_info?: string | null
   traveler?: string | null
@@ -69,6 +70,7 @@ export interface InvoiceCreatePayload {
   remark?: string | null
   reimbursement_bill_id?: number | null
   purchase_requisition_item_id?: number | null
+  travel_requisition_item_id?: number | null
   attachment_path?: string | null
   route_info?: string | null
   traveler?: string | null

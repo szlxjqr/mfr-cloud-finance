@@ -36,9 +36,9 @@
       </table>
     </div>
 
-    <!-- 二、采购细项选择（仅当未预选 item 时展示整个细项表；预选时只显示已选提示，避免与编辑弹窗重复） -->
+    <!-- 二、采购/差旅细项选择（仅当未预选 item 时展示整个细项表；预选时只显示已选提示，避免与编辑弹窗重复） -->
     <div v-if="showItemStep && !props.initialItemId" class="item-step">
-      <div class="step-title">③ 请选择对应的采购细项：</div>
+      <div class="step-title">③ 请选择对应的{{ itemKind === 'travel' ? '差旅费用细项' : '采购细项' }}：</div>
       <DataLoader :loading="itemLoading" :is-empty="!purchaseItems.length">
         <el-table
           :data="purchaseItems"
@@ -50,13 +50,13 @@
           <el-table-column label="序号" width="55" align="center">
             <template #default="{ $index }">{{ $index + 1 }}</template>
           </el-table-column>
-          <el-table-column label="物品/服务" prop="item_name" min-width="140" show-overflow-tooltip />
-          <el-table-column label="规格" prop="spec" width="110" show-overflow-tooltip />
-          <el-table-column label="数量" prop="quantity" width="60" align="center" />
-          <el-table-column label="金额" width="100" align="right">
+          <el-table-column :label="itemKind === 'travel' ? '费用名称' : '物品/服务'" prop="item_name" min-width="140" show-overflow-tooltip />
+          <el-table-column v-if="itemKind !== 'travel'" label="规格" prop="spec" width="110" show-overflow-tooltip />
+          <el-table-column v-if="itemKind !== 'travel'" label="数量" prop="quantity" width="60" align="center" />
+          <el-table-column :label="itemKind === 'travel' ? '预算金额' : '金额'" width="100" align="right">
             <template #default="{ row }">¥{{ formatNum(row.amount) }}</template>
           </el-table-column>
-          <el-table-column label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
+          <el-table-column v-if="itemKind !== 'travel'" label="供应商" prop="supplier" min-width="100" show-overflow-tooltip />
           <el-table-column label="已挂" width="80" align="center">
             <template #default="{ row }">
               <span :class="{ 'has-invoices': (itemInvoiceCount.get(row.id) || 0) > 0 }">
@@ -185,6 +185,7 @@ import { ElMessage } from 'element-plus'
 import http from '@/utils/request'
 import { invoiceApi } from '@/api/invoice'
 import { purchaseApi } from '@/api/purchase'
+import { travelApi } from '@/api/travel'
 import * as pdfjs from 'pdfjs-dist'
 
 // pdfjs worker 配置（Safari 没有内置 PDF 渲染，必须用 pdfjs）
@@ -194,6 +195,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
 import type { Invoice } from '@/types/invoice'
 import type { ReimbursementBill } from '@/types/reimburse'
 import type { PurchaseItem } from '@/types/purchase'
+import type { TravelItem } from '@/types/travel'
 
 const props = defineProps<{
   modelValue: boolean
@@ -218,13 +220,15 @@ function toNum(v: any): number {
   return isFinite(n) ? n : 0
 }
 
-// ======== 采购细项 ========
-const purchaseItems = ref<PurchaseItem[]>([])
+// ======== 采购/差旅细项 ========
+const purchaseItems = ref<(PurchaseItem | TravelItem)[]>([])
 const showItemStep = ref(false)
 const selectedItemId = ref<number | null>(null)
 const itemNameMap = ref<Record<number, string>>({})
 const itemInvoiceCount = ref<Map<number, number>>(new Map())
 const itemLoading = ref(false)
+// 区分细项来源：采购报销走 purchase_requisition_item_id，差旅报销走 travel_requisition_item_id
+const itemKind = ref<'purchase' | 'travel' | null>(null)
 
 // ======== 发票 ========
 const unlinkedInvoices = ref<(Invoice & { total_amount?: number; total_tax?: number })[]>([])
@@ -430,14 +434,20 @@ async function onOpen() {
   purchaseItems.value = []
   itemInvoiceCount.value = new Map()
   showItemStep.value = false
+  itemKind.value = null
 
   if (!props.bill) return
 
   // 加载来源采购单（若有）
   if (props.bill.purchase_requisition_id) {
+    itemKind.value = 'purchase'
     await loadPurchaseContext(props.bill.purchase_requisition_id, props.bill.id)
+  } else if (props.bill.travel_requisition_id) {
+    // 差旅报销：加载差旅费用细项（镜像采购报销流程）
+    itemKind.value = 'travel'
+    await loadTravelContext(props.bill.travel_requisition_id, props.bill.id)
   } else {
-    // 非采购报销（差旅等）无来源采购单 → 直接显示发票选择
+    // 非采购/差旅报销无来源单 → 直接显示发票选择
     loadUnlinked()
   }
 }
@@ -480,7 +490,44 @@ async function loadPurchaseContext(purchaseReqId: number, billId: number) {
   }
 }
 
-function onItemRowChange(item: PurchaseItem) {
+async function loadTravelContext(travelReqId: number, billId: number) {
+  itemLoading.value = true
+  try {
+    const [travelRes, linkedRes] = await Promise.all([
+      travelApi.get(travelReqId),
+      invoiceApi.list({ reimbursement_bill_id: billId }),
+    ])
+    const items: TravelItem[] = travelRes.data.items || []
+    purchaseItems.value = items  // 复用同一变量（结构兼容：都有 id/item_name/amount）
+
+    const map: Record<number, string> = {}
+    items.forEach((it) => { if (it.id) map[it.id] = it.item_name })
+    itemNameMap.value = map
+
+    // 统计每个差旅细项已挂发票数（按 travel_requisition_item_id）
+    const counts = new Map<number, number>()
+    ;(linkedRes.data || []).forEach((inv: Invoice) => {
+      if (inv.travel_requisition_item_id) {
+        counts.set(inv.travel_requisition_item_id, (counts.get(inv.travel_requisition_item_id) || 0) + 1)
+      }
+    })
+    itemInvoiceCount.value = counts
+
+    showItemStep.value = items.length > 0
+    if (!showItemStep.value) loadUnlinked()
+    if (showItemStep.value && props.initialItemId && items.some((it) => it.id === props.initialItemId)) {
+      selectedItemId.value = props.initialItemId
+      loadUnlinked()
+    }
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.detail || '加载来源差旅单失败')
+    loadUnlinked()
+  } finally {
+    itemLoading.value = false
+  }
+}
+
+function onItemRowChange(item: PurchaseItem | TravelItem) {
   selectedItemId.value = item?.id ?? null
   selectedInvoiceIds.value = []
   if (selectedItemId.value) loadUnlinked()
@@ -519,7 +566,9 @@ async function confirmLink() {
   if (showItemStep.value && !selectedItemId.value) return
   linking.value = true
   try {
-    await invoiceApi.batchLink(selectedInvoiceIds.value, props.bill.id, selectedItemId.value ?? undefined)
+    const itemId = itemKind.value === 'purchase' ? (selectedItemId.value ?? undefined) : undefined
+    const travelItemId = itemKind.value === 'travel' ? (selectedItemId.value ?? undefined) : undefined
+    await invoiceApi.batchLink(selectedInvoiceIds.value, props.bill.id, itemId, travelItemId)
     ElMessage.success(`已关联 ${selectedInvoiceIds.value.length} 张发票`)
     emit('attached', {
       billId: props.bill.id,

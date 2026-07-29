@@ -55,9 +55,90 @@ const EXPECTED = {
     bTax: '91110000MA0000011B', sTax: '95110000MA0000055F',
     total: 342.44, amount: 323.06, tax: 19.38,
   },
-  train_ticket: {
-    no: '88449165860009999990', seller: '中国铁路',
-    total: 630.00, sTax: '93110000MA0000011B',
+  // 铁路电子客票（真实 PDF 文字层，pdfplumber 抽出）：票面仅印「票价=总价(含税)」，不印单独税额；
+  // 销售方=中国铁路（票面「XX税务局」是开票机关），无销售方税号。按 9% 倒算金额/税额（方案A）。
+  'train_real_26429165800003736397_627.5': {
+    no: '26429165800003736397', date: '2026-06-27',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国铁路',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 627.5, amount: 575.69, tax: 51.81, type: '铁路电子客票',
+  },
+  'train_real_26449165860003460657_70': {
+    no: '26449165860003460657', date: '2026-06-27',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国铁路',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 70.00, amount: 64.22, tax: 5.78, type: '铁路电子客票',
+  },
+  'train_real_26449165860003460673_630': {
+    no: '26449165860003460673', date: '2026-06-27',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国铁路',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 630.00, amount: 577.98, tax: 52.02, type: '铁路电子客票',
+  },
+  'train_real_26959124659000113965_94': {
+    no: '26959124659000113965', date: '2026-06-27',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国铁路',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 94.00, amount: 86.24, tax: 7.76, type: '铁路电子客票',
+  },
+  // 航空运输电子客票行程单：票价/燃油均不含税，民航发展基金为非税附加费（不进 VAT）。
+  // 价税合计 = 票价688.07 + 燃油137.61 + 税额74.32 = 900.00（≠ 票面合计 950.00）。
+  flight_itinerary: {
+    no: '26958893211046753401', date: '2026-06-11',
+    buyer: '深圳市流形机器人科技有限公司', seller: '北京嘉信浩远信息技术有限公司',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 900.00, amount: 825.68, tax: 74.32,
+    nonTaxAmount: 50.00, ticketNo: '8932716534855',
+  },
+  flight_itinerary_660: {
+    no: '26318781111046757199', date: '2026-06-13',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国东方航空股份有限公司',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 610.00, amount: 559.63, tax: 50.37,
+    nonTaxAmount: 50.00, ticketNo: '7812168781969',
+  },
+  // 660 行程单 + OCR 前导 1 噪声：发票号被多识别一个前导 1（21 位）→ 应自动剥离还原为 20 位真号。
+  flight_itinerary_660_leading1: {
+    no: '26318781111046757199', date: '2026-06-13',
+    buyer: '深圳市流形机器人科技有限公司', seller: '中国东方航空股份有限公司',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 610.00, amount: 559.63, tax: 50.37,
+    nonTaxAmount: 50.00, ticketNo: '7812168781969',
+  },
+  // 去哪儿网酒店专票：标签/值分块排版，之前会把销售方抓成「日深圳市...」。
+  qunar_hotel_vat: {
+    no: '26127000000333204200', date: '2026-07-03',
+    buyer: '深圳市流形机器人科技有限公司', seller: '去哪儿网（天津）国际旅行社有限公司武清分公司',
+    bTax: '91440300MAKF9C8P4U', sTax: '91120222MA82BC2U42',
+    total: 592.33, amount: 558.80, tax: 33.53,
+  },
+  // 杭州酒店专票真实 pdfjs 文字层：标签与值被 pdf.js 完全重排，验证税号前后窗口反查购销方。
+  hotel_einvoice_hangzhou_pdfjs: {
+    no: '26332000005732165041', date: '2026-07-03',
+    buyer: '深圳市流形机器人科技有限公司', seller: '杭州呈华酒店管理有限公司',
+    bTax: '91440300MAKF9C8P4U', sTax: '91330108MA2GNMJT9L',
+    total: 342.44, amount: 323.06, tax: 19.38,
+  },
+  // 950 行程单真实 OCR 文本：票价/燃油/基金标签全丢，只剩金额列；验证金额列推断 + fixMoneySpaces。
+  flight_itinerary_950_ocr: {
+    no: '26958893211046753401', date: '2026-06-28',
+    buyer: '深圳市流形机器人科技有限公司', seller: '北京嘉信浩远信息技术有限公司',
+    bTax: '91440300MAKF9C8P4U', sTax: undefined,
+    total: 900.00, amount: 825.68, tax: 74.32,
+    nonTaxAmount: 50.00, ticketNo: '8932716534855', type: '航空运输电子客票行程单',
+  },
+  // 河源酒店专票真实 pdfjs 文字层：购销方名被税务局监制章干扰，验证销售方过滤。
+  hotel_einvoice_heyuan_pdfjs: {
+    no: '26442000007537807276', date: '2026-07-03',
+    buyer: '北极星贸易有限公司', seller: '河源云端酒店管理有限公司',
+    bTax: '91110000MA0000011B', sTax: '91441600MA00000HEY',
+    total: 293.00, amount: 276.42, tax: 16.58,
+  },
+  // 武汉去哪儿网酒店账单（非发票收据）：无票号无税额，验证收据兜底路径。
+  hotel_bill_wuhan_qunar: {
+    no: undefined, date: '2026-06-13',
+    buyer: undefined, seller: '武汉长江明珠酒店',
+    total: 592.33, amount: 592.33, tax: 0,
   },
 }
 
@@ -71,7 +152,7 @@ function cmp(field, got, exp) {
   if (field === 'total' || field === 'amount' || field === 'tax') {
     return num(got) === exp ? 'ok' : `✗ got=${got ?? '(空)'}`
   }
-  const g = norm(got), e = norm(exp)
+  const g = norm(String(got ?? '')), e = norm(String(exp ?? ''))
   if (!g && e) return `✗ got=${got ?? '(空)'}`
   if (g === e || g.includes(e) || e.includes(g)) return 'ok'
   return `✗ got=${got ?? '(空)'}`
@@ -87,6 +168,9 @@ const rows = (p) => [
   ['total', p.total, EXPECTED[p._k].total],
   ['amount', p.amount, EXPECTED[p._k].amount],
   ['tax', p.tax, EXPECTED[p._k].tax],
+  ['nonTax', p.nonTaxAmount, EXPECTED[p._k].nonTaxAmount],
+  ['ticketNo', p.ticketNo, EXPECTED[p._k].ticketNo],
+  ['type', p.type, EXPECTED[p._k].type],
 ]
 
 let pass = 0, fail = 0
