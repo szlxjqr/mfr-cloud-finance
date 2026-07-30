@@ -302,9 +302,9 @@ onMounted(load)
 .inbox { padding: 16px; }
 .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
 .dropzone {
-  border: 2px dashed #dcdfe6; border-radius: 8px; padding: 28px;
-  text-align: center; color: #909399; margin-bottom: 16px; transition: .2s;
+  border: 2px dashed var(--border-soft); border-radius: 8px; padding: 28px;
+  text-align: center; color: var(--text-muted); margin-bottom: 16px; transition: .2s;
 }
 .dropzone.dragover { border-color: var(--el-color-primary); color: var(--el-color-primary); background: var(--el-color-primary-light-9); }
-.muted { color: #c0c4cc; }
+.muted { color: var(--border-soft); }
 </style>

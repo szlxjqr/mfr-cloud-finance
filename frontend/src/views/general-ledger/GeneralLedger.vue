@@ -414,7 +414,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 
@@ -427,7 +427,7 @@ onMounted(() => {
 
 .toolbar-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   white-space: nowrap;
 }
 
@@ -442,7 +442,7 @@ onMounted(() => {
 .left-panel {
   width: 220px;
   background: #fff;
-  border-right: 1px solid #e4e7ed;
+  border-right: 1px solid var(--border-soft);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -450,7 +450,7 @@ onMounted(() => {
 
 .panel-search {
   padding: 12px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .panel-tree {
@@ -483,14 +483,14 @@ onMounted(() => {
 }
 
 .account-code {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
   min-width: 50px;
 }
 
 .account-name {
   flex: 1;
-  color: #303133;
+  color: var(--text-strong);
 }
 
 .account-item.active .account-name {
@@ -500,13 +500,13 @@ onMounted(() => {
 
 .expand-icon {
   font-size: 10px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* ===== 中间拖拽条 ===== */
 .resizer {
   width: 6px;
-  background: #e4e7ed;
+  background: var(--border-soft);
   cursor: col-resize;
   display: flex;
   align-items: center;
@@ -516,7 +516,7 @@ onMounted(() => {
 
 .resizer-handle {
   font-size: 10px;
-  color: #c0c4cc;
+  color: var(--border-soft);
   writing-mode: vertical-rl;
   letter-spacing: 2px;
 }
@@ -535,7 +535,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   padding: 10px 16px;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--border-soft);
   gap: 8px;
 }
 
@@ -578,7 +578,7 @@ onMounted(() => {
 .amount {
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
 }
 
 .amount.balance {
@@ -605,6 +605,6 @@ onMounted(() => {
 
 :deep(.el-empty__description) {
   font-size: 14px;
-  color: #909399;
+  color: var(--text-muted);
 }
 </style>

@@ -136,7 +136,7 @@ const option = computed<EChartsOption>(() => ({
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 
 .triangle {

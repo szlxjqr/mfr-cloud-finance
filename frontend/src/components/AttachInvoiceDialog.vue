@@ -597,13 +597,13 @@ async function confirmLink() {
   margin-bottom: 14px;
   padding: 10px 12px;
   background: #f8fafc;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-soft);
   border-radius: 6px;
 }
 .ctx-title {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin-bottom: 8px;
 }
 .ctx-table {
@@ -612,13 +612,13 @@ async function confirmLink() {
   font-size: 12px;
 }
 .ctx-table td {
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--border-soft);
   padding: 4px 8px;
   vertical-align: middle;
 }
 .ctx-table td.lbl {
   background: #fff;
-  color: #606266;
+  color: var(--text-base);
   font-weight: 500;
   width: 80px;
   text-align: center;
@@ -630,7 +630,7 @@ async function confirmLink() {
 .step-title {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin: 8px 0 8px;
 }
 .item-selected-hint {
@@ -640,16 +640,16 @@ async function confirmLink() {
   border: 1px solid #91d5ff;
   border-radius: 4px;
   font-size: 13px;
-  color: #303133;
+  color: var(--text-strong);
 }
 .item-selected-hint .muted {
   margin-left: 6px;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
 .has-invoices {
-  color: #67c23a;
+  color: var(--success);
   font-weight: 600;
 }
 
@@ -717,18 +717,18 @@ async function confirmLink() {
 }
 .error-icon {
   font-size: 40px;
-  color: #e6a23c;
+  color: var(--warning);
   margin-bottom: 8px;
 }
 .error-title {
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin-bottom: 4px;
 }
 .error-desc {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 .preview-empty {
   text-align: center;
@@ -740,25 +740,25 @@ async function confirmLink() {
 }
 .empty-icon {
   font-size: 56px;
-  color: #c0c4cc;
+  color: var(--border-soft);
 }
 .empty-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 .empty-desc {
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
   max-width: 480px;
   line-height: 1.5;
 }
 .attach-ok {
-  color: #67c23a;
+  color: var(--success);
   font-size: 16px;
 }
 .attach-missing {
-  color: #e6a23c;
+  color: var(--warning);
   font-size: 16px;
 }
 </style>

@@ -221,7 +221,7 @@ load()
 .sec-title {
   margin: 18px 0 8px;
   font-size: 14px;
-  color: #303133;
+  color: var(--text-strong);
 }
 .mb {
   margin-bottom: 12px;

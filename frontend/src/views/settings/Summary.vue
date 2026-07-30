@@ -258,7 +258,7 @@ function showHelp() {
   width: 280px;
 }
 .count-tip {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .toolbar-right {
@@ -274,7 +274,7 @@ function showHelp() {
   color: var(--el-text-color-primary);
 }
 .muted {
-  color: #c0c4cc;
+  color: var(--border-soft);
 }
 :deep(.el-table .el-input__wrapper) {
   box-shadow: 0 0 0 1px var(--el-input-border-color) inset;

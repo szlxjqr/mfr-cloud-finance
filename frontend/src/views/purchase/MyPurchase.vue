@@ -347,7 +347,7 @@ onMounted(load)
 .page { padding: 16px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
 .detail-footer { display: flex; justify-content: flex-end; gap: 12px; }
-.detail-loading { padding: 80px 0; text-align: center; color: #909399; }
+.detail-loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
 .print-layer { display: none; }
 </style>
 <style>

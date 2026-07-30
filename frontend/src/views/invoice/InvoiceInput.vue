@@ -1214,7 +1214,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
 }
 .required .form-label::before {
   content: '*';
-  color: #f56c6c;
+  color: var(--danger);
   margin-right: 4px;
 }
 
@@ -1397,7 +1397,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
 .ai-file-name {
   flex: 1;
   font-size: 14px;
-  color: #303133;
+  color: var(--text-strong);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1412,7 +1412,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
   max-width: 100%;
   max-height: 240px;
   border-radius: 4px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--border-soft);
 }
 .ai-loading {
   display: flex;
@@ -1470,7 +1470,7 @@ async function handleAttachment(row: InvoiceRecord, file?: File) {
 }
 .ai-result-item span {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-strong);
   word-break: break-all;
 }
 </style>

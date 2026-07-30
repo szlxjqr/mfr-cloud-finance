@@ -441,7 +441,7 @@ onMounted(loadSubjects)
   width: 320px;
 }
 .count-tip {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .table-wrap {
@@ -449,7 +449,7 @@ onMounted(loadSubjects)
   min-height: 0;
 }
 .muted {
-  color: #c0c4cc;
+  color: var(--border-soft);
 }
 .trial-result {
   display: flex;
@@ -461,11 +461,11 @@ onMounted(loadSubjects)
   font-weight: 600;
 }
 .trial-result.ok {
-  color: #67c23a;
+  color: var(--success);
   background: #f0f9eb;
 }
 .trial-result.bad {
-  color: #f56c6c;
+  color: var(--danger);
   background: #fef0f0;
 }
 </style>

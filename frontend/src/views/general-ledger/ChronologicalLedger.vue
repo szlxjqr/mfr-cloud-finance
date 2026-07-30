@@ -163,25 +163,25 @@ onMounted(() => loadData())
   flex-wrap:wrap; gap:8px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);
 }
 .toolbar-left,.toolbar-right{ display:flex; align-items:center; gap:8px; }
-.label{ font-size:13px; color:#606266; white-space:nowrap; }
+.label{ font-size:13px; color:var(--text-base); white-space:nowrap; }
 
 .table-area{
   background:#fff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,.06);
   flex:1; overflow:hidden;
 }
 
-.amt{ font-family:'SF Mono','Menlo','Consolas',monospace; font-size:13px; color:#606266; }
-.amt.debit{ color:#303133; font-weight:500; }
-.amt.credit{ color:#67c23a; }
-.amt-fc{ font-family:'SF Mono','Menlo','Consolas',monospace; font-size:13px; color:#e6a23c; }
+.amt{ font-family:'SF Mono','Menlo','Consolas',monospace; font-size:13px; color:var(--text-base); }
+.amt.debit{ color:var(--text-strong); font-weight:500; }
+.amt.credit{ color:var(--success); }
+.amt-fc{ font-family:'SF Mono','Menlo','Consolas',monospace; font-size:13px; color:var(--warning); }
 
 .footer-bar{
   background:#fff; padding:10px 16px; border-radius:6px; margin-top:12px;
   display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  box-shadow:0 1px 3px rgba(0,0,0,.06); font-size:13px; color:#606266;
+  box-shadow:0 1px 3px rgba(0,0,0,.06); font-size:13px; color:var(--text-base);
 }
-.footer-bar b{ font-family:'SF Mono','Menlo','Consolas',monospace; color:#303133; }
-.balanced{ color:#67c23a; font-weight:600; }
+.footer-bar b{ font-family:'SF Mono','Menlo','Consolas',monospace; color:var(--text-strong); }
+.balanced{ color:var(--success); font-weight:600; }
 
 :deep(.el-table){ font-size:13px; }
 :deep(.el-table th){ padding:8px 0; }

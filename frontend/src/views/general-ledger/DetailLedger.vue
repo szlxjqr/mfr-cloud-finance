@@ -363,21 +363,21 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #e4e7ed;
+  border-bottom: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 8px; }
-.toolbar-label { font-size: 13px; color: #606266; white-space: nowrap; }
+.toolbar-label { font-size: 13px; color: var(--text-base); white-space: nowrap; }
 
 /* ===== 主体 ===== */
 .main-content { display: flex; flex: 1; overflow: hidden; }
 
 /* 左侧面板 */
 .left-panel {
-  width: 220px; background: #fff; border-right: 1px solid #e4e7ed;
+  width: 220px; background: #fff; border-right: 1px solid var(--border-soft);
   display: flex; flex-direction: column; flex-shrink: 0;
 }
-.panel-search { padding: 12px; border-bottom: 1px solid #e4e7ed; }
+.panel-search { padding: 12px; border-bottom: 1px solid var(--border-soft); }
 .panel-tree { flex: 1; overflow-y: auto; padding: 4px 0; }
 
 .account-item {
@@ -386,21 +386,21 @@ onMounted(async () => {
 }
 .account-item:hover { background: #f5f7fa; }
 .account-item.active { background: var(--el-color-primary-light-9); color: var(--el-color-primary); }
-.account-code { color: #909399; font-size: 12px; min-width: 50px; }
-.account-name { flex: 1; color: #303133; }
+.account-code { color: var(--text-muted); font-size: 12px; min-width: 50px; }
+.account-name { flex: 1; color: var(--text-strong); }
 .account-item.active .account-name { color: var(--el-color-primary); font-weight: 500; }
 .account-item.active .account-code { color: var(--el-color-primary); }
-.expand-icon { font-size: 10px; color: #909399; }
+.expand-icon { font-size: 10px; color: var(--text-muted); }
 
 /* 拖拽条 */
-.resizer { width: 6px; background: #e4e7ed; cursor: col-resize; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.resizer-handle { font-size: 10px; color: #c0c4cc; writing-mode: vertical-rl; letter-spacing: 2px; }
+.resizer { width: 6px; background: var(--border-soft); cursor: col-resize; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.resizer-handle { font-size: 10px; color: var(--border-soft); writing-mode: vertical-rl; letter-spacing: 2px; }
 
 /* 右侧 */
 .right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
 
 .account-selector {
-  display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid #e4e7ed; gap: 8px;
+  display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border-soft); gap: 8px;
 }
 .nav-btn { padding: 4px 8px; font-size: 12px; }
 .selector-display {
@@ -412,13 +412,13 @@ onMounted(async () => {
 .table-area { flex: 1; overflow: hidden; }
 .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; }
 
-.amount { font-family: 'SF Mono','Menlo','Consolas',monospace; font-size: 13px; color: #606266; }
-.amount.debit { color: #303133; font-weight: 500; }
-.amount.credit { color: #67c23a; }
+.amount { font-family: 'SF Mono','Menlo','Consolas',monospace; font-size: 13px; color: var(--text-base); }
+.amount.debit { color: var(--text-strong); font-weight: 500; }
+.amount.credit { color: var(--success); }
 .amount.balance { color: var(--el-color-primary); font-weight: 600; }
 
 :deep(.el-table){ font-size: 13px; }
 :deep(.el-table th){ padding: 8px 0; }
 :deep(.el-table td){ padding: 6px 0; }
-:deep(.el-empty__description){ font-size:14px;color:#909399; }
+:deep(.el-empty__description){ font-size:14px;color:var(--text-muted); }
 </style>

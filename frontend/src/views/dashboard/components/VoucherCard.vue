@@ -100,7 +100,7 @@ function addVoucher() {
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 
 .triangle {
@@ -143,7 +143,7 @@ function addVoucher() {
 
 .count-unit {
   font-size: 16px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 .actions {

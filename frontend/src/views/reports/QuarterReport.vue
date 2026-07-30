@@ -215,8 +215,8 @@ onMounted(load)
 .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .title { font-size: 18px; font-weight: 600; }
 .sec { font-weight: 600; }
-.tot { font-weight: 600; background: #fafafa; }
-.neg { color: #f56c6c; }
-.hint { color: #909399; font-size: 12px; margin-top: 12px; line-height: 1.6; }
+.tot { font-weight: 600; background: var(--bg-subtle); }
+.neg { color: var(--danger); }
+.hint { color: var(--text-muted); font-size: 12px; margin-top: 12px; line-height: 1.6; }
 .spacer { flex: 1; }
 </style>

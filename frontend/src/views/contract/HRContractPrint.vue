@@ -209,7 +209,7 @@ onMounted(load)
 .party-block {
   margin-bottom: 10px;
   padding-bottom: 6px;
-  border-bottom: 1px dashed #dcdfe6;
+  border-bottom: 1px dashed var(--border-soft);
 }
 .party-line {
   margin: 2px 0;
@@ -231,7 +231,7 @@ p {
 .sign-block {
   margin-top: 32px;
   padding-top: 16px;
-  border-top: 1px solid #dcdfe6;
+  border-top: 1px solid var(--border-soft);
 }
 .sign-line {
   text-indent: 0;

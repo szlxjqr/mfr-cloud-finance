@@ -96,7 +96,7 @@ onMounted(load)
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 
 .triangle {
@@ -126,7 +126,7 @@ onMounted(load)
   align-items: center;
   gap: 10px;
   padding: 12px 6px;
-  border-bottom: 1px dashed #f0f0f0;
+  border-bottom: 1px dashed var(--bg-subtle);
 }
 
 .dot {
@@ -138,7 +138,7 @@ onMounted(load)
 
 .fund-name {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-base);
   white-space: nowrap;
 }
 
@@ -146,7 +146,7 @@ onMounted(load)
   margin-left: auto;
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   text-align: right;
   font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif;
 }

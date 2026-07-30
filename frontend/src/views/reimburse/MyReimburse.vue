@@ -296,11 +296,11 @@ function onInvoiceConfirm(parsed: any) {
 .toolbar-title {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin-right: auto;
 }
 .text-muted {
-  color: #909399;
+  color: var(--text-muted);
 }
 .detail-footer {
   display: flex;

@@ -272,7 +272,7 @@ onMounted(async () => {
 }
 .entry-hint {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 .entry-form {
   margin-bottom: 12px;
@@ -292,12 +292,12 @@ onMounted(async () => {
   border-radius: 8px;
   font-size: 14px;
   background: #fef0f0;
-  color: #f56c6c;
+  color: var(--danger);
   margin-bottom: 16px;
 }
 .balance-bar.ok {
   background: #f0f9eb;
-  color: #67c23a;
+  color: var(--success);
 }
 .balance-bar .balance-mark {
   margin-left: auto;

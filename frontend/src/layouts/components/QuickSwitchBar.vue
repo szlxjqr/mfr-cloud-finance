@@ -148,7 +148,7 @@ function hideMenu() {
   height: 4px;
 }
 .qs-scroll::-webkit-scrollbar-thumb {
-  background: #dcdfe6;
+  background: var(--border-soft);
   border-radius: 2px;
 }
 
@@ -204,7 +204,7 @@ function hideMenu() {
   height: 16px;
   border-radius: 50%;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   transition: all 0.15s;
 }
 .qs-close:hover {
@@ -220,7 +220,7 @@ function hideMenu() {
   padding-left: 8px;
 }
 .qs-action-btn {
-  color: #909399;
+  color: var(--text-muted);
 }
 .qs-action-btn:hover {
   color: var(--el-color-primary);

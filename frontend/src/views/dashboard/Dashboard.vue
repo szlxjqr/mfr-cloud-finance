@@ -1,156 +1,247 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import QuickActions from './components/QuickActions.vue'
-import VoucherCard from './components/VoucherCard.vue'
-import FundOverview from './components/FundOverview.vue'
-import BusinessChart from './components/BusinessChart.vue'
-import TaxChart from './components/TaxChart.vue'
-import { getVoucherCount, getFundsOverview, getDashboardSummary } from '@/api/dashboard'
-import { formatCurrency } from '@/utils/format'
+/**
+ * 首页（驾驶舱 + 对话窗）
+ * - 左：经营驾驶舱，只放关键数据（5 个核心 KPI），不放其他任何内容
+ * - 右：财务助手对话窗（方案 B 入口/镜像，真实业务对话由 WorkBuddy 承载）
+ */
+import { onMounted, reactive, ref } from 'vue'
+import KpiCard from '@/components/KpiCard.vue'
+import CopilotPanel from './components/CopilotPanel.vue'
+import { getSubjectBalance, listVouchers } from '@/api/ledger'
+import { getIncomeStatement } from '@/api/financial_statement'
+import { formatCurrency, formatNumber } from '@/utils/format'
 
-/** 顶部二级标签（当前激活项） */
-const activeTab = ref('voucher')
+interface Kpi {
+  key: string
+  label: string
+  number: string
+  prefix: string
+  suffix: string
+  color: string
+  isZero: boolean
+}
 
-/** 关键指标（KpiTile 示范，接已有接口 + 兜底演示值） */
-const kpi = reactive({ voucher: 128, fund: 1000000, tax: 0 })
+const loading = ref(false)
+const kpis = reactive<Kpi[]>([])
 
-async function loadKpi() {
+/** 科目期末余额：资产/费用取借方，负债/权益/收入取贷方 */
+function balOf(rows: any[], code: string): number {
+  const b = rows.find((r) => r.code === code)
+  if (!b) return 0
+  return Number(b.ending_debit) || Number(b.ending_credit) || 0
+}
+
+/** 科目本年累计（损益类用借贷累计差） */
+function cumOf(rows: any[], code: string): number {
+  const b = rows.find((r) => r.code === code)
+  if (!b) return 0
+  return Number(b.cum_credit) - Number(b.cum_debit)
+}
+
+async function load() {
+  loading.value = true
   try {
-    const [vc, funds, sum] = await Promise.all([
-      getVoucherCount(),
-      getFundsOverview(),
-      getDashboardSummary(),
+    const now = new Date()
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const [balRes, vouRes, incRes] = await Promise.all([
+      getSubjectBalance(),
+      listVouchers(),
+      getIncomeStatement(period),
     ])
-    const fundSum = Array.isArray(funds.data)
-      ? funds.data.reduce((a: number, b: any) => a + (b.amount || 0), 0)
-      : 1000000
-    const taxItem = Array.isArray(sum.data?.taxItems)
-      ? sum.data.taxItems.find((t: any) => String(t.name).includes('应交'))
-      : null
-    kpi.voucher = typeof vc.data === 'number' ? vc.data : 128
-    kpi.fund = fundSum
-    kpi.tax = taxItem?.value ?? 0
+    const balances = balRes.data || []
+    const vouchers = vouRes.data || []
+    const inc = incRes.data
+
+    const pending = vouchers.filter((v: any) => v.status === '未审核').length
+    const net = inc ? inc.operating_profit_cur : 0
+
+    const bank = balOf(balances, '1002')
+    const ar = balOf(balances, '1122')
+    const rev = cumOf(balances, '5001')
+
+    kpis.length = 0
+    kpis.push(
+      {
+        key: 'bank',
+        label: '银行存款余额',
+        number: formatCurrency(bank).replace('元', ''),
+        prefix: '¥',
+        suffix: '',
+        color: 'var(--kpi-bank)',
+        isZero: Math.abs(bank) < 0.01,
+      },
+      {
+        key: 'ar',
+        label: '应收账款余额',
+        number: formatCurrency(ar).replace('元', ''),
+        prefix: '¥',
+        suffix: '',
+        color: 'var(--kpi-ar)',
+        isZero: Math.abs(ar) < 0.01,
+      },
+      {
+        key: 'rev',
+        label: '主营业务收入 · 本年累计',
+        number: formatCurrency(rev).replace('元', ''),
+        prefix: '¥',
+        suffix: '',
+        color: 'var(--kpi-rev)',
+        isZero: Math.abs(rev) < 0.01,
+      },
+      {
+        key: 'pending',
+        label: '待入账凭证',
+        number: formatNumber(pending),
+        prefix: '',
+        suffix: '张',
+        color: 'var(--kpi-pending)',
+        isZero: pending === 0,
+      },
+      {
+        key: 'net',
+        label: '本月收支净额',
+        number: formatCurrency(Math.abs(net)).replace('元', ''),
+        prefix: net < 0 ? '-¥' : '¥',
+        suffix: '',
+        color: net < 0 ? 'var(--kpi-net-neg)' : 'var(--kpi-net-pos)',
+        isZero: Math.abs(net) < 0.01,
+      },
+    )
   } catch {
-    kpi.voucher = 128
-    kpi.fund = 1000000
-    kpi.tax = 0
+    // 驾驶舱静默失败，保持空白而非报错打断
+  } finally {
+    loading.value = false
   }
 }
 
-onMounted(loadKpi)
-
-interface TopTab {
-  label: string
-  key: string
-}
-
-const topTabs: TopTab[] = [
-  { label: '凭证', key: 'voucher' },
-  { label: '查看凭证', key: 'view' },
-  { label: '费用发票', key: 'expense' },
-]
+onMounted(load)
 </script>
 
 <template>
-  <div class="dashboard">
-    <!-- 顶部二级标签 -->
-    <div class="top-tabs">
-      <div
-        v-for="tab in topTabs"
-        :key="tab.key"
-        class="top-tab"
-        :class="{ active: activeTab === tab.key }"
-        @click="activeTab = tab.key"
-      >
-        {{ tab.label }}
+  <div class="home">
+    <!-- 左：经营驾驶舱（仅关键数据） -->
+    <section class="home__left">
+      <div class="cockpit">
+        <header class="cockpit__head">
+          <h2 class="cockpit__title">经营驾驶舱</h2>
+          <span class="cockpit__hint">
+            <i class="cockpit__dot"></i>关键数据 · 实时
+          </span>
+        </header>
+
+        <div class="kpi-grid">
+          <KpiCard
+            v-for="k in kpis"
+            :key="k.key"
+            :label="k.label"
+            :number="k.number"
+            :prefix="k.prefix"
+            :suffix="k.suffix"
+            :color="k.color"
+            :is-zero="k.isZero"
+            :tint="k.key === 'bank'"
+            :class="`kpi--${k.key}`"
+          />
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- 关键指标（KpiTile 示范） -->
-    <el-row :gutter="16" class="row-gap">
-      <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="本月凭证" :value="kpi.voucher" delta-label="张" icon="Document" accent="brand" color="#D85A30" />
-      </el-col>
-      <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="资金总额" :value="formatCurrency(kpi.fund)" icon="Wallet" accent="success" color="#639922" />
-      </el-col>
-      <el-col :xs="24" :sm="8" :md="8">
-        <KpiTile label="应交税费" :value="formatCurrency(kpi.tax)" icon="Money" accent="warning" color="#EF9F27" />
-      </el-col>
-    </el-row>
-
-    <!-- 常用功能（全宽） -->
-    <el-row :gutter="16">
-      <el-col :span="24">
-        <QuickActions />
-      </el-col>
-    </el-row>
-
-    <!-- 凭证中心 + 资金情况 -->
-    <el-row :gutter="16" class="row-gap">
-      <el-col :xs="24" :sm="24" :md="8" :lg="8">
-        <VoucherCard />
-      </el-col>
-      <el-col :xs="24" :sm="24" :md="16" :lg="16">
-        <FundOverview />
-      </el-col>
-    </el-row>
-
-    <!-- 经营数据 + 应交税费 -->
-    <el-row :gutter="16" class="row-gap">
-      <el-col :xs="24" :sm="24" :md="14" :lg="14">
-        <BusinessChart />
-      </el-col>
-      <el-col :xs="24" :sm="24" :md="10" :lg="10">
-        <TaxChart />
-      </el-col>
-    </el-row>
+    <!-- 右：财务助手对话窗 -->
+    <section class="home__right">
+      <CopilotPanel />
+    </section>
   </div>
 </template>
 
 <style scoped>
-.dashboard {
-  padding: 4px;
-}
-
-/* 顶部二级标签 */
-.top-tabs {
+.home {
   display: flex;
-  gap: 4px;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
-  padding: 0 8px;
-  margin-bottom: 16px;
+  gap: var(--space-5);
+  height: 100%;
+  min-height: 0;
+  padding: var(--space-5);
+  box-sizing: border-box;
+}
+.home__left {
+  flex: 1 1 56%;
+  min-width: 0;
+  display: flex;
+}
+.home__right {
+  flex: 1 1 44%;
+  min-width: 0;
+  min-height: 0;
 }
 
-.top-tab {
-  padding: 12px 18px;
-  font-size: 14px;
-  color: #606266;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.18s ease;
+/* 驾驶舱：标题 + 卡片区，顶部对齐不悬空 */
+.cockpit {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
-
-.top-tab:hover {
-  color: var(--el-color-primary);
+.cockpit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
-
-.top-tab.active {
-  color: var(--el-color-primary);
+.cockpit__title {
+  margin: 0;
+  font-size: var(--fs-lg);
   font-weight: 600;
-  border-bottom-color: var(--el-color-primary);
+  color: var(--text-strong);
+  letter-spacing: -0.2px;
+}
+.cockpit__hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+.cockpit__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--status-approved);
+  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.16);
 }
 
-.row-gap {
-  margin-top: 16px;
+/* 驾驶舱网格：银行存款突出占整行（hero），下面 4 张 2×2 */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
+  gap: var(--space-4);
+  flex: 1;
+  min-height: 0;
+}
+.kpi--bank {
+  grid-column: span 2;
+}
+.kpi--bank .kpi-card__number {
+  font-size: 46px;
 }
 
-/* 小屏堆叠时给卡片增加下边距 */
-@media (max-width: 768px) {
-  .el-col {
-    margin-bottom: 16px;
+/* 小屏：上下堆叠，对话窗置于下方 */
+@media (max-width: 980px) {
+  .home {
+    flex-direction: column;
+    height: auto;
+    padding: var(--space-4);
+  }
+  .home__right {
+    height: 520px;
+  }
+  .kpi-grid {
+    grid-auto-rows: auto;
+  }
+  .kpi--bank {
+    grid-column: span 1;
+  }
+  .kpi--bank .kpi-card__number {
+    font-size: 38px;
   }
 }
 </style>

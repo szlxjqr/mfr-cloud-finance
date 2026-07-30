@@ -110,10 +110,10 @@ onMounted(load)
 .page { padding: 16px; }
 .toolbar { display: flex; align-items: center; gap: 16px; }
 .title { font-size: 18px; font-weight: 600; }
-.as-of { color: #909399; font-size: 13px; }
+.as-of { color: var(--text-muted); font-size: 13px; }
 .sec { font-weight: 600; }
-.tot { font-weight: 600; background: #fafafa; }
-.neg { color: #f56c6c; }
-.hint { color: #909399; font-size: 12px; margin-top: 12px; }
+.tot { font-weight: 600; background: var(--bg-subtle); }
+.neg { color: var(--danger); }
+.hint { color: var(--text-muted); font-size: 12px; margin-top: 12px; }
 .spacer { flex: 1; }
 </style>

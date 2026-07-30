@@ -525,12 +525,12 @@ onMounted(load)
 .scard {
   flex: 1; min-width: 160px;
   background: var(--el-fill-color-light, #f5f7fa);
-  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border: 1px solid var(--el-border-color-lighter, var(--border-soft));
   border-radius: 8px;
   padding: 14px 16px;
 }
-.scard-label { font-size: 13px; color: #909399; margin-bottom: 6px; }
-.scard-value { font-size: 22px; font-weight: 700; color: var(--el-text-color-primary, #303133); }
+.scard-label { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+.scard-value { font-size: 22px; font-weight: 700; color: var(--el-text-color-primary, var(--text-strong)); }
 .scard-value.warn { color: var(--el-color-warning); }
 .scard-value.success { color: var(--el-color-success); }
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }

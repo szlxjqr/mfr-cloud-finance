@@ -352,7 +352,7 @@ onMounted(() => loadData())
 
 .toolbar-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   white-space: nowrap;
 }
 
@@ -370,7 +370,7 @@ onMounted(() => loadData())
   display: inline-block;
   width: 14px;
   font-size: 11px;
-  color: #909399;
+  color: var(--text-muted);
   user-select: none;
 }
 .expand-toggle:hover { color: var(--el-color-primary); }
@@ -378,9 +378,9 @@ onMounted(() => loadData())
 .amount {
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   font-size: 13px;
-  color: #909399;
+  color: var(--text-muted);
 }
-.amount.highlight { color: #303133; font-weight: 500; }
+.amount.highlight { color: var(--text-strong); font-weight: 500; }
 
 /* ===== 底部 ===== */
 .footer-bar {
@@ -397,7 +397,7 @@ onMounted(() => loadData())
   font-size: 13px;
 }
 
-.footer-left { color: #909399; }
+.footer-left { color: var(--text-muted); }
 
 .total-cards {
   display: flex;
@@ -414,7 +414,7 @@ onMounted(() => loadData())
 
 .tc-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-bottom: 2px;
 }
 
@@ -422,7 +422,7 @@ onMounted(() => loadData())
   font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 
 :deep(.el-table) { font-size: 13px; }

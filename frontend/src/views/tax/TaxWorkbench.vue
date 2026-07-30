@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getTaxWorkbench } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
+import KpiCard from '@/components/KpiCard.vue'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import type { TaxWorkbench } from '@/types/tax'
@@ -69,18 +70,13 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
           <div class="group-title">增值税（{{ period }}）</div>
         </template>
         <div class="kpi-row">
-          <div class="kpi">
-            <div class="kpi-label">进项税额</div>
-            <div class="kpi-value">{{ formatNumber(vat.input_tax ?? 0) }}</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">销项税额</div>
-            <div class="kpi-value">{{ formatNumber(vat.output_tax ?? 0) }}</div>
-          </div>
-          <div class="kpi" :class="{ warn: vat.carryforward }">
-            <div class="kpi-label">{{ vat.carryforward ? '留抵税额' : '应交增值税' }}</div>
-            <div class="kpi-value">{{ formatNumber(Math.abs(vat.vat_payable ?? 0)) }}</div>
-          </div>
+          <KpiCard label="进项税额" :number="formatNumber(vat.input_tax ?? 0)" color="var(--brand)" />
+          <KpiCard label="销项税额" :number="formatNumber(vat.output_tax ?? 0)" color="var(--brand)" />
+          <KpiCard
+            :label="vat.carryforward ? '留抵税额' : '应交增值税'"
+            :number="formatNumber(Math.abs(vat.vat_payable ?? 0))"
+            :color="vat.carryforward ? 'var(--warning)' : 'var(--brand)'"
+          />
         </div>
       </el-card>
 
@@ -90,18 +86,9 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
           <div class="group-title">个人所得税（代扣代缴）</div>
         </template>
         <div class="kpi-row">
-          <div class="kpi">
-            <div class="kpi-label">申报人数</div>
-            <div class="kpi-value">{{ ind.headcount ?? 0 }}</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">应发合计</div>
-            <div class="kpi-value">{{ formatNumber(ind.total_gross ?? 0) }}</div>
-          </div>
-          <div class="kpi warn">
-            <div class="kpi-label">本期应申报个税</div>
-            <div class="kpi-value">{{ formatNumber(ind.total_tax ?? 0) }}</div>
-          </div>
+          <KpiCard label="申报人数" :number="ind.headcount ?? 0" color="var(--brand)" />
+          <KpiCard label="应发合计" :number="formatNumber(ind.total_gross ?? 0)" color="var(--brand)" />
+          <KpiCard label="本期应申报个税" :number="formatNumber(ind.total_tax ?? 0)" color="var(--warning)" />
         </div>
       </el-card>
 
@@ -111,18 +98,9 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
           <div class="group-title">印花税（累计有效合同）</div>
         </template>
         <div class="kpi-row">
-          <div class="kpi">
-            <div class="kpi-label">应税合同</div>
-            <div class="kpi-value">{{ stamp.contract_count ?? 0 }}</div>
-          </div>
-          <div class="kpi">
-            <div class="kpi-label">计税金额</div>
-            <div class="kpi-value">{{ formatNumber(stamp.total_amount ?? 0) }}</div>
-          </div>
-          <div class="kpi warn">
-            <div class="kpi-label">印花税合计</div>
-            <div class="kpi-value">{{ formatNumber(stamp.total_tax ?? 0) }}</div>
-          </div>
+          <KpiCard label="应税合同" :number="stamp.contract_count ?? 0" color="var(--brand)" />
+          <KpiCard label="计税金额" :number="formatNumber(stamp.total_amount ?? 0)" color="var(--brand)" />
+          <KpiCard label="印花税合计" :number="formatNumber(stamp.total_tax ?? 0)" color="var(--warning)" />
         </div>
       </el-card>
       </div>
@@ -155,31 +133,12 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
 .group-title {
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
-}
-.kpi {
-  text-align: center;
-  padding: 8px 4px;
-  background: #fafafa;
-  border-radius: 6px;
-}
-.kpi-label {
-  font-size: 12px;
-  color: #909399;
-}
-.kpi-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: #303133;
-  margin-top: 4px;
-}
-.kpi.warn .kpi-value {
-  color: #e6a23c;
 }
 .section-title {
   display: flex;
@@ -187,7 +146,7 @@ const stamp = computed(() => data.value?.stamp ?? emptyStamp)
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 .triangle {
   width: 0;

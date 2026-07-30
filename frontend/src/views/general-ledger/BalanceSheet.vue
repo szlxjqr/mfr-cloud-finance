@@ -159,13 +159,13 @@ onMounted(loadData)
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-soft);
   gap: 10px;
   flex-wrap: wrap;
   flex-shrink: 0;
 }
 .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.hint { font-size: 12px; color: #909399; }
+.hint { font-size: 12px; color: var(--text-muted); }
 .table-area { flex: 1; overflow: auto; }
 
 .cat-tag {
@@ -174,7 +174,7 @@ onMounted(loadData)
   border-radius: 10px;
   font-size: 12px;
   background: #f4f4f5;
-  color: #606266;
+  color: var(--text-base);
 }
 .dir-tag {
   display: inline-block;
@@ -184,16 +184,16 @@ onMounted(loadData)
   font-weight: 500;
 }
 .dir-tag.借 { color: var(--el-color-primary); background: rgba(22, 103, 255, .1); }
-.dir-tag.贷 { color: #e6a23c; background: rgba(230, 162, 60, .12); }
+.dir-tag.贷 { color: var(--warning); background: rgba(230, 162, 60, .12); }
 
-.amt { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 13px; color: #909399; }
+.amt { font-family: 'SF Mono', 'Menlo', 'Consolas', monospace; font-size: 13px; color: var(--text-muted); }
 .amt.end { color: var(--el-color-primary); font-weight: 600; }
 
 .total-bar {
   padding: 10px 16px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-soft);
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   flex-shrink: 0;
 }
 .total-bar .end { color: var(--el-color-primary); margin: 0 4px; }

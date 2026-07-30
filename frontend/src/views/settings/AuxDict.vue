@@ -636,7 +636,7 @@ function handleRefresh() {
   width: 280px;
 }
 .count-tip {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .toolbar-right {

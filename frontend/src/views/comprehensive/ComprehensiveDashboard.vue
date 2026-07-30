@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import VChart from '@/plugins/echarts'
 import { getComprehensiveOverview } from '@/api/comprehensive'
 import { formatCurrency } from '@/utils/format'
+import KpiCard from '@/components/KpiCard.vue'
 import { Refresh, Download } from '@element-plus/icons-vue'
 import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
@@ -191,10 +192,7 @@ function onExportPdf() {
     <!-- KPI 卡片 -->
     <el-row :gutter="16" class="row-gap">
       <el-col v-for="k in kpis" :key="k.label" :xs="12" :sm="12" :md="6" :lg="6">
-        <div class="kpi-card">
-          <div class="kpi-label">{{ k.label }}</div>
-          <div class="kpi-value" :style="{ color: k.color }">{{ k.value }}</div>
-        </div>
+        <KpiCard :label="k.label" :number="k.value" :color="k.color" />
       </el-col>
     </el-row>
 
@@ -267,25 +265,19 @@ function onExportPdf() {
   box-shadow:0 1px 4px rgba(0, 0, 0, 0.04);
   padding: 12px 16px; margin-bottom: 16px;
 }
-.section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: #303133; }
-.hint { font-size: 12px; font-weight: 400; color: #909399; }
+.section-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--text-strong); }
+.hint { font-size: 12px; font-weight: 400; color: var(--text-muted); }
 .triangle { width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; border-left: 10px solid var(--el-color-primary); }
 .tools { display: flex; align-items: center; gap: 8px; }
 .row-gap { margin-top: 16px; }
-.kpi-card {
-  background: #fff; border-radius: 8px; padding: 18px 20px;
-  box-shadow:0 1px 4px rgba(0, 0, 0, 0.04);
-}
-.kpi-label { font-size: 13px; color: #909399; }
-.kpi-value { margin-top: 8px; font-size: 24px; font-weight: 700; font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif; }
 .block { border-radius: 8px; }
-.block-title { font-size: 15px; font-weight: 600; color: #303133; }
+.block-title { font-size: 15px; font-weight: 600; color: var(--text-strong); }
 .fund-list, .tax-list { display: flex; flex-direction: column; gap: 4px; }
-.fund-row, .tax-row { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px dashed #f0f0f0; }
-.fund-name, .tax-name { font-size: 14px; color: #606266; }
-.fund-amount, .tax-amount { margin-left: auto; font-size: 14px; font-weight: 600; color: #303133; font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif; }
+.fund-row, .tax-row { display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px dashed var(--bg-subtle); }
+.fund-name, .tax-name { font-size: 14px; color: var(--text-base); }
+.fund-amount, .tax-amount { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--text-strong); font-family: 'DIN', 'Helvetica Neue', Arial, sans-serif; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .chart { height: 280px; width: 100%; }
-.empty { padding: 40px 0; text-align: center; color: #909399; font-size: 14px; }
+.empty { padding: 40px 0; text-align: center; color: var(--text-muted); font-size: 14px; }
 @media (max-width: 768px) { .el-col { margin-bottom: 16px; } }
 </style>

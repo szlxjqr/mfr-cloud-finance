@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { getStampTax } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
+import KpiCard from '@/components/KpiCard.vue'
 import { Refresh, Download } from '@element-plus/icons-vue'
 import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
@@ -120,21 +121,9 @@ function onExportPdf() {
     <!-- KPI 卡片 -->
     <DataLoader :loading="loading">
       <div class="kpi-row">
-      <el-card shadow="never" class="kpi">
-        <div class="kpi-label">应税合同数</div>
-        <div class="kpi-value">{{ contractCount }}</div>
-        <div class="kpi-unit">份</div>
-      </el-card>
-      <el-card shadow="never" class="kpi">
-        <div class="kpi-label">计税金额合计</div>
-        <div class="kpi-value">{{ formatNumber(totalAmount) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
-      <el-card shadow="never" class="kpi warn">
-        <div class="kpi-label">印花税合计（{{ rateText }}）</div>
-        <div class="kpi-value">{{ formatNumber(totalTax) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
+        <KpiCard label="应税合同数" :number="contractCount" unit="份" color="var(--brand)" />
+        <KpiCard label="计税金额合计" :number="formatNumber(totalAmount)" unit="元" color="var(--brand)" />
+        <KpiCard :label="`印花税合计（${rateText}）`" :number="formatNumber(totalTax)" unit="元" color="var(--warning)" />
       </div>
     </DataLoader>
 
@@ -200,31 +189,11 @@ function onExportPdf() {
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
-.kpi {
-  text-align: center;
-}
-.kpi-label {
-  font-size: 13px;
-  color: #909399;
-}
-.kpi-value {
-  font-size: 26px;
-  font-weight: 700;
-  color: #303133;
-  margin: 6px 0 2px;
-}
-.kpi-unit {
-  font-size: 12px;
-  color: #c0c4cc;
-}
-.kpi.warn .kpi-value {
-  color: #e6a23c;
-}
 .detail-total {
   margin-top: 10px;
   text-align: right;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
 }
 .section-title {
   display: flex;
@@ -232,7 +201,7 @@ function onExportPdf() {
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 .triangle {
   width: 0;

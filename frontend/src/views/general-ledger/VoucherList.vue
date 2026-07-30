@@ -671,7 +671,7 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-soft);
   gap: 10px;
   flex-wrap: wrap;
   flex-shrink: 0;
@@ -703,10 +703,10 @@ onMounted(() => {
   align-items: center;
   padding: 8px 16px;
   background: #fafbfc;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--bg-subtle);
   gap: 4px;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   flex-shrink: 0;
 }
 .select-count strong {
@@ -728,7 +728,7 @@ onMounted(() => {
 }
 .voucher-table :deep(.table-header) {
   background: #f7f9fc !important;
-  color: #303133;
+  color: var(--text-strong);
   font-weight: 600;
   font-size: 13px;
 }
@@ -742,7 +742,7 @@ onMounted(() => {
 /* 展开/折叠箭头 */
 .expand-toggle {
   cursor: pointer;
-  color: #909399;
+  color: var(--text-muted);
   transition: transform 0.2s;
   font-size: 14px;
 }
@@ -769,12 +769,12 @@ onMounted(() => {
   white-space: nowrap;
 }
 .tag-记 { background: var(--el-color-primary-light-9); color: var(--el-color-primary); border: 1px solid var(--el-color-primary-light-5); }
-.tag-收 { background: #fdf6ec; color: #e6a23c; border: 1px solid #f5dab1; }
-.tag-付 { background: #fef0f0; color: #f56c6c; border: 1px solid #fbc4c4; }
-.tag-转 { background: #f4f4f5; color: #909399; border: 1px solid #dcdfe6; }
+.tag-收 { background: #fdf6ec; color: var(--warning); border: 1px solid #f5dab1; }
+.tag-付 { background: #fef0f0; color: var(--danger); border: 1px solid #fbc4c4; }
+.tag-转 { background: #f4f4f5; color: var(--text-muted); border: 1px solid var(--border-soft); }
 .voucher-date {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 .status-tag {
   transform: scale(0.88);
@@ -782,7 +782,7 @@ onMounted(() => {
 }
 .line-summary {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -797,7 +797,7 @@ onMounted(() => {
   margin: 0;
   padding: 3px 0;
   font-size: 13px;
-  color: #303133;
+  color: var(--text-strong);
   line-height: 1.5;
 }
 .first-line {
@@ -806,7 +806,7 @@ onMounted(() => {
 .account-code {
   font-family: Consolas, monospace;
   font-size: 11px;
-  color: #909399;
+  color: var(--text-muted);
   margin-left: 6px;
 }
 
@@ -818,21 +818,21 @@ onMounted(() => {
   margin: 0;
   padding: 3px 0;
   font-size: 13px;
-  color: #c0c4cc;
+  color: var(--border-soft);
 }
 .amount-line.has-value {
-  color: #303133;
+  color: var(--text-strong);
   font-weight: 500;
 }
 .amount-total {
   margin: 6px 0 2px;
   padding-top: 4px;
-  border-top: 1px dashed #ebeef5;
+  border-top: 1px dashed var(--border-soft);
   font-weight: 700;
   font-size: 13px;
 }
-.debit-total { color: #e6a23c; }
-.credit-total { color: #67c23a; }
+.debit-total { color: var(--warning); }
+.credit-total { color: var(--success); }
 
 /* ====== 展开详情面板 ====== */
 .detail-panel {
@@ -847,34 +847,34 @@ onMounted(() => {
 }
 .detail-table thead th {
   background: #f2f5fa;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-soft);
   padding: 8px 10px;
   font-weight: 600;
-  color: #606266;
+  color: var(--text-base);
   text-align: left;
   font-size: 12px;
 }
 .detail-table tbody td {
   border: 1px solid #eef0f3;
   padding: 8px 10px;
-  color: #303133;
+  color: var(--text-strong);
   vertical-align: middle;
 }
 .dt-seq {
   text-align: center;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 12px;
 }
 .code-text {
   font-family: Consolas, monospace;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   background: #f5f7fa;
   padding: 1px 5px;
   border-radius: 3px;
 }
-.amt-debit { color: #e6a23c; font-weight: 500; }
-.amt-credit { color: #67c23a; font-weight: 500; }
+.amt-debit { color: var(--warning); font-weight: 500; }
+.amt-credit { color: var(--success); font-weight: 500; }
 
 .detail-total-row td {
   background: #fffbf0;
@@ -882,21 +882,21 @@ onMounted(() => {
   font-weight: 700;
   padding: 8px 10px;
 }
-.dt-label { color: #606266; }
-.dt-debit-total { color: #e6a23c; }
-.dt-credit-total { color: #67c23a; }
+.dt-label { color: var(--text-base); }
+.dt-debit-total { color: var(--warning); }
+.dt-credit-total { color: var(--success); }
 
 .detail-footer {
   display: flex;
   gap: 20px;
   padding: 8px 0 4px;
   font-size: 12px;
-  color: #909399;
-  border-top: 1px dashed #e4e7ed;
+  color: var(--text-muted);
+  border-top: 1px dashed var(--border-soft);
   margin-top: 8px;
 }
 .detail-footer strong {
-  color: #303133;
+  color: var(--text-strong);
 }
 
 /* 分页 */
@@ -904,7 +904,7 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   padding: 12px 16px;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-soft);
   flex-shrink: 0;
 }
 

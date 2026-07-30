@@ -228,18 +228,18 @@ onMounted(loadData)
 .table-wrap { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 12px; }
 .cat-tag {
   display: inline-block; padding: 1px 10px; border-radius: 10px;
-  font-size: 12px; background: #f4f4f5; color: #606266;
+  font-size: 12px; background: #f4f4f5; color: var(--text-base);
 }
 .dir-tag {
   display: inline-block; padding: 1px 10px; border-radius: 10px;
   font-size: 12px; font-weight: 500;
 }
 .dir-tag.借 { color: var(--el-color-primary); background: rgba(22, 103, 255, .1); }
-.dir-tag.贷 { color: #e6a23c; background: rgba(230, 162, 60, .12); }
+.dir-tag.贷 { color: var(--warning); background: rgba(230, 162, 60, .12); }
 .prefix-tip {
   margin-top: 6px;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   line-height: 1.6;
 }
 .prefix-tip code {

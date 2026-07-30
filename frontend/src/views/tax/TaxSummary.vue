@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import VChart from '@/plugins/echarts'
 import { getTaxSummary } from '@/api/tax'
 import { formatNumber } from '@/utils/format'
+import KpiCard from '@/components/KpiCard.vue'
 import { Refresh, Download } from '@element-plus/icons-vue'
 import { exportXlsx, printReport } from '@/utils/exportReport'
 import dayjs from 'dayjs'
@@ -172,28 +173,15 @@ function onExportPdf() {
     <!-- KPI 卡片 -->
     <DataLoader :loading="loading">
       <div class="kpi-row">
-      <el-card shadow="never" class="kpi">
-        <div class="kpi-label">本期进项税额</div>
-        <div class="kpi-value">{{ formatNumber(summary?.input_tax ?? 0) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
-      <el-card shadow="never" class="kpi">
-        <div class="kpi-label">本期销项税额</div>
-        <div class="kpi-value">{{ formatNumber(summary?.output_tax ?? 0) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
-      <el-card shadow="never" class="kpi" :class="{ warn: summary?.carryforward }">
-        <div class="kpi-label">
-          {{ summary?.carryforward ? '留抵税额' : '本期应交增值税' }}
-        </div>
-        <div class="kpi-value">{{ formatNumber(Math.abs(summary?.vat_payable ?? 0)) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
-      <el-card shadow="never" class="kpi">
-        <div class="kpi-label">本年累计进项税额</div>
-        <div class="kpi-value">{{ formatNumber(ytdInput) }}</div>
-        <div class="kpi-unit">元</div>
-      </el-card>
+        <KpiCard label="本期进项税额" :number="formatNumber(summary?.input_tax ?? 0)" unit="元" color="var(--brand)" />
+        <KpiCard label="本期销项税额" :number="formatNumber(summary?.output_tax ?? 0)" unit="元" color="var(--brand)" />
+        <KpiCard
+          :label="summary?.carryforward ? '留抵税额' : '本期应交增值税'"
+          :number="formatNumber(Math.abs(summary?.vat_payable ?? 0))"
+          unit="元"
+          :color="summary?.carryforward ? 'var(--warning)' : 'var(--brand)'"
+        />
+        <KpiCard label="本年累计进项税额" :number="formatNumber(ytdInput)" unit="元" color="var(--brand)" />
       </div>
     </DataLoader>
 
@@ -258,26 +246,6 @@ function onExportPdf() {
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
-.kpi {
-  text-align: center;
-}
-.kpi-label {
-  font-size: 13px;
-  color: #909399;
-}
-.kpi-value {
-  font-size: 26px;
-  font-weight: 700;
-  color: #303133;
-  margin: 6px 0 2px;
-}
-.kpi-unit {
-  font-size: 12px;
-  color: #c0c4cc;
-}
-.kpi.warn .kpi-value {
-  color: #e6a23c;
-}
 .grid {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -287,7 +255,7 @@ function onExportPdf() {
   margin-top: 10px;
   text-align: right;
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
 }
 .trend {
   height: 300px;
@@ -299,7 +267,7 @@ function onExportPdf() {
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
 }
 .triangle {
   width: 0;

@@ -700,9 +700,9 @@ onMounted(load)
   justify-content: space-between;
   margin-top: 10px;
 }
-.items-total { font-size: 14px; color: #303133; }
-.items-total b { color: #f56c6c; font-size: 16px; }
+.items-total { font-size: 14px; color: var(--text-strong); }
+.items-total b { color: var(--danger); font-size: 16px; }
 .amt { font-family: 'Courier New', monospace; font-weight: 600; }
 .detail-footer { display: flex; justify-content: flex-end; gap: 12px; }
-.detail-loading { padding: 80px 0; text-align: center; color: #909399; }
+.detail-loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
 </style>

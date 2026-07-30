@@ -77,7 +77,7 @@ function handleClick(item: ActionItem) {
   gap: 8px;
   font-size: 15px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin-bottom: 18px;
 }
 
@@ -123,7 +123,7 @@ function handleClick(item: ActionItem) {
 
 .action-label {
   font-size: 13px;
-  color: #606266;
+  color: var(--text-base);
   text-align: center;
   line-height: 1.3;
 }

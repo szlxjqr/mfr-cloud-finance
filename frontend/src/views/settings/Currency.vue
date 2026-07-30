@@ -478,7 +478,7 @@ function showHelp() {
   width: 280px;
 }
 .count-tip {
-  color: #909399;
+  color: var(--text-muted);
   font-size: 13px;
 }
 .toolbar-right {
@@ -492,6 +492,6 @@ function showHelp() {
   min-height: 0;
 }
 .muted {
-  color: #909399;
+  color: var(--text-muted);
 }
 </style>
