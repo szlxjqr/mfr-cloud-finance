@@ -253,6 +253,11 @@ const router = createRouter({
         },
         { path: 'comprehensive/dashboard', name: 'ComprehensiveDashboard', component: () => import('@/views/comprehensive/ComprehensiveDashboard.vue'), meta: { title: '综合报表看板', group: '综合报表', module: 'comprehensive' } },
 
+        /* ====== 财务模块（股东入资 / 收入 / 概览，确认即联动凭证并自动审核入账） ====== */
+        { path: 'finance/overview', name: 'FinanceOverview', component: () => import('@/views/finance/FinanceOverview.vue'), meta: { title: '财务概览', group: '财务', module: 'finance' } },
+        { path: 'finance/capital', name: 'FinanceCapital', component: () => import('@/views/finance/CapitalContribution.vue'), meta: { title: '股东入资', group: '财务', module: 'finance' } },
+        { path: 'finance/revenue', name: 'FinanceRevenue', component: () => import('@/views/finance/Revenue.vue'), meta: { title: '收入', group: '财务', module: 'finance' } },
+
         /* ====== 系统设置模块 ====== */
         {
           path: 'settings',

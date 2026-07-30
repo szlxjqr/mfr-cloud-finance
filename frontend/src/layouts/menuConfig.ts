@@ -267,6 +267,24 @@ export const menuItems: MenuItem[] = [
   },
 
   {
+    title: '财务',
+    icon: 'Money',
+    module: 'finance',
+    groups: [
+      {
+        title: '财务',
+        icon: 'Money',
+        color: '#67C23A',
+        children: [
+          { title: '财务概览', path: '/finance/overview' },
+          { title: '股东入资', path: '/finance/capital' },
+          { title: '收入', path: '/finance/revenue' },
+        ],
+      },
+    ],
+  },
+
+  {
     title: '系统设置',
     icon: 'Setting',
     module: 'settings',
