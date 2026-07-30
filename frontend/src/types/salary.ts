@@ -1,4 +1,4 @@
-export type SalaryStatus = '草稿' | '待审批' | '已通过' | '已驳回' | '已发放'
+export type SalaryStatus = '草稿' | '待审批' | '已通过' | '已归档' | '已发放' | '已驳回' | '已冲销'
 
 export interface SalaryBill {
   id: number

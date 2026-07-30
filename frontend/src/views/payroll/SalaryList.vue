@@ -210,7 +210,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { salaryApi } from '@/api/salary'
 import type { SalaryBill } from '@/types/salary'
 
-const statusOptions = ['草稿', '待审批', '已通过', '已驳回', '已发放']
+const statusOptions = ['草稿', '待审批', '已通过', '已归档', '已发放', '已驳回', '已冲销']
 
 const keyword = ref('')
 const statusFilter = ref<string | null>(null)
@@ -302,7 +302,7 @@ function fmt(v: any): string {
 }
 
 interface RowAction {
-  action: 'submit' | 'approve' | 'reject' | 'pay'
+  action: 'submit' | 'approve' | 'reject' | 'pay' | 'archive' | 'unarchive'
   label: string
   type: 'warning' | 'success' | 'danger' | 'primary'
 }
@@ -317,7 +317,12 @@ function rowActions(row: SalaryBill): RowAction[] {
         { action: 'reject', label: '驳回', type: 'danger' },
       ]
     case '已通过':
-      return [{ action: 'pay', label: '发放', type: 'primary' }]
+      return [{ action: 'archive', label: '归档', type: 'primary' }]
+    case '已归档':
+      return [
+        { action: 'pay', label: '发放', type: 'primary' },
+        { action: 'unarchive', label: '反归档', type: 'warning' },
+      ]
     default:
       return []
   }
@@ -429,6 +434,11 @@ async function runAction(action: RowAction['action'], row: SalaryBill) {
     await ElMessageBox.confirm(`确认提交工资单 ${row.salary_no ?? row.id}？提交后一人公司自动审核通过并存证。`, '提示', { type: 'warning' })
     await salaryApi.submit(row.id)
     ElMessage.success('已提交并自动审核')
+    await load()
+  }
+  if (action === 'archive') {
+    await salaryApi.archive(row.id)
+    ElMessage.success('已归档')
     await load()
   }
 }

@@ -17,6 +17,7 @@ export const salaryApi = {
     http.post<SalaryBill>(`/salaries/${id}/reject`, data),
   pay: (id: number, data?: { approver?: string; remark?: string }) =>
     http.post<SalaryBill>(`/salaries/${id}/pay`, data || {}),
+  archive: (id: number) => http.post<SalaryBill>(`/salaries/${id}/archive`),
   // 工资设置（社保/公积金/个税口径）
   getSetting: () => http.get<SalarySetting>('/salary-settings'),
   saveSetting: (data: Partial<SalarySetting>) => http.put<SalarySetting>('/salary-settings', data),
