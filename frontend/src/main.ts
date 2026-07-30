@@ -14,7 +14,7 @@ import DataLoader from './components/DataLoader.vue'
 import BatchActionBar from './components/BatchActionBar.vue'
 import StatusTag from './components/StatusTag.vue'
 import AppIcon from './components/AppIcon.vue'
-import KpiTile from './components/KpiTile.vue'
+import KpiCard from './components/KpiCard.vue'
 
 const app = createApp(App)
 
@@ -38,6 +38,6 @@ app.component('DataLoader', DataLoader)
 app.component('BatchActionBar', BatchActionBar)
 app.component('StatusTag', StatusTag)
 app.component('AppIcon', AppIcon)
-app.component('KpiTile', KpiTile)
+app.component('KpiCard', KpiCard)
 
 app.mount('#app')

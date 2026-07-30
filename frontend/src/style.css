@@ -58,6 +58,12 @@
   --el-color-info-light-9: #f5f5f5;
   --el-color-info-dark-2: #595959;
 
+  /* ---- 语义色裸名别名（供 KpiCard / StatusTag 直接引用，与 EP 命名解耦） ---- */
+  --success: #52c41a;
+  --warning: #faad14;
+  --danger:  #ff4d4f;
+  --info:    #8c8c8c;
+
   --el-border-radius-base: 6px;
   --el-border-radius-small: 4px;
   --el-border-radius-round: 999px;
