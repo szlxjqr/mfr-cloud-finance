@@ -30,6 +30,8 @@ from app.api import tax
 from app.api import comprehensive
 from app.api import financial_statement
 from app.api import fixed_asset
+from app.api import capital_contribution
+from app.api import revenue
 from app.db import init_db
 from app.models import company as company_model  # noqa: F401 注册公司设置模型
 from app.models import contract  # 导入即注册 ORM 模型，供 init_db 建表
@@ -43,6 +45,8 @@ from app.models import subject as subject_model  # noqa: F401 注册会计科目
 from app.models import voucher as voucher_model  # noqa: F401 注册凭证模型
 from app.models import salary_setting as salary_setting_model  # noqa: F401 注册工资设置模型
 from app.models import fixed_asset as fixed_asset_model  # noqa: F401 注册固定资产模型
+from app.models import capital_contribution as capital_contribution_model  # noqa: F401 注册股东入资模型
+from app.models import revenue as revenue_model  # noqa: F401 注册收入模型
 from app.models import code_counter as code_counter_model  # noqa: F401 注册编码计数器模型
 
 
@@ -129,6 +133,9 @@ app.include_router(comprehensive.router, prefix="/api", dependencies=_AUTH_DEP)
 app.include_router(financial_statement.router, prefix="/api", dependencies=_AUTH_DEP)
 # 注册固定资产路由（资产卡片 CRUD + 入账 / 计提折旧 / 处置 联动凭证）
 app.include_router(fixed_asset.router, prefix="/api", dependencies=_AUTH_DEP)
+# 注册财务模块路由（股东入资 / 收入：确认即联动凭证并自动审核入账）
+app.include_router(capital_contribution.router, prefix="/api", dependencies=_AUTH_DEP)
+app.include_router(revenue.router, prefix="/api", dependencies=_AUTH_DEP)
 
 
 @app.get("/health")

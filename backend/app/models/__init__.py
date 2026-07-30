@@ -13,6 +13,8 @@ from app.models.employee import Account, Employee
 from app.models.fixed_asset import DepRecord, FixedAsset
 from app.models.invoice import Invoice, InvoiceDetail
 from app.models.reimburse import ReimbursementBill
+from app.models.capital_contribution import CapitalContribution
+from app.models.revenue import Revenue
 from app.models.subject import AccountSubject
 from app.models.voucher import Voucher, VoucherEntry
 
@@ -26,6 +28,8 @@ __all__ = [
     "Employee",
     "Account",
     "ReimbursementBill",
+    "CapitalContribution",
+    "Revenue",
     "Invoice",
     "InvoiceDetail",
     "InvoiceInbox",
