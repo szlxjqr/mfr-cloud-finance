@@ -29,7 +29,7 @@
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
 | 前端源码文件数 | ~52（`.vue` + `.ts`，含 api/voucher.ts 等） |
 | 科目数据 | 后端 `account_subjects` 表（28 个权威科目，由 `GET /subjects` 提供；前端原 `accountData.ts` 187 静态科目已删，统一到后端源） |
-| 测试套件 | 69 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销/工资归档·反归档·冲销等）+ 34 个 invoice 离线字段提取测试（invoice_accuracy.mjs） |
+| 测试套件 | 88 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销/工资归档·反归档·冲销/**finance 出资·营收模块**等）+ 34 个 invoice 离线字段提取测试（invoice_accuracy.mjs） |
 
 ---
 
@@ -100,6 +100,7 @@
 - **finance 模块（出资 capital_contribution / 营收 revenue）落地**：后端 `api/capital_contribution.py` + `api/revenue.py` + models/schemas + `main.py` / `models/__init__.py` 路由注册；前端 `api/capitalContribution.ts` / `revenue.ts` / `types/finance.ts` + `views/finance/*` + `router/index.ts` + `menuConfig.ts`。**已接业务驱动账务**：两模块均调 `voucher_service.generate_from_*` 生成凭证、`source_no` 幂等、反归档 `void_vouchers_by_source_no` 级联删凭证 —— 符合"业务驱动账务"灵魂，非孤立 CRUD。对应提交 `9c4d880`(后端) / `f02357a`(前端)。
 - **CopilotPanel 接进仪表盘**：`Dashboard.vue:151` 渲染 `<CopilotPanel />`（左驾驶舱 56% / 右对话窗 44%，`height:100%` 撑满）——方案 B 入口预览已真正接进，非仅挂 2 行。Panel 为方案 B 入口预览：头部"财务助手" + bubble + examples chips + footer 输入框；`openInWorkBuddy()` / `send()` 均 `ElMessage.info` 引导去 WorkBuddy，本 app 不内置大模型。对应提交 `60f061e`。
 - **P2 UI 收口**：① 对比度 AA（`style.css:79` `--text-muted` #8c8c8c→#6b6b6b，≈5.3:1）；② 顶栏假按钮降级（全局搜索/在线咨询/帮助中心 → `ElMessage.info('功能待启用，敬请期待')`，tooltip "功能待启用"；AI助理 tooltip "前往财务助手" + `@click router.push('/')` 真跳仪表盘）；③ 综合看板边距统一（`ComprehensiveDashboard.vue` `.comprehensive` 4px→16px，全站边距统一）。构建（vue-tsc + vite build）转绿。对应提交 `72f683e`。
+- **finance 模块 pytest 补齐（下一轮测试 ①）**：新增 `tests/test_finance_capital_contribution.py`(9 用例) + `tests/test_finance_revenue.py`(10 用例)，覆盖凭证自动生成 / API+生成器双层 source_no 幂等 / 反归档级联删凭证 / 零金额边界 / 应收账款与零税率变体。全量 pytest 现 **88 passed, 0 failed**（原 69 + 新增 19）。前端 CopilotPanel 冒烟（②）因项目无测试框架、遵循"零新增依赖"，以构建转绿 + 渲染路径静态核对 + 交互安全分析交付（结构化手动冒烟清单已在 QA 报告中给出）。
 - **工资 P0 修复 + 回归**：归档/反归档/冲销链路验证修复；新增 `tests/test_archive_unarchive_writeoff.py` 回归（pytest 现 69 个）。对应提交 `a422230`(测试) + 早前 `07925a8`(报表 PDF 空白修复) + `a4d8ac9`/`0364508`(token 收敛 39 文件)。
 
 ## 4. 关键决策与踩坑记录
@@ -404,3 +405,4 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 62. 2026-07-30：71 个未提交改动按业务模块拆分 8 个语义 commit（finance 后端/前端、CopilotPanel、print PDF 修复、token 收敛 2、后端 WIP、工资归档·反归档·冲销回归测试）全部提交并推送 origin/main（a422230，5c1e8d5..a422230）；4 个 .invoice-test-build* 临时目录排除未提交。
   - 63. 2026-07-30 chore：.gitignore `frontend/.invoice-test-build/` → `frontend/.invoice-test-build*/`，覆盖 -all/-real950/-real950-15/-2 等变体，防 git add -A 误纳入前端临时构建目录。对应 72c8445。
   - 64. 2026-07-30 修正记忆误判：此前记"沙箱到 github.com:443 超时不能 push"，实测本会话 `git push origin main` 成功（GIT_HTTP_VERSION=1.1 + osxkeychain 凭据），沙箱实际可连 GitHub；旧"443 超时"结论作废。STATUS §4「git push HTTP/2 卡死」条目仍成立（HTTP/2 多路复用卡 TLS，降 1.1 即通），与"沙箱可连"不矛盾。
+  - 65. 2026-07-30 下一轮测试（1+2）收口：① finance 模块补 pytest——新增 tests/test_finance_capital_contribution.py(9)+tests/test_finance_revenue.py(10)，覆盖凭证自动生成/API+生成器双层 source_no 幂等/反归档级联删凭证/零金额边界/应收账款·零税率变体；全量 pytest 88 passed 0 failed（原 69+新增19）。② CopilotPanel 前端冒烟：项目无测试框架、零新增依赖，以构建绿+渲染路径核对+交互安全分析交付（手动冒烟清单见 QA 报告）。智能路由 NoOne（源码无 Bug）。对应 commit 待入库。
