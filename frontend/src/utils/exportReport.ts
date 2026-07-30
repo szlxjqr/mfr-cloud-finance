@@ -161,6 +161,8 @@ export function printReport(title: string, el: HTMLElement | null | undefined) {
     `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeXml(title)}</title>${styles}`,
   )
   w.document.write(`<style>
+/* 覆盖主文档全局 @media print 的 body * { display:none }，避免报表打印窗口正文被隐藏 */
+@media print { body * { display: revert !important; } }
 @page { size: A4; margin: 14mm; }
 * { box-sizing: border-box; }
 body { font-family: "Microsoft YaHei","PingFang SC","Hiragino Sans GB",sans-serif; color:#000; background:#fff; }
@@ -171,7 +173,7 @@ h1.rpt-title { text-align:center; font-size:18px; font-weight:700; margin:0 0 12
 .tools { display:none !important; }
 .el-table { box-shadow:none !important; }
 .el-table::before { display:none !important; }
-.el-table table { border-collapse:collapse !important; width:100%; }
+.el-table table { border-collapse:collapse !important; width:100%; display:table !important; }
 .el-table th, .el-table td { border:1px solid #333 !important; padding:4px 8px !important; font-size:11px !important; }
 .el-table .cell { line-height:1.4 !important; white-space:normal !important; }
 .el-descriptions { margin-top:12px; }
