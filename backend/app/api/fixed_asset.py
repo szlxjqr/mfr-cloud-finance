@@ -16,11 +16,13 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import fixed_asset as m
+from app.models import employee as emp
 from app.schemas import fixed_asset as s
 from app.utils.codegen import gen_asset_no
 from app.utils import approval
 from app.services import asset_service as svc  # 月折旧计算 / 入账 / 计提 / 处置 / 汇总
 from app.services import voucher_service  # 联动：自动生成凭证
+from app.api.auth import require_admin_gm  # 反归档/冲销限 admin/gm
 
 router = APIRouter(prefix="/fixed-assets", tags=["fixed-assets"])
 
@@ -174,3 +176,60 @@ def dispose_asset(aid: int, body: s.ActionBody, db: Session = Depends(get_db)):
     obj = _get_or_404(db, aid)
     result = svc.dispose(db, aid, maker, dispose_date=body.action_date)
     return {"asset": _to_read(obj).model_dump(), **result}
+
+
+# ================= 反归档 / 冲销（限 admin/gm）=================
+@router.post("/{aid}/unarchive", response_model=dict)
+def unarchive_asset(
+    aid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """反归档（撤销）：在用 → 未入账，删除该资产联动的入账凭证（级联删分录），回退待重新入账。限 admin/gm。
+
+    仅「在用」可反归档；已处置须走冲销。清空 record_voucher_no/record_date 避免悬空引用（B3）。
+    """
+    obj = _get_or_404(db, aid)
+    if obj.status != "在用":
+        raise HTTPException(
+            status_code=400,
+            detail=f"当前状态「{obj.status}」不允许反归档（仅在用可反归档；已处置请走冲销）",
+        )
+    obj.status = "未入账"
+    obj.record_voucher_no = None
+    obj.record_date = None
+    db.add(obj)
+    db.flush()
+    voucher_service.void_vouchers_by_source_no(db, obj.asset_no)
+    db.commit()
+    db.refresh(obj)
+    return {"asset": _to_read(obj).model_dump(), "message": "已撤销入账，凭证已删除"}
+
+
+@router.post("/{aid}/writeoff", response_model=dict)
+def writeoff_asset(
+    aid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """冲销（红字冲销）：已处置 → 已冲销，对该资产联动的入账+处置凭证做红字冲销（原凭证标记已冲销保留）。限 admin/gm。
+
+    支付/处置后不可反归档，故提供冲销：生成借贷反向、金额相同的红冲凭证（已审核）即时抵消，
+    原+冲销+新 三套凭证共存、账务闭合。若已冲销则拒绝重复冲销。
+    """
+    obj = _get_or_404(db, aid)
+    if obj.status != "已处置":
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许冲销（仅已处置可冲销）")
+    obj.status = "已冲销"
+    db.add(obj)
+    db.flush()
+    try:
+        red_no, cnt = voucher_service.reverse_vouchers_by_source_no(
+            db, obj.asset_no, maker=current_user.username
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    db.refresh(obj)
+    return {"asset": _to_read(obj).model_dump(), "red_voucher_no": red_no, "reversed": cnt}

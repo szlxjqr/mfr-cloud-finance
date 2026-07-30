@@ -25,6 +25,8 @@ from app.models import purchase as pm
 from app.models import reimburse as rm
 from app.models import salary as slm
 from app.models import travel as tm
+from app.models import capital_contribution as ccm
+from app.models import revenue as revm
 from app.models import subject as sm
 from app.models import voucher as vm
 from app.utils.codegen import gen_asset_no, gen_voucher_no
@@ -42,6 +44,10 @@ SUB_PAYROLL_PAY = "2211"     # 应付职工薪酬
 SUB_FIXED_ASSET = "1601"      # 固定资产
 SUB_ACCUM_DEP = "1602"        # 累计折旧（固定资产备抵，贷方余额）
 SUB_BANK = "1002"             # 银行存款
+SUB_CAPITAL = "3001"          # 实收资本（股东入资）
+SUB_REVENUE = "5001"          # 主营业务收入
+SUB_OUTPUT_TAX = "2221.01.02"  # 应交税费—应交增值税—销项税额
+SUB_RECEIVABLE = "1122"       # 应收账款
 
 
 def _subject_name(db: Session, code: str) -> str:
@@ -106,6 +112,84 @@ def _make_voucher(
     return voc
 
 
+# ==================== 反归档 / 冲销（按 source_no 原子撤销账务）====================
+# 红冲（红字冲销）来源类型：与业务单联动凭证的 source_type 区分，避免与重生成幂等判定冲突
+RED_SOURCE_TYPE = "红冲"
+
+
+def void_vouchers_by_source_no(db: Session, source_no: str) -> int:
+    """反归档撤销：删除 source_no 下全部业务联动凭证（级联删分录），返回删除数。
+
+    用于「反归档」动作——撤销该业务单联动的全部账务；业务单回退后重提交可重新生成。
+    不删除红冲凭证（保留审计轨迹）。
+    """
+    vids = db.scalars(
+        select(vm.Voucher.id).where(
+            vm.Voucher.source_no == source_no,
+            vm.Voucher.source_type != RED_SOURCE_TYPE,
+        )
+    ).all()
+    if not vids:
+        return 0
+    for vid in vids:
+        v = db.get(vm.Voucher, vid)
+        if v:
+            db.delete(v)  # cascade="all, delete-orphan" 级联删分录，无孤儿
+    db.flush()
+    return len(vids)
+
+
+def reverse_vouchers_by_source_no(db: Session, source_no: str, maker: str) -> Tuple[str, int]:
+    """支付后冲销（红字冲销）：对 source_no 下所有「已审核/已记账 且非红冲」凭证生成一张
+    借贷反向、金额相同的红字冲销凭证（置「已审核」即时抵消），原凭证标记「已冲销」保留。
+    返回 (红冲凭证号, 被冲销原凭证数)。重复冲销或无待冲销凭证抛 ValueError。
+    """
+    existing_red = db.scalar(
+        select(vm.Voucher).where(
+            vm.Voucher.source_type == RED_SOURCE_TYPE,
+            vm.Voucher.source_no == source_no,
+        )
+    )
+    if existing_red:
+        raise ValueError("该业务单已冲销，不可重复冲销")
+
+    originals = db.scalars(
+        select(vm.Voucher).where(
+            vm.Voucher.source_no == source_no,
+            vm.Voucher.source_type != RED_SOURCE_TYPE,
+        )
+    ).all()
+    to_reverse = [v for v in originals if v.status in ("已审核", "已记账")]
+    if not to_reverse:
+        raise ValueError("无可冲销的已入账凭证（可能尚未归档或已冲销）")
+
+    red_entries: List[Tuple[str, str, str, Decimal]] = []
+    total_debit = Decimal("0")
+    total_credit = Decimal("0")
+    for v in to_reverse:
+        for e in v.entries:
+            nd = "贷" if e.direction == "借" else "借"
+            red_entries.append((e.subject_code, nd, f"红冲 {e.summary or v.summary or ''}", e.amount))
+            if nd == "借":
+                total_debit += e.amount
+            else:
+                total_credit += e.amount
+    if abs(total_debit - total_credit) > Decimal("0.005"):
+        raise ValueError(f"红冲凭证借贷不平：借 {total_debit} / 贷 {total_credit}")
+
+    red = _make_voucher(
+        db, RED_SOURCE_TYPE, source_no, date.today(), maker,
+        f"红冲业务单 {source_no}", red_entries, attach_count=0,
+    )
+    red.status = "已审核"
+    db.add(red)
+    for v in to_reverse:
+        v.status = "已冲销"
+        db.add(v)
+    db.flush()
+    return red.voucher_no, len(to_reverse)
+
+
 # ==================== 报销单 → 凭证 ====================
 def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker: str) -> Optional[vm.Voucher]:
     """报销单提交财务/归档 → 自动凭证。
@@ -158,10 +242,81 @@ def generate_from_reimbursement(db: Session, bill: "rm.ReimbursementBill", maker
             (debit_code, "借", summary, amt),
             (SUB_OTHER_PAY, "贷", summary, amt),
         ]
-    return _make_voucher(
+    voc = _make_voucher(
         db, "报销单", bill.bill_no, v_date, maker, summary, entries,
         attach_count=len(invs) or 1,
     )
+    voc.status = "已审核"  # 归档即入账：直接置已审核，立即可在账簿/报表体现
+    db.add(voc)
+    db.flush()
+    return voc
+
+
+# ==================== 股东入资 → 凭证 ====================
+def generate_from_capital_contribution(db: Session, obj: "ccm.CapitalContribution", maker: str) -> Optional[vm.Voucher]:
+    """股东入资确认 → 自动凭证（直接审核入账，落账簿）。
+
+    规则：借 收款科目(receive_subject，默认银行存款1002) + 贷 实收资本(3001)，金额=入资金额。
+    幂等：source_type='股东入资', source_no=bill_no 已存在则跳过。
+    与报销/采购/工资同源：确认即入账，故生成后状态置「已审核」，立即可在账簿/报表体现。
+    """
+    if _exists(db, "股东入资", obj.bill_no):
+        return None
+    v_date = obj.contribution_date or date.today()
+    amount = obj.amount or Decimal("0")
+    if amount <= 0:
+        return None
+    summary = f"股东入资 {obj.bill_no} {obj.investor}（{obj.capital_type}）"
+    entries = [
+        (obj.receive_subject or SUB_BANK, "借", summary, amount),
+        (SUB_CAPITAL, "贷", summary, amount),
+    ]
+    voc = _make_voucher(
+        db, "股东入资", obj.bill_no, v_date, maker, summary, entries, attach_count=1,
+    )
+    # 入资确认即入账：直接置已审核，立即可在账簿/报表体现（与"报销后账面体现"同源诉求）
+    voc.status = "已审核"
+    db.add(voc)
+    db.flush()
+    return voc
+
+
+# ==================== 收入 → 凭证 ====================
+def generate_from_revenue(db: Session, obj: "revm.Revenue", maker: str) -> Optional[vm.Voucher]:
+    """收入确认 → 自动凭证（直接审核入账，落账簿）。
+
+    规则（默认银行收讫）：借 银行存款(1002) + 贷 主营业务收入(5001) + 贷 销项税额(2221.01.02)。
+    settle_method='应收账款' 时借方改为 应收账款(1122)。
+    tax_rate=0 时不计销项税额。
+    金额关系：价税合计=total；不含税=total/(1+rate)；税额=total-不含税。
+    幂等：source_type='收入', source_no=bill_no 已存在则跳过。
+    与报销/股东入资同源：确认即入账，生成后状态置「已审核」。
+    """
+    if _exists(db, "收入", obj.bill_no):
+        return None
+    v_date = obj.revenue_date or date.today()
+    total = obj.total_amount or Decimal("0")
+    if total <= 0:
+        return None
+    rate = obj.tax_rate or Decimal("0")
+    net = (total / (1 + rate)).quantize(Decimal("0.01")) if rate > 0 else total
+    tax = (total - net).quantize(Decimal("0.01"))
+    debit_code = SUB_BANK if obj.settle_method == "银行收讫" else SUB_RECEIVABLE
+    summary = f"确认收入 {obj.bill_no} {obj.customer}"
+    entries: List[Tuple[str, str, str, Decimal]] = [
+        (debit_code, "借", summary, total),
+        (SUB_REVENUE, "贷", summary, net),
+    ]
+    if tax > 0:
+        entries.append((SUB_OUTPUT_TAX, "贷", summary, tax))
+    voc = _make_voucher(
+        db, "收入", obj.bill_no, v_date, maker, summary, entries, attach_count=1,
+    )
+    # 收入确认即入账：直接置已审核，立即可在账簿/报表体现
+    voc.status = "已审核"
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 # ==================== 采购申请 → 凭证（保留兼容旧数据，新流程不再调用）====================
@@ -209,10 +364,14 @@ def generate_from_salary(db: Session, bill: "slm.SalaryBill", maker: str) -> Opt
         (SUB_WAGE, "借", summary, gross),
         (SUB_PAYROLL_PAY, "贷", summary, gross),
     ]
-    return _make_voucher(
+    voc = _make_voucher(
         db, "工资单", bill.salary_no, v_date, maker, summary, entries,
         attach_count=1,
     )
+    voc.status = "已审核"  # 归档即入账
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 # ==================== 支付环节 → 联动付款凭证 ====================
@@ -244,9 +403,13 @@ def generate_reimbursement_payment(db: Session, bill: "rm.ReimbursementBill", ma
         (SUB_OTHER_PAY, "借", summary, pay_amount),
         (SUB_BANK, "贷", summary, pay_amount),
     ]
-    return _make_voucher(
+    voc = _make_voucher(
         db, "报销支付", bill.bill_no, v_date, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 支付即入账（B4：支付类凭证统一置已审核）
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 def generate_salary_payment(db: Session, bill: "slm.SalaryBill", maker: str) -> Optional[vm.Voucher]:
@@ -271,9 +434,13 @@ def generate_salary_payment(db: Session, bill: "slm.SalaryBill", maker: str) -> 
     ]
     if deduct > 0:
         entries.append((SUB_OTHER_PAY, "贷", summary, deduct))
-    return _make_voucher(
+    voc = _make_voucher(
         db, "工资支付", bill.salary_no, v_date, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 支付即入账（B4）
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 def generate_purchase_payment(db: Session, req: "pm.PurchaseRequisition", maker: str) -> Optional[vm.Voucher]:
@@ -294,9 +461,13 @@ def generate_purchase_payment(db: Session, req: "pm.PurchaseRequisition", maker:
         (SUB_AP, "借", summary, amount),
         (SUB_BANK, "贷", summary, amount),
     ]
-    return _make_voucher(
+    voc = _make_voucher(
         db, "采购支付", req.req_no, v_date, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 支付即入账（B4）
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 # ==================== 固定资产 → 凭证 ====================
@@ -325,8 +496,11 @@ def generate_from_asset_purchase(
     voc = _make_voucher(
         db, "固定资产", asset.asset_no, d, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 入账即入账（固定资产无单独支付环节，入账即落账簿）
     asset.record_voucher_no = voc.voucher_no
     db.add(asset)
+    db.add(voc)
+    db.flush()
     return voc
 
 
@@ -353,9 +527,13 @@ def generate_depreciation_voucher(
         if amt and amt > 0:
             entries.append((code, "借", summary, amt))
     entries.append((SUB_ACCUM_DEP, "贷", summary, total_amount))
-    return _make_voucher(
+    voc = _make_voucher(
         db, "固定资产折旧", f"ZCDEP|{period}", d, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 折旧汇总凭证自动入账
+    db.add(voc)
+    db.flush()
+    return voc
 
 
 def generate_disposal_voucher(
@@ -385,8 +563,11 @@ def generate_disposal_voucher(
     voc = _make_voucher(
         db, "固定资产处置", asset.asset_no, d, maker, summary, entries, attach_count=1,
     )
+    voc.status = "已审核"  # 处置即入账（业务驱动账务，自动审核）
     asset.dispose_voucher_no = voc.voucher_no
     db.add(asset)
+    db.add(voc)
+    db.flush()
     return voc
 
 
@@ -527,11 +708,13 @@ def unpost_voucher(db: Session, vid: int) -> Optional[vm.Voucher]:
 
 # ==================== 批量补生成（回填历史已通过单据）====================
 def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
-    """扫描所有「已归档/已支付」的报销单 + 「已通过」的历史采购单/工资单，对尚未生成凭证的补生成。
+    """扫描所有「已归档/已支付」的报销单 + 「已归档/已发放」的历史工资单 + 「已通过」旧采购单，
+    对尚未生成凭证的补生成。
 
     用于：(1) 历史数据回填；(2) 一键把联动铺开到现有业务单。
     返回 (生成数, 跳过数, 明细日志)。
-    注意：新流程下报销单在「已归档」时才生成凭证，故扫描已归档+已支付。
+    注意：新流程下业务单须跨越「归档闸门」才生成凭证，故工资仅扫描 已归档/已发放（已通过未归档的不补），
+    避免旁路归档闸门（B2）。
     """
     generated = 0
     skipped = 0
@@ -562,7 +745,7 @@ def sync_from_approved(db: Session, maker: str) -> Tuple[int, int, List[str]]:
             skipped += 1
 
     sbills = db.scalars(
-        select(slm.SalaryBill).where(slm.SalaryBill.status == "已通过")
+        select(slm.SalaryBill).where(slm.SalaryBill.status.in_(["已归档", "已发放"]))
     ).all()
     for b in sbills:
         v = generate_from_salary(db, b, maker)

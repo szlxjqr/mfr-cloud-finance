@@ -9,23 +9,27 @@ from sqlalchemy.orm import Session, selectinload
 from app.db import get_db
 from app.models import invoice as im
 from app.models import reimburse as m
+from app.models import employee as emp  # 权限判定用的 Account 模型
 from app.schemas import reimburse as s
 from app.utils.codegen import gen_bill_no
 from app.utils import approval
-from app.services import voucher_service  # 联动：审批通过 → 自动生成凭证
+from app.services import voucher_service  # 联动：提交财务/归档 → 自动生成凭证
+from app.api.auth import require_admin_gm  # 反归档/冲销限 admin/gm
 
 router = APIRouter(prefix="/reimbursements", tags=["reimbursements"])
 
 # 状态流转白名单：当前状态 -> 允许的动作 -> 目标状态
 # 新流程：草稿→待审批→已通过→(提交财务)→已归档→(支付)→已支付
-# 凭证生成时机后移到「提交财务(归档)」，审批通过只改状态不入账，可退回修改
+# 凭证生成时机在「提交财务(归档)」，审批通过只改状态不入账，可退回修改
+# 反归档(限admin/gm)：已归档→已通过，删除计提凭证；冲销(限admin/gm)：已支付→已冲销，红冲计提+支付凭证
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
     "已通过": {"submit_finance": "已归档", "revert": "草稿"},
-    "已归档": {"pay": "已支付"},
-    "已驳回": {"submit": "待审批"},  # 重新提交
-    "已支付": {},  # 终态
+    "已归档": {"pay": "已支付", "unarchive": "已通过"},    # 反归档(限admin/gm,删凭证)
+    "已驳回": {"submit": "待审批"},                       # 重新提交
+    "已支付": {"writeoff": "已冲销"},                     # 冲销(限admin/gm,红冲)
+    "已冲销": {},                                          # 终态
 }
 
 
@@ -314,6 +318,58 @@ def pay_bill(bid: int, db: Session = Depends(get_db)):
     obj.pay_date = date.today()
     # 联动：支付报销款 → 自动生成付款凭证（借其他应付款 / 贷银行存款，幂等）
     voucher_service.generate_reimbursement_payment(db, obj, maker=obj.approver or "system")
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+# ================= 反归档 / 冲销（限 admin/gm）=================
+@router.post("/{bid}/unarchive", response_model=s.ReimbursementBillRead)
+def unarchive_bill(
+    bid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """反归档（撤销）：已归档 → 已通过，删除该报销单联动的计提凭证（及支付凭证，若已存在），回退待重新归档。
+
+    限 admin/gm。已支付不可反归档，须走冲销。报销单未存 voucher_no，直接按 source_no 删凭证。
+    """
+    obj = _get_or_404(db, bid)
+    if "unarchive" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许反归档（仅已归档可反归档）")
+    obj.status = _STATUS_FLOW[obj.status]["unarchive"]
+    db.add(obj)
+    db.flush()
+    voucher_service.void_vouchers_by_source_no(db, obj.bill_no)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{bid}/writeoff", response_model=s.ReimbursementBillRead)
+def writeoff_bill(
+    bid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """冲销（红字冲销）：已支付 → 已冲销，对该报销单联动的计提+支付凭证做红字冲销（原凭证标记已冲销保留）。
+
+    限 admin/gm。支付后不可反归档，故提供冲销：生成借贷反向、金额相同的红冲凭证（已审核）即时抵消，
+    原+冲销+新 三套凭证共存、账务闭合。若已冲销则拒绝重复冲销。
+    """
+    obj = _get_or_404(db, bid)
+    if "writeoff" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许冲销（仅已支付可冲销）")
+    obj.status = _STATUS_FLOW[obj.status]["writeoff"]
+    db.add(obj)
+    db.flush()
+    try:
+        red_no, cnt = voucher_service.reverse_vouchers_by_source_no(
+            db, obj.bill_no, maker=current_user.username
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     db.commit()
     db.refresh(obj)
     return obj

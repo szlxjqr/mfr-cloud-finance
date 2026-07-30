@@ -167,6 +167,26 @@ def gen_asset_no(db: Session, year: Optional[int] = None) -> str:
     seq = _alloc_seq(db, key)
     return f"ZC{y}{seq:04d}"
 
+def gen_capital_no(db: Session, year: Optional[int] = None) -> str:
+    """生成股东入资单号：RZ + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"CAP|{y}"
+    seed = _seed_from_req_no(db, "capital_contributions", "RZ", y, col="bill_no")
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"RZ{y}{seq:04d}"
+
+
+def gen_revenue_no(db: Session, year: Optional[int] = None) -> str:
+    """生成收入单号：SR + 4位年 + 4位序号。"""
+    y = year or date.today().year
+    key = f"REV|{y}"
+    seed = _seed_from_req_no(db, "revenues", "SR", y, col="bill_no")
+    _ensure_counter(db, key, seed=seed)
+    seq = _alloc_seq(db, key)
+    return f"SR{y}{seq:04d}"
+
+
 def gen_voucher_no(db: Session, year: Optional[int] = None, month: Optional[int] = None) -> "tuple[str, int]":
     """生成记账凭证号：记-YYYY-MM-NNNN（返回 (凭证号, 序号)）。
 

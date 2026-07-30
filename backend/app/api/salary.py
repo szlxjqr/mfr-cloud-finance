@@ -18,18 +18,24 @@ from app.models import salary as m
 from app.schemas import salary as s
 from app.utils.codegen import gen_salary_no
 from app.utils import approval
-from app.services import voucher_service  # 联动：审核通过 → 自动生成凭证
+from app.services import voucher_service  # 联动：归档 → 自动生成凭证（审核通过不再生成，遵循归档闸门）
 from app.services import salary_service as svc  # 部门汇总 / 个税报表 / 设置计算
+from app.models import employee as emp  # 权限判定用的 Account 模型
+from app.api.auth import require_admin_gm  # 反归档/冲销限 admin/gm
 
 router = APIRouter(prefix="/salaries", tags=["salaries"])
 
 # 状态流转白名单：当前状态 -> 允许的动作 -> 目标状态
+# 新流程：草稿→待审批→已通过→已归档(生成计提凭证)→已发放(生成支付凭证)
+# 反归档(限admin/gm)：已归档→已通过，删除计提凭证；冲销(限admin/gm)：已发放→已冲销，红冲计提+支付凭证
 _STATUS_FLOW = {
     "草稿": {"submit": "待审批"},
     "待审批": {"approve": "已通过", "reject": "已驳回"},
-    "已通过": {"pay": "已发放"},
-    "已驳回": {"submit": "待审批"},  # 重新提交
-    "已发放": {},  # 终态
+    "已通过": {"archive": "已归档"},                       # 归档闸门：生成计提凭证(已审核)
+    "已归档": {"pay": "已发放", "unarchive": "已通过"},    # 反归档(限admin/gm,删凭证)
+    "已驳回": {"submit": "待审批"},                       # 重新提交
+    "已发放": {"writeoff": "已冲销"},                     # 冲销(限admin/gm,红冲)
+    "已冲销": {},                                          # 终态
 }
 
 
@@ -208,11 +214,10 @@ def submit_bill(bid: int, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = approver
     obj.approve_remark = "系统自动审批（一人公司）"
-    # 联动：审核通过 → 自动生成记账凭证（借管理费用-工资 / 贷应付职工薪酬）
+    # 归档闸门：提交/审批通过不再生成凭证，凭证在「归档」动作时生成（避免未归档即入账）
     _recompute(obj)
     db.add(obj)
     db.flush()
-    voucher_service.generate_from_salary(db, obj, maker=approver)
     db.commit()
     db.refresh(obj)
     return obj
@@ -229,10 +234,10 @@ def approve_bill(bid: int, body: s.ApprovalBody, db: Session = Depends(get_db)):
     obj.approve_date = date.today()
     obj.approver = body.approver.strip()
     obj.approve_remark = body.remark.strip() if body.remark else None
+    # 归档闸门：审批通过不再生成凭证，凭证在「归档」动作时生成
     _recompute(obj)
     db.add(obj)
     db.flush()
-    voucher_service.generate_from_salary(db, obj, maker=obj.approver)
     db.commit()
     db.refresh(obj)
     return obj
@@ -266,6 +271,79 @@ def pay_bill(bid: int, body: Optional[s.ApprovalBody] = None, db: Session = Depe
         obj.pay_remark = body.remark.strip() if body.remark else None
     # 联动：发放工资 → 自动生成付款凭证（借应付职工薪酬 / 贷银行存款，代扣转其他应付款，幂等）
     voucher_service.generate_salary_payment(db, obj, maker=obj.payee or obj.approver or "system")
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+# ================= 归档闸门 / 反归档 / 冲销 =================
+@router.post("/{bid}/archive", response_model=s.SalaryBillRead)
+def archive_bill(bid: int, db: Session = Depends(get_db)):
+    """归档：已通过 → 已归档，联动生成计提凭证（借管理费用-工资 / 贷应付职工薪酬）并自动审核入账。
+
+    归档闸门：只有归档动作才联动账务，未归档的工资单不进凭证/账簿/报表。
+    幂等：source_type='工资单', source_no=salary_no 已存在凭证则跳过。
+    """
+    obj = _get_or_404(db, bid)
+    if "archive" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许归档（仅已通过可归档）")
+    obj.status = _STATUS_FLOW[obj.status]["archive"]
+    _recompute(obj)
+    db.add(obj)
+    db.flush()
+    voucher_service.generate_from_salary(db, obj, maker=obj.approver or "system")
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{bid}/unarchive", response_model=s.SalaryBillRead)
+def unarchive_bill(
+    bid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """反归档（撤销）：已归档 → 已通过，删除该工资单联动的计提凭证（级联删分录），回退待重新归档。
+
+    限 admin/gm。已发放（已支付）不可反归档，须走冲销（红字冲销）。工资单未存 voucher_no，直接按 source_no 删凭证。
+    """
+    obj = _get_or_404(db, bid)
+    if "unarchive" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许反归档（仅已归档可反归档）")
+    obj.status = _STATUS_FLOW[obj.status]["unarchive"]
+    db.add(obj)
+    db.flush()
+    # 撤销账务：按 source_no 删除计提凭证（工资单未支付时无支付凭证；即便存在也一并清除）
+    voucher_service.void_vouchers_by_source_no(db, obj.salary_no)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+@router.post("/{bid}/writeoff", response_model=s.SalaryBillRead)
+def writeoff_bill(
+    bid: int,
+    current_user: emp.Account = Depends(require_admin_gm),
+    db: Session = Depends(get_db),
+):
+    """冲销（红字冲销）：已发放 → 已冲销，对该工资单联动的计提+支付凭证做红字冲销（原凭证标记已冲销保留）。
+
+    限 admin/gm。支付后不可反归档，故提供冲销：生成借贷反向、金额相同的红冲凭证（已审核）即时抵消，
+    原+冲销+新 三套凭证共存、账务闭合。若已冲销则拒绝重复冲销。
+    """
+    obj = _get_or_404(db, bid)
+    if "writeoff" not in _STATUS_FLOW.get(obj.status, {}):
+        raise HTTPException(status_code=400, detail=f"当前状态「{obj.status}」不允许冲销（仅已发放可冲销）")
+    obj.status = _STATUS_FLOW[obj.status]["writeoff"]
+    db.add(obj)
+    db.flush()
+    try:
+        red_no, cnt = voucher_service.reverse_vouchers_by_source_no(
+            db, obj.salary_no, maker=current_user.username
+        )
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
     db.commit()
     db.refresh(obj)
     return obj

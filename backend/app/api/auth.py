@@ -36,6 +36,16 @@ async def get_current_user(
     return acc
 
 
+async def require_admin_gm(current: m.Account = Depends(get_current_user)) -> m.Account:
+    """权限依赖：仅 admin / gm 可通过，否则 403。用于反归档 / 冲销等高级动作。"""
+    if current.role not in ("admin", "gm"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="权限不足：仅管理员或总经理可执行该操作",
+        )
+    return current
+
+
 @router.post("/login", response_model=s.LoginResponse)
 def login(payload: s.LoginRequest, db: Session = Depends(get_db)):
     """用户名 + 密码登录，成功返回自签名 Token。"""
