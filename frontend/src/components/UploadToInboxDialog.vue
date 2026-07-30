@@ -191,7 +191,7 @@ const failCount = computed(() => recognizedInvoices.value.filter((r) => !r.valid
 // 入池结果面板
 interface ResultItem {
   fileName: string
-  status: '成功' | '重复' | '失败' | '待复核'
+  status: '成功' | '重复' | '失败' | '待复核' | '已拒绝'
   detail: string
 }
 const showResult = ref(false)
@@ -566,13 +566,13 @@ function resetAndClose() {
 }
 .upload-text {
   font-size: 14px;
-  color: #303133;
+  color: var(--text-strong);
   font-weight: 500;
   margin-bottom: 4px;
 }
 .upload-tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
 }
 
 /* 文件列表 */
@@ -613,7 +613,7 @@ function resetAndClose() {
 .file-status.parsing { background: #e6f7ff; color: #1890ff; }
 .file-status.done { background: #f6ffed; color: #52c41a; }
 .file-status.fail { background: #fff2f0; color: #ff4d4f; }
-.file-status.pending { background: #fafafa; color: #999; }
+.file-status.pending { background: var(--bg-subtle); color: #999; }
 
 /* 批量处理 */
 .processing-bar {
@@ -637,12 +637,12 @@ function resetAndClose() {
 .section-title {
   font-size: 13px;
   font-weight: 600;
-  color: #303133;
+  color: var(--text-strong);
   margin-bottom: 8px;
 }
 .result-tip {
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   margin-top: 6px;
 }
 .result-panel {

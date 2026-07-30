@@ -529,7 +529,7 @@ function extractItem(norm: string): string | undefined {
 
 // 数电票购销方：税号提取最稳，名称取「各自税号紧前」的 CJK 后缀实体；
 // 布局重排（标签挤页眉、名称甩页中）或与日期黏连时仍稳。前置日期残留（年/月/日/数字/空白）一并剥除。
-function extractEinvoiceParties(norm: string, taxNos: string[]): { buyer?: string; seller?: string } {
+function extractEinvoiceParties(norm: string): { buyer?: string; seller?: string } {
   // 数电票文字层被 pdf.js 重排后，购销方名称可能落在税号之前或之后，且可能被日期/人名污染
   // （如「2026年07月03日王大成深圳市流形机器人科技有限公司杭州呈华酒店管理有限公司」）。
   // 策略：1) 贪婪提取最长 CJK+SUFFIX 串；2) 超长且含多个后缀的长串按后缀拆成子候选；
@@ -539,7 +539,6 @@ function extractEinvoiceParties(norm: string, taxNos: string[]): { buyer?: strin
   // 拆分脏拼接长串时只用「有限公司」类核心后缀，避免把「XX分公司」等分支后缀误拆成独立公司。
   const coreSuffix = '股份有限公司|有限责任公司|有限公司'
   const suffixSplitRe = new RegExp(`(${coreSuffix})`, 'g')
-  const MAX_SINGLE = 25
   const companies: { name: string; idx: number }[] = []
   let m: RegExpExecArray | null
   while ((m = companyRe.exec(norm)) !== null) {
@@ -692,7 +691,7 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
   const isValidParty = (n?: string) =>
     !!n && (n === SELF_NAME || suffixRe.test(n))
   if (taxNos.length >= 2) {
-    const parties = extractEinvoiceParties(normE, taxNos)
+    const parties = extractEinvoiceParties(normE)
     if (isValidParty(parties.buyer)) buyerName = parties.buyer
     if (isValidParty(parties.seller)) sellerName = parties.seller
   }
@@ -910,7 +909,7 @@ export function extractInvoiceFields(text: string): ParsedInvoice {
     // 仅在能区分购买方/销售方两个税号时才用数电票专用反查覆盖
     // （避免京东个人票仅 1 个销售方税号时把销售方误当购买方）。
     if (taxNos.length >= 2) {
-      const parties = extractEinvoiceParties(normE, taxNos)
+      const parties = extractEinvoiceParties(normE)
       result.buyerName = parties.buyer ?? buyerName
       result.sellerName = parties.seller ?? sellerName
     }

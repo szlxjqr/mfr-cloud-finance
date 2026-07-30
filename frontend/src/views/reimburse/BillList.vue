@@ -435,7 +435,7 @@
     >
       <div v-if="detailLoading" class="detail-loading">正在加载报销单…</div>
       <ReimbursePrint
-        v-else
+        v-else-if="detailRow"
         :bill="detailRow"
         :summary="detailSummary"
         :purchase="detailPurchase"
@@ -1474,7 +1474,7 @@ onMounted(load)
   margin-bottom: 10px;
 }
 .has-invoices {
-  color: #67c23a;
+  color: var(--success);
   font-weight: 600;
 }
 .linked-title {
