@@ -24,8 +24,9 @@ export interface MenuItem {
 
 /**
  * 左侧主导航菜单配置 —— 单一真相源
- * 设计：业务场景（合同/税务/报销/工资/资产）各自作为一级目录；
+ * 设计：业务场景（合同/税务/工资/资产）各自作为一级目录；
  * 账务管理作为"容器"，收编 总账/出纳/发票/结账/报表。
+ * 已下架：一级目录「报销管理」（2026-07-30）；报销能力由采购/差旅模块的"转报销"入口承载，路由保留以备直访。
  */
 export const menuItems: MenuItem[] = [
   { title: '首页', path: '/dashboard', icon: 'HomeFilled', module: 'dashboard' },
@@ -85,39 +86,8 @@ export const menuItems: MenuItem[] = [
     ],
   },
 
-  {
-    title: '报销管理',
-    icon: 'Coin',
-    module: 'reimburse',
-    groups: [
-      {
-        title: '报销单',
-        icon: 'Document',
-        color: '#409EFF',
-        children: [
-          { title: '报销单', path: '/reimburse/bill' },
-          { title: '我的报销', path: '/reimburse/mine' },
-        ],
-      },
-      {
-        title: '审批',
-        icon: 'CircleCheck',
-        color: '#E6A23C',
-        children: [
-          { title: '待审批', path: '/reimburse/approve' },
-        ],
-      },
-      {
-        title: '报销查询',
-        icon: 'Search',
-        color: '#909399',
-        children: [
-          { title: '报销查询', path: '/reimburse/query' },
-        ],
-      },
-    ],
-  },
-
+  
+  
   {
     title: '工资管理',
     icon: 'Money',
