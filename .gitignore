@@ -38,7 +38,7 @@ uploads/
 .workbuddy/
 deliverables/
 
-# 前端编译产物（双识别测试构建临时目录）
+# 前端编译产物（双识别 / 发票测试构建临时目录）
 frontend/.reparse-build/
-frontend/.invoice-test-build/
+frontend/.invoice-test-build*/
 
