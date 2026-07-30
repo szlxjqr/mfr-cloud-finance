@@ -84,18 +84,22 @@ function handleUserCommand(command: UserCommand) {
         <AppIcon class="icon-btn collapse-btn" @click="appStore.toggleSidebar()" :name="appStore.sidebarCollapsed ? 'Expand' : 'Fold'" />
       </el-tooltip>
 
-      <el-tooltip content="全局搜索" placement="bottom">
-        <AppIcon class="icon-btn" @click="() => {}" name="Search" />
+      <el-tooltip content="功能待启用" placement="bottom">
+        <AppIcon class="icon-btn" @click="() => ElMessage.info('功能待启用，敬请期待')" name="Search" />
       </el-tooltip>
     </div>
 
     <!-- 右侧功能按钮组 -->
     <div class="top-right">
-      <el-link type="primary" class="nav-link" :underline="false">在线咨询</el-link>
-      <el-link type="primary" class="nav-link" :underline="false">帮助中心</el-link>
+      <el-tooltip content="功能待启用" placement="bottom">
+        <el-link type="primary" class="nav-link" :underline="false" @click="() => ElMessage.info('功能待启用，敬请期待')">在线咨询</el-link>
+      </el-tooltip>
+      <el-tooltip content="功能待启用" placement="bottom">
+        <el-link type="primary" class="nav-link" :underline="false" @click="() => ElMessage.info('功能待启用，敬请期待')">帮助中心</el-link>
+      </el-tooltip>
 
-      <el-tooltip content="AI 助理" placement="bottom">
-        <el-tag type="primary" effect="light" round class="ai-tag">AI助理</el-tag>
+      <el-tooltip content="前往财务助手" placement="bottom">
+        <el-tag type="primary" effect="light" round class="ai-tag" @click="router.push('/')">AI助理</el-tag>
       </el-tooltip>
 
       <el-badge is-dot class="bell-icon hide-md">

@@ -258,7 +258,7 @@ function onExportPdf() {
 </template>
 
 <style scoped>
-.comprehensive { padding: 4px; }
+.comprehensive { padding: 16px; }
 .top-bar {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; border-radius: 8px;
