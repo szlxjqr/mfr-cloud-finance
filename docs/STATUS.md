@@ -23,13 +23,13 @@
 |---|---|
 | 项目根目录 | `/Users/szlxjqr/Developer/mfr-cloud-finance` |
 | Git 远程 | `https://github.com/szlxjqr/mfr-cloud-finance.git`（HTTPS） |
-| 当前分支 | `main`（HEAD: `e0ee369` 采购→报销→财务支付业务流程重构 + 4301 费用化；已 push） |
+| 当前分支 | `main`（HEAD: `72c8445`；本地领先 origin/main 2 提交（72f683e P2收口 + 72c8445 gitignore），待老板本机 push） |
 | 本地后端 | `http://127.0.0.1:8521`（`uvicorn app.main:app --port 8521`） |
 | 本地前端 | `http://localhost:5173`（`npm run dev` 开发服务器） |
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
 | 前端源码文件数 | ~52（`.vue` + `.ts`，含 api/voucher.ts 等） |
 | 科目数据 | 后端 `account_subjects` 表（28 个权威科目，由 `GET /subjects` 提供；前端原 `accountData.ts` 187 静态科目已删，统一到后端源） |
-| 测试套件 | 48 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销新流程等）+ 34 个 invoice 离线字段提取测试 |
+| 测试套件 | 69 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销/工资归档·反归档·冲销等）+ 34 个 invoice 离线字段提取测试（invoice_accuracy.mjs） |
 
 ---
 
@@ -95,6 +95,12 @@
 - 开发库实际仅用 6 个码：1403 / 2202 / 2221.01.01 / 2241 / 4301 / 5602。系统当前极简够用。
 
 ---
+
+### 出资/营收 finance 模块 + CopilotPanel + P2 UI 收口（2026-07-30）
+- **finance 模块（出资 capital_contribution / 营收 revenue）落地**：后端 `api/capital_contribution.py` + `api/revenue.py` + models/schemas + `main.py` / `models/__init__.py` 路由注册；前端 `api/capitalContribution.ts` / `revenue.ts` / `types/finance.ts` + `views/finance/*` + `router/index.ts` + `menuConfig.ts`。**已接业务驱动账务**：两模块均调 `voucher_service.generate_from_*` 生成凭证、`source_no` 幂等、反归档 `void_vouchers_by_source_no` 级联删凭证 —— 符合"业务驱动账务"灵魂，非孤立 CRUD。对应提交 `9c4d880`(后端) / `f02357a`(前端)。
+- **CopilotPanel 接进仪表盘**：`Dashboard.vue:151` 渲染 `<CopilotPanel />`（左驾驶舱 56% / 右对话窗 44%，`height:100%` 撑满）——方案 B 入口预览已真正接进，非仅挂 2 行。Panel 为方案 B 入口预览：头部"财务助手" + bubble + examples chips + footer 输入框；`openInWorkBuddy()` / `send()` 均 `ElMessage.info` 引导去 WorkBuddy，本 app 不内置大模型。对应提交 `60f061e`。
+- **P2 UI 收口**：① 对比度 AA（`style.css:79` `--text-muted` #8c8c8c→#6b6b6b，≈5.3:1）；② 顶栏假按钮降级（全局搜索/在线咨询/帮助中心 → `ElMessage.info('功能待启用，敬请期待')`，tooltip "功能待启用"；AI助理 tooltip "前往财务助手" + `@click router.push('/')` 真跳仪表盘）；③ 综合看板边距统一（`ComprehensiveDashboard.vue` `.comprehensive` 4px→16px，全站边距统一）。构建（vue-tsc + vite build）转绿。对应提交 `72f683e`。
+- **工资 P0 修复 + 回归**：归档/反归档/冲销链路验证修复；新增 `tests/test_archive_unarchive_writeoff.py` 回归（pytest 现 69 个）。对应提交 `a422230`(测试) + 早前 `07925a8`(报表 PDF 空白修复) + `a4d8ac9`/`0364508`(token 收敛 39 文件)。
 
 ## 4. 关键决策与踩坑记录
 
@@ -318,7 +324,7 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
 ## 11. 维护记录
 
 - **最后更新**：2026-07-25 17:18+（发票未归档时不再打开空白预览弹窗，已 push 同步 origin/main）
-- **Git HEAD**：`8ba7ffc`（main；已 push 到 GitHub 远程，与 origin/main 0/0 同步）
+- **Git HEAD**：`72c8445`（main；本地领先 origin/main 2 提交（72f683e P2收口 + 72c8445 gitignore），待老板本机 push；origin/main 停在 a422230）
 - **本机运行（Mac，Plan A 单机）**：后端 `uvicorn app.main:app --port 8521` 同源托管 `frontend/dist/`；前端改动后 `cd frontend && npm run build` 重建（`dist/` 已 gitignore，仅源码入库）。
 - **更新内容**：
   1. 新增发票报销模块 P0+P1+P2 闭环（进项发票后端持久化、InvoiceInput.vue 接真实后端、发票↔报销单关联、归档上传、凭证草稿）。
@@ -392,3 +398,9 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 56. 2026-07-26 上传流程压平（方案1：保留发票池+发票箱两处、压平流向）：旧 `UploadToInboxDialog.confirmAll` 只调 `inboxApi.upload` 写发票箱、从不建池记录，导致老板「32 张上传只见 ~12 张在池」对不上。改为——双识别一致可信票 `invoiceApi.create` 直入**发票池**+`uploadAttachment` 归档；双识别不一致/解析失败隔离进**发票箱**待复核（`needs_review`）。新增 `mapToCreatePayload`，结果面板加「待复核」态，按钮「暂存到发票池」→「确认入库」。`vue-tsc -b` + `vite build`(2501 模块) 均通过（dist 清理被沙箱守卫拦、与代码无关）。未提交，待老板本机 push。注：2026-07-26 早还修了 batch-link 422 / 发票预览模糊(DPR) / 预览区放大 50% / 上传上限 20→50，详见 `WorkBuddy/Claw/.workbuddy/memory/2026-07-26.md`。
   - 57. 2026-07-26 老板授权真实库变动：把发票箱 18 张记录（3 needs_review 轮趣科技 + 15 recognized）批量**搬入发票池**（move 语义：入池后 DELETE 发票箱记录）。先备份 `backend/smart_finance.db`→`/tmp/smart_finance.db.bak-promote-20260726-143631`；脚本 `/tmp/promote_inbox_to_pool.py`（stdlib urllib，NO_PROXY 绕代理访问 8523）。结果：**新入池 6 张**（池 id 13–18，含 3 张双识别不一致 remark 标「双识别不一致-待复核(批量入池)」）+ **已存在跳过 12 张**（409，本就在池——即老板早先清库重入那批，印证「池12/箱18 对不上」是大量重叠）+ 失败 0。终态核验：发票箱剩 0、发票池未挂接 10（原4+新6）、3 张带待复核标记。两处概念彻底对齐，发票箱此后只会在双识别不一致/解析失败的新上传时出现。
   - 58. 2026-07-26 续（老板纠正）：双识别不一致发票**禁止入池**。上条 57 的批量搬池把 3 张 needs_review（轮趣科技，OCR 乱码金额）也写进了池，违反压平设计。针对性 API 回滚（不动全库，避免把已正确入池的 15 张也拽出）：取池里 3 张「双识别不一致-待复核」标记票（池 id 15/16/17），反构 `extracted_json`（`recognition.consistent=false` 保留乱码明细）重建为发票箱 `needs_review` 记录，再 `DELETE` 移出池（脚本 `/tmp/rollback_bad2.py`，DRY_RUN 守卫）。终态：发票箱 = 3（全待复核）、发票池未挂接 = 7。关键发现：早先搬池已 `os.remove` 删掉 18 张源 PDF（`uploads/inbox`/`uploads/invoices` 均空），源件不可恢复，故回滚用占位 PDF 注明"请重传或手填"。人工复核"地方"已就位：发票箱页 → 筛选「待复核」→ 行「复核」→ `InvoiceRecognizeDialog` 手改 → 转 `recognized`。该双识别 UI 属未提交 WIP，老板 5173 须跑该版本。
+  - 59. 2026-07-30 收口轮（A 路线）：finance 模块（出资/营收）后端+前端落地，已接业务驱动账务（generate_from_* 凭证联动 + source_no 幂等 + 反归档 void 级联删凭证），对应 9c4d880(后端)/f02357a(前端)。
+  - 60. 2026-07-30：CopilotPanel（方案 B 入口预览）经核实已在 Dashboard.vue:151 真正接进仪表盘（左驾驶舱 56% / 右对话窗 44%，height:100% 撑满）；此前"只挂 2 行、没接进"为误判，已纠正。Panel 不内置大模型，对话由 WorkBuddy 承载。对应 60f061e。
+  - 61. 2026-07-30 收口轮 P2 UI：对比度 AA（style.css:79 --text-muted #8c8c8c→#6b6b6b ≈5.3:1）/ 顶栏假按钮降级（全局搜索·在线咨询·帮助中心 → ElMessage.info('功能待启用，敬请期待')；AI助理 tooltip "前往财务助手" + router.push('/') 真跳仪表盘）/ 综合看板边距 4px→16px 统一；vue-tsc + vite build 转绿。对应 72f683e。
+  - 62. 2026-07-30：71 个未提交改动按业务模块拆分 8 个语义 commit（finance 后端/前端、CopilotPanel、print PDF 修复、token 收敛 2、后端 WIP、工资归档·反归档·冲销回归测试）全部提交并推送 origin/main（a422230，5c1e8d5..a422230）；4 个 .invoice-test-build* 临时目录排除未提交。
+  - 63. 2026-07-30 chore：.gitignore `frontend/.invoice-test-build/` → `frontend/.invoice-test-build*/`，覆盖 -all/-real950/-real950-15/-2 等变体，防 git add -A 误纳入前端临时构建目录。对应 72c8445。
+  - 64. 2026-07-30 修正记忆误判：此前记"沙箱到 github.com:443 超时不能 push"，实测本会话 `git push origin main` 成功（GIT_HTTP_VERSION=1.1 + osxkeychain 凭据），沙箱实际可连 GitHub；旧"443 超时"结论作废。STATUS §4「git push HTTP/2 卡死」条目仍成立（HTTP/2 多路复用卡 TLS，降 1.1 即通），与"沙箱可连"不矛盾。
