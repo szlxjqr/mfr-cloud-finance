@@ -80,6 +80,30 @@ def _derive(data: dict) -> dict:
     return data
 
 
+def _derive_with_settings(db: Session, data: dict) -> dict:
+    """按「全局工资设置」强制重算代扣项与派生值（后端唯一口径）。
+
+    与 _derive() 的区别：社保个人 / 公积金个人 / 个税 **不采信前端传值**，
+    一律由 salary_service.compute_deductions() 依据 salary_settings 单例重算后覆盖，
+    避免前端漏传导致代扣项落 0（汇总页社保/公积金/个税全为 ¥0 的缺陷）。
+    """
+    _derive(data)  # 先归一化组件字段并算出 gross_pay
+    calc = svc.compute_deductions(
+        db,
+        base_salary=data["base_salary"],
+        performance=data["performance"],
+        overtime=data["overtime"],
+        bonus=data["bonus"],
+    )
+    data["gross_pay"] = _to_decimal(calc["gross_pay"])
+    data["social_personal"] = _to_decimal(calc["social_personal"])
+    data["fund_personal"] = _to_decimal(calc["fund_personal"])
+    data["tax_personal"] = _to_decimal(calc["tax_personal"])
+    data["deduct_total"] = _to_decimal(calc["deduct_total"])
+    data["net_pay"] = _to_decimal(calc["net_pay"])
+    return data
+
+
 def _recompute(obj: m.SalaryBill) -> None:
     """对已有对象按其当前组件字段重算派生值并写回。"""
     d = _derive(
@@ -93,6 +117,25 @@ def _recompute(obj: m.SalaryBill) -> None:
             "tax_personal": obj.tax_personal,
         }
     )
+    obj.gross_pay = d["gross_pay"]
+    obj.deduct_total = d["deduct_total"]
+    obj.net_pay = d["net_pay"]
+
+
+def _recompute_with_settings(db: Session, obj: m.SalaryBill) -> None:
+    """对已有对象按「全局工资设置」强制重算代扣项与派生值并写回。"""
+    d = _derive_with_settings(
+        db,
+        {
+            "base_salary": obj.base_salary,
+            "performance": obj.performance,
+            "overtime": obj.overtime,
+            "bonus": obj.bonus,
+        },
+    )
+    obj.social_personal = d["social_personal"]
+    obj.fund_personal = d["fund_personal"]
+    obj.tax_personal = d["tax_personal"]
     obj.gross_pay = d["gross_pay"]
     obj.deduct_total = d["deduct_total"]
     obj.net_pay = d["net_pay"]
@@ -167,7 +210,8 @@ def create_bill(payload: s.SalaryBillCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
     if not data.get("salary_no"):
         data["salary_no"] = gen_salary_no(db)
-    _derive(data)
+    # 代扣项以后端全局设置为准：前端即便传了 social/fund/tax 也会被重算结果覆盖
+    _derive_with_settings(db, data)
     obj = m.SalaryBill(**data)
     db.add(obj)
     db.commit()
@@ -183,9 +227,11 @@ def get_bill(bid: int, db: Session = Depends(get_db)):
 @router.put("/{bid}", response_model=s.SalaryBillRead)
 def update_bill(bid: int, payload: s.SalaryBillUpdate, db: Session = Depends(get_db)):
     obj = _get_or_404(db, bid)
+    svc.get_settings(db)  # 预取设置单例，避免其缺失时在字段变更后触发隐式 commit
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(obj, k, v)
-    _recompute(obj)
+    # 代扣项以后端全局设置为准：前端即便传了 social/fund/tax 也会被重算结果覆盖
+    _recompute_with_settings(db, obj)
     db.commit()
     db.refresh(obj)
     return obj
