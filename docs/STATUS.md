@@ -29,7 +29,7 @@
 | 生产构建 | `frontend/dist/`（`npm run build` 产出） |
 | 前端源码文件数 | ~52（`.vue` + `.ts`，含 api/voucher.ts 等） |
 | 科目数据 | 后端 `account_subjects` 表（28 个权威科目，由 `GET /subjects` 提供；前端原 `accountData.ts` 187 静态科目已删，统一到后端源） |
-| 测试套件 | 88 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销/工资归档·反归档·冲销/**finance 出资·营收模块**等）+ 34 个 invoice 离线字段提取测试（invoice_accuracy.mjs） |
+| 测试套件 | 94 个 pytest 回归测试（含凭证状态机/期初余额派生/综合看板/采购转报销/工资归档·反归档·冲销/finance 出资·营收模块/**工资代扣项自动计算 HTTP 接口**等）+ 34 个 invoice 离线字段提取测试（invoice_accuracy.mjs） |
 
 ---
 
@@ -405,4 +405,5 @@ getent hosts github.com        # 若解析到 198.18.x.x 即为透明代理拦�
   - 62. 2026-07-30：71 个未提交改动按业务模块拆分 8 个语义 commit（finance 后端/前端、CopilotPanel、print PDF 修复、token 收敛 2、后端 WIP、工资归档·反归档·冲销回归测试）全部提交并推送 origin/main（a422230，5c1e8d5..a422230）；4 个 .invoice-test-build* 临时目录排除未提交。
   - 63. 2026-07-30 chore：.gitignore `frontend/.invoice-test-build/` → `frontend/.invoice-test-build*/`，覆盖 -all/-real950/-real950-15/-2 等变体，防 git add -A 误纳入前端临时构建目录。对应 72c8445。
   - 64. 2026-07-30 修正记忆误判：此前记"沙箱到 github.com:443 超时不能 push"，实测本会话 `git push origin main` 成功（GIT_HTTP_VERSION=1.1 + osxkeychain 凭据），沙箱实际可连 GitHub；旧"443 超时"结论作废。STATUS §4「git push HTTP/2 卡死」条目仍成立（HTTP/2 多路复用卡 TLS，降 1.1 即通），与"沙箱可连"不矛盾。
-  - 65. 2026-07-30 下一轮测试（1+2）收口：① finance 模块补 pytest——新增 tests/test_finance_capital_contribution.py(9)+tests/test_finance_revenue.py(10)，覆盖凭证自动生成/API+生成器双层 source_no 幂等/反归档级联删凭证/零金额边界/应收账款·零税率变体；全量 pytest 88 passed 0 failed（原 69+新增19）。② CopilotPanel 前端冒烟：项目无测试框架、零新增依赖，以构建绿+渲染路径核对+交互安全分析交付（手动冒烟清单见 QA 报告）。智能路由 NoOne（源码无 Bug）。对应 commit 待入库。
+  - 65. 2026-07-30 下一轮测试（1+2）收口：① finance 模块补 pytest——新增 tests/test_finance_capital_contribution.py(9)+tests/test_finance_revenue.py(10)，覆盖凭证自动生成/API+生成器双层 source_no 幂等/反归档级联删凭证/零金额边界/应收账款·零税率变体；全量 pytest 88 passed 0 failed（原 69+新增19）。② CopilotPanel 前端冒烟：项目无测试框架、零新增依赖，以构建绿+渲染路径核对+交互安全分析交付（手动冒烟清单见 QA 报告）。智能路由 NoOne（源码无 Bug）。对应 commit 6330186。
+  - 66. 2026-07-31 工资代扣项 BugFix：老板拍板 A(改)+X(强制口径)。`create_bill`/`update_bill` 落库前调 `compute_deductions` 按全局设置（salary_settings 单例）自动重算社保/公积金/个税（X：前端传值一律被覆盖）；沈雷 2026-08 脏数据精确回填（社保420/公积金480/个税0/代扣900/实发3100，带 id 精确 UPDATE、先 SELECT 确认 1 行、备份 /tmp）。新增 tests/test_salary_deduction_api.py(6，走真实 HTTP 路线A + admin 鉴权夹具 tests/conftest.py)，覆盖漏传自动算/传错被覆盖/update 强制重算/只改组件不残留旧值/设置变更生效/固定比例个税；全量 pytest **94 passed 0 failed**（88+6）。智能路由 NoOne。对应 commit 9193312(fix)+b88abd6(test)。另：submit/approve/archive 仍走旧 `_recompute`（无害，待后续统一收敛）。
