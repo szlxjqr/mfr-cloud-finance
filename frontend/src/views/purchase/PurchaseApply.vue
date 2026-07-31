@@ -46,21 +46,51 @@
     </el-table>
     </DataLoader>
 
-    <!-- 新建/编辑弹窗 -->
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑采购申请' : '新建采购申请'" width="860px" :close-on-click-modal="false">
-      <el-form :model="form" label-width="110px">
-        <!-- 抬头区 -->
-        <el-form-item label="申请单号">
-          <el-input :model-value="form.req_no || previewReqNo || '保存后自动生成'" disabled />
+    <!-- 新建/编辑弹窗（参考企业管理系统 UI：label-top + 必填星号 + 虚线添加区 + 字数统计） -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editing ? '编辑采购申请' : '新建采购申请'"
+      width="640px"
+      :close-on-click-modal="false"
+      class="form-dialog"
+    >
+      <el-form :model="form" label-position="top" class="purchase-form">
+        <!-- 基本信息区 -->
+        <div class="form-section-title">基本信息</div>
+
+        <el-form-item label="标题" required>
+          <el-input v-model="form.item_name" placeholder="如：采购算力服务器" />
         </el-form-item>
-        <el-form-item label="申请人" required>
-          <el-input v-model="form.applicant" placeholder="必填" />
-        </el-form-item>
-        <el-form-item label="部门">
-          <el-select v-model="form.department" placeholder="请选择部门" clearable style="width: 100%">
-            <el-option v-for="d in DEPARTMENTS" :key="d" :label="d" :value="d" />
-          </el-select>
-        </el-form-item>
+
+        <div class="form-row">
+          <el-form-item label="申请人" required class="flex-1">
+            <el-input v-model="form.applicant" placeholder="请输入申请人姓名" />
+          </el-form-item>
+          <el-form-item label="申请部门" required class="flex-1">
+            <el-select v-model="form.department" placeholder="请选择部门" style="width: 100%">
+              <el-option v-for="d in DEPARTMENTS" :key="d" :label="d" :value="d" />
+            </el-select>
+          </el-form-item>
+        </div>
+
+        <div class="form-row">
+          <el-form-item label="采购类型" class="flex-1">
+            <el-select v-model="form.purchase_type" placeholder="请选择采购类型" clearable style="width: 100%">
+              <el-option label="设备采购" value="设备采购" />
+              <el-option label="服务采购" value="服务采购" />
+              <el-option label="耗材采购" value="耗材采购" />
+              <el-option label="其他" value="其他" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="紧急程度" class="flex-1">
+            <el-select v-model="form.urgency" placeholder="请选择" style="width: 100%">
+              <el-option label="一般" value="一般" />
+              <el-option label="紧急" value="紧急" />
+              <el-option label="非常紧急" value="非常紧急" />
+            </el-select>
+          </el-form-item>
+        </div>
+
         <el-form-item label="是否归属研发项目">
           <el-radio-group v-model="form.is_rd_project">
             <el-radio label="是">是</el-radio>
@@ -70,16 +100,38 @@
         <el-form-item label="项目编码" required v-if="form.is_rd_project === '是'">
           <el-input v-model="form.rd_project_code" placeholder="如：RD2026-001" />
         </el-form-item>
-        <el-form-item label="采购事由">
-          <el-input v-model="form.reason" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="2" />
+
+        <el-form-item label="采购原因" required>
+          <el-input
+            v-model="form.reason"
+            type="textarea"
+            :rows="3"
+            placeholder="请描述采购原因和用途..."
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
 
-        <!-- 明细区 -->
-        <el-divider content-position="left">采购明细（可一次采购多个物品 / 服务）</el-divider>
-        <div class="items-wrap">
+        <el-form-item label="备注">
+          <el-input
+            v-model="form.remark"
+            type="textarea"
+            :rows="2"
+            placeholder="选填，其他需要说明的信息"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+
+        <!-- 采购明细区 -->
+        <div class="form-section-title">采购清单</div>
+
+        <div class="add-zone" @click="addItem">
+          <span class="add-icon">＋</span>
+          <span>添加物品</span>
+        </div>
+
+        <div class="items-wrap" v-if="form.items.length">
           <el-table :data="form.items" border>
             <el-table-column label="序号" width="50" align="center">
               <template #default="{ $index }">{{ $index + 1 }}</template>
@@ -99,7 +151,7 @@
                 <el-input-number v-model="row.quantity" :min="1" :controls="false" size="small" style="width: 100%" />
               </template>
             </el-table-column>
-            <el-table-column label="预算金额(元)" width="140" align="right">
+            <el-table-column label="预算金额(元)" width="130" align="right">
               <template #default="{ row }">
                 <el-input-number
                   v-model="row.amount"
@@ -116,11 +168,6 @@
                 <el-input v-model="row.supplier" size="small" placeholder="选填" />
               </template>
             </el-table-column>
-            <el-table-column label="备注" min-width="110">
-              <template #default="{ row }">
-                <el-input v-model="row.remark" size="small" placeholder="选填" />
-              </template>
-            </el-table-column>
             <el-table-column label="操作" width="70" align="center" fixed="right">
               <template #default="{ $index }">
                 <el-button link type="danger" size="small" @click="removeItem($index)">删除</el-button>
@@ -128,14 +175,15 @@
             </el-table-column>
           </el-table>
           <div class="items-footer">
-            <el-button type="primary" plain size="small" @click="addItem">＋ 添加明细</el-button>
             <span class="items-total">合计金额：<b>¥{{ itemsTotal.toFixed(2) }}</b></span>
           </div>
         </div>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <div class="dialog-footer-actions">
+          <el-button @click="dialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="save">确定</el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -143,10 +191,11 @@
     <el-dialog
       v-model="approveDialogVisible"
       :title="approveAction === 'approve' ? '审批通过' : '驳回采购申请'"
-      width="420px"
+      width="480px"
       :close-on-click-modal="false"
+      class="form-dialog"
     >
-      <el-form ref="approveFormRef" :model="approveForm" :rules="approveRules" label-width="90px">
+      <el-form ref="approveFormRef" :model="approveForm" :rules="approveRules" label-position="top">
         <el-form-item label="申请单号">
           <el-input :model-value="approveRow?.req_no ?? approveRow?.id" disabled />
         </el-form-item>
@@ -154,14 +203,23 @@
           <el-input v-model="approveForm.approver" placeholder="请输入审批人姓名" />
         </el-form-item>
         <el-form-item label="审批意见">
-          <el-input v-model="approveForm.remark" type="textarea" :rows="3" placeholder="选填" />
+          <el-input
+            v-model="approveForm.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="选填，填写审批意见..."
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="approveDialogVisible = false">取消</el-button>
-        <el-button :type="approveAction === 'approve' ? 'success' : 'danger'" @click="submitApprove">
-          {{ approveAction === 'approve' ? '确认通过' : '确认驳回' }}
-        </el-button>
+        <div class="dialog-footer-actions">
+          <el-button @click="approveDialogVisible = false">取消</el-button>
+          <el-button :type="approveAction === 'approve' ? 'success' : 'danger'" @click="submitApprove">
+            {{ approveAction === 'approve' ? '确认通过' : '确认驳回' }}
+          </el-button>
+        </div>
       </template>
     </el-dialog>
 
@@ -267,6 +325,8 @@ const emptyForm = () => ({
   is_rd_project: '否',
   rd_project_code: '',
   remark: '',
+  purchase_type: '',
+  urgency: '一般',
   items: [emptyItem()],
 })
 const form = reactive(emptyForm())
@@ -392,6 +452,18 @@ function buildPayload(): Record<string, unknown> {
 async function save() {
   if (!form.applicant.trim()) {
     ElMessage.warning('请填写申请人')
+    return
+  }
+  if (!form.department) {
+    ElMessage.warning('请选择申请部门')
+    return
+  }
+  if (!form.item_name.trim()) {
+    ElMessage.warning('请填写采购标题')
+    return
+  }
+  if (!form.reason.trim()) {
+    ElMessage.warning('请填写采购原因')
     return
   }
   const items = form.items || []
@@ -692,12 +764,12 @@ onMounted(load)
 .page { padding: 16px; }
 .toolbar { display: flex; gap: 12px; margin-bottom: 12px; }
 .form-row { display: flex; gap: 16px; }
-.form-row .el-form-item { flex: 1; min-width: 0; }
-.items-wrap { margin-top: 4px; }
+.form-row .flex-1 { flex: 1; min-width: 0; }
+.items-wrap { margin-top: var(--space-4, 16px); }
 .items-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-top: 10px;
 }
 .items-total { font-size: 14px; color: var(--text-strong); }
@@ -705,4 +777,12 @@ onMounted(load)
 .amt { font-family: 'Courier New', monospace; font-weight: 600; }
 .detail-footer { display: flex; justify-content: flex-end; gap: 12px; }
 .detail-loading { padding: 80px 0; text-align: center; color: var(--text-muted); }
+.dialog-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+/* 覆盖 EP 默认 dialog body padding，给 label-top 布局更多空间 */
+.purchase-form :deep(.el-form-item) { margin-bottom: 20px; }
 </style>

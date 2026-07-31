@@ -392,3 +392,138 @@ a {
     display: none !important;
   }
 }
+
+/* ============ 表单设计语言（参考企业管理系统 UI 规范，全站弹窗默认生效） ============ */
+
+/* ---- 增强型表单对话框：label-top + 充足间距 + 必填星号 ---- */
+/* 作用域直接挂在 .el-dialog 上，系统内所有 el-dialog 内的 el-form 自动继承该风格 */
+.el-dialog .el-form {
+  /* label-top 布局：标签在输入框上方，移动端友好且视觉层级清晰 */
+}
+.el-dialog .el-form-item {
+  margin-bottom: var(--space-5, 24px);
+}
+/* 强制 dialog 内表单采用 label-top 视觉（不依赖逐页 label-position prop） */
+.el-dialog .el-form .el-form-item {
+  display: block;
+}
+.el-dialog .el-form .el-form-item__label {
+  display: block;
+  width: auto !important;
+  float: none;
+  text-align: left;
+  padding: 0 0 6px;
+  height: auto;
+  line-height: 1.4;
+}
+.el-dialog .el-form .el-form-item__content {
+  margin-left: 0 !important;
+  line-height: var(--el-form-item-content-line-height, 22px);
+}
+.el-dialog .el-form-item__label {
+  font-size: var(--fs-sm, 13.5px);
+  color: var(--text-base);
+  font-weight: 500;
+  padding-bottom: 6px;
+  line-height: 1.4;
+}
+/* 必填项红色星号（在 label 文字前；特异度高于 EP 默认 ::before，避免双星号） */
+.el-dialog .el-form-item.is-required > .el-form-item__label::before {
+  content: '*';
+  color: var(--danger, #ff4d4f);
+  margin-right: 4px;
+  font-weight: 700;
+}
+/* 覆盖 EP 默认星号（label 后面的），避免双星号 */
+.el-dialog .el-form-item.is-required > .el-form-item__label::after {
+  content: none;
+}
+
+/* ---- 输入框增强：统一圆角与聚焦环 ---- */
+.el-dialog .el-input__wrapper,
+.el-dialog .el-select .el-input__wrapper,
+.el-dialog .el-textarea__inner {
+  border-radius: var(--r-base, 6px);
+  transition: border-color var(--motion-base), box-shadow var(--motion-base);
+}
+.el-dialog .el-input__wrapper:focus-within,
+.el-dialog .el-select .el-input__wrapper:focus-within,
+.el-dialog .el-textarea__inner:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(22, 103, 255, 0.08);
+}
+
+/* ---- 虚线添加区（替代普通按钮的"添加物品"入口） ---- */
+.add-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px dashed var(--border-soft);
+  border-radius: var(--r-md, 8px);
+  padding: 16px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: var(--fs-sm, 13.5px);
+  background: transparent;
+  transition: all var(--motion-base);
+  user-select: none;
+  width: 100%;
+}
+.add-zone:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--el-color-primary-light-9, #f0f5ff);
+}
+.add-zone .add-icon {
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* ---- 文本域字数统计 ---- */
+.char-counter {
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-top: 4px;
+  line-height: 1;
+}
+.char-counter.warn {
+  color: var(--warning);
+}
+.char-counter.limit {
+  color: var(--danger);
+}
+
+/* ---- 表单分区标题 ---- */
+.form-section-title {
+  font-size: var(--fs-sm, 13.5px);
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: var(--space-6, 32px) 0 var(--space-4, 16px);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.form-section-title:first-child {
+  margin-top: 0;
+}
+
+/* ---- 对话框标题栏增强：操作按钮右对齐 ---- */
+.el-dialog .el-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 0;
+  border-bottom: none;
+}
+.el-dialog .el-dialog__title {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text-strong);
+}
+.el-dialog .dialog-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
